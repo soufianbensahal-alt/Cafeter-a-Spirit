@@ -4,11 +4,13 @@
 
 | Token | Valor | Uso |
 |---|---:|---|
-| `--mustard` | `#F4CD4A` | Marca, sellos y acentos |
-| `--mustard-deep` | `#A9924A` | Profundidad, bordes y foco |
-| `--ink` | `#1D1B16` | Texto y superficies oscuras |
-| `--cream` | `#FFF8E4` | Fondo principal |
-| `--paper` | `#FFFDF8` | Tarjetas y modales |
+| `--mustard` | `#EECF62` | Color primario extraído del logotipo |
+| `--mustard-deep` | `#B89A42` | Profundidad, bordes y foco |
+| `--mustard-dark` | `#695C2C` | Texto de marca y acentos oscuros |
+| `--ink` | `#2E2D29` | Texto y superficies oscuras |
+| `--cream` | `#FEF8E6` | Fondo principal |
+| `--paper` | `#FFFCF4` | Modales y superficies cálidas |
+| `--surface` | `#FFFDF8` | Tarjetas, campos y navegación |
 | `--gutter` | `20px` | Margen móvil constante |
 | `--radius-sm` | `16px` | Campos y arte |
 | `--radius-md` | `24px` | Tarjetas |
