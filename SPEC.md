@@ -4,7 +4,7 @@
 
 | Token | Valor | Uso |
 |---|---:|---|
-| `--mustard` | `#EECF62` | Color primario extraído del logotipo |
+| `--mustard` | `#EECF62` | Fondo global y color primario extraído del logotipo |
 | `--mustard-deep` | `#B89A42` | Profundidad, bordes y foco |
 | `--mustard-dark` | `#695C2C` | Texto de marca y acentos oscuros |
 | `--ink` | `#2E2D29` | Texto y superficies oscuras |

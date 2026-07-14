@@ -8,7 +8,7 @@
   --ink: #2e2d29;
   --muted: #6f695a;
   --line: #e7dcb8;
-  --frame: #c8b36b;
+  --frame: #eecf62;
   --danger: #984438;
   --success: #496347;
   --shadow: 0 8px 0 rgba(105, 92, 44, .22);
@@ -35,13 +35,13 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--mustard-dark); 
 .intro-video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .intro-skip { position: absolute; z-index: 2; top: max(20px, env(safe-area-inset-top)); right: 20px; min-width: 76px; min-height: 44px; padding: 0 16px; border: 1px solid rgba(255,255,255,.32); border-radius: var(--radius-pill); background: rgba(9,8,6,.38); backdrop-filter: blur(12px); color: white; font-size: 13px; font-weight: 700; cursor: pointer; }
 .intro-skip:focus-visible { outline: 3px solid var(--mustard); outline-offset: 3px; }
-.app-shell { min-height: 100svh; max-width: 520px; margin: 0 auto; background: var(--cream); position: relative; overflow-x: hidden; box-shadow: 0 0 80px rgba(75,63,26,.16); }
-.screen { min-height: 100svh; padding: 24px var(--gutter) calc(var(--nav-height) + 28px); animation: screen-in .35s cubic-bezier(.2,.8,.2,1) both; }
+.app-shell { min-height: 100svh; max-width: 520px; margin: 0 auto; background: var(--mustard); position: relative; overflow-x: hidden; box-shadow: 0 0 80px rgba(75,63,26,.16); }
+.screen { min-height: 100svh; padding: 24px var(--gutter) calc(var(--nav-height) + 28px); background: var(--mustard); animation: screen-in .35s cubic-bezier(.2,.8,.2,1) both; }
 .screen--gold { background: var(--mustard); }
 @keyframes screen-in { from { opacity: 0; transform: translateY(8px); } }
 
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 28px; }
-.brand { display: flex; align-items: center; justify-content: center; min-width: 72px; padding: 7px 14px; border-radius: 18px; background: var(--mustard); }
+.brand { display: flex; align-items: center; justify-content: center; min-width: 72px; padding: 7px 14px; border-radius: 18px; background: transparent; }
 h1, h2, h3 { font-family: "DM Serif Display", Georgia, serif; font-weight: 400; }
 .brand-logo { display: block; width: auto; object-fit: contain; flex: 0 0 auto; }
 .brand-logo--header { height: 58px; }
