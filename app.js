@@ -21,7 +21,7 @@ const nav = (active) => `<nav class="bottom-nav" aria-label="Navegación princip
   ${[['home','Inicio','home'],['rewards','Premios','gift'],['history','Historial','clock'],['profile','Perfil','user']].map(([id,label,icon]) => `<button class="nav-item ${active===id?'nav-item--active':''}" data-nav="${id}" aria-label="${label}"><span class="nav-icon">${icons[icon]}</span><span>${label}</span></button>`).join('')}
 </nav>`;
 
-const topbar = () => `<header class="topbar"><div class="brand">${brandLogo()}</div></header>`;
+const topbar = (featured = false) => `<header class="topbar ${featured ? 'topbar--centered' : ''}"><div class="brand">${brandLogo(featured ? 'home' : 'header')}</div></header>`;
 
 const quickLinks = [
   {name: 'Carta', subtitle: 'Ver menú', icon: 'card', href: 'https://www.canva.com/design/DAFuLPRj4h0/7QGyk7rWcsZD3K84qNLTqA/view?utm_content=DAFuLPRj4h0&utm_campaign=designshare&utm_medium=link&utm_source=editor'},
@@ -56,7 +56,7 @@ function onboarding() {
 
 function home() {
   const stamps = Array.from({length:8},(_,i)=>`<span class="stamp ${i<state.stamps?'stamp--earned':''}">${icons.cup}</span>`).join('');
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">Brunch & specialty coffee</p><h1>Hola, ${state.user} ✨<br>Hoy toca café.</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">Tu tarjeta Spirit</span><div class="loyalty-card__count">${state.stamps}/8</div></div><span class="reward-chip">Café gratis</span></div><div class="stamps">${stamps}</div><div class="progress-copy">Te quedan ${8-state.stamps} sellos para tu café gratis</div></article><div class="section-head"><h2>Accesos rápidos</h2></div>${quickAccess()}</section>${nav('home')}</main>`;
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>Hola, ${state.user} ✨<br>Hoy toca café.</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">Tu tarjeta Spirit</span><div class="loyalty-card__count">${state.stamps}/8</div></div><span class="reward-chip">Café gratis</span></div><div class="stamps">${stamps}</div><div class="progress-copy">Te quedan ${8-state.stamps} sellos para tu café gratis</div></article><div class="section-head"><h2>Accesos rápidos</h2></div>${quickAccess()}</section>${nav('home')}</main>`;
 }
 
 function rewards() {

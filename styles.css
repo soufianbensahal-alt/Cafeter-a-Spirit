@@ -42,10 +42,12 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--mustard-dark); 
 @keyframes screen-in { from { opacity: 0; transform: translateY(8px); } }
 
 .topbar { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 28px; }
+.topbar--centered { justify-content: center; margin-bottom: 32px; }
 .brand { display: flex; align-items: center; justify-content: flex-start; min-width: 72px; background: transparent; }
 h1, h2, h3 { font-family: "DM Serif Display", Georgia, serif; font-weight: 400; }
 .brand-logo { display: block; width: auto; object-fit: contain; flex: 0 0 auto; }
 .brand-logo--header { height: 58px; }
+.brand-logo--home { height: 94px; }
 
 .eyebrow { margin: 0 0 8px; color: var(--mustard-dark); text-transform: uppercase; letter-spacing: .12em; font-size: 12px; font-weight: 700; }
 h1 { font-size: clamp(36px, 10vw, 48px); line-height: .98; margin: 0; letter-spacing: -.025em; }
