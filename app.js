@@ -24,17 +24,16 @@ const nav = (active) => `<nav class="bottom-nav" aria-label="Navegación princip
 const topbar = () => `<header class="topbar"><div class="brand">${brandLogo()}</div></header>`;
 
 const quickLinks = [
-  {name: 'Carta', subtitle: 'Ver menú', icon: 'card', href: 'https://tr.ee/UbGt18dYlY'},
-  {name: 'WhatsApp', subtitle: 'Escríbenos', icon: 'whatsapp', href: 'https://tr.ee/MNZBFbQIOs'},
-  {name: 'Instagram', subtitle: 'Síguenos', icon: 'camera', href: 'https://tr.ee/LxuD-g65RT'},
-  {name: 'TikTok', subtitle: 'Vídeos', icon: 'tiktok', href: 'https://tr.ee/Vyl-YZpF5k'},
-  {name: 'Google', subtitle: 'Reseña', icon: 'star', href: 'https://tr.ee/znxC51EoQj'},
-  {name: 'Just Eat', subtitle: 'Delivery', image: 'assets/just-eat-logo.avif', href: 'https://tr.ee/0zJQN0zih0'},
-  {name: 'Uber Eats', subtitle: 'Delivery', image: 'assets/uber-eats-logo.png', href: 'https://tr.ee/Bxb4la_xFI'},
-  {name: 'Glovo', subtitle: 'Delivery', image: 'assets/glovo-logo.png', href: 'https://tr.ee/MdPZ4VJDFw'},
+  {name: 'Carta', subtitle: 'Ver menú', icon: 'card', href: 'https://www.canva.com/design/DAFuLPRj4h0/7QGyk7rWcsZD3K84qNLTqA/view?utm_content=DAFuLPRj4h0&utm_campaign=designshare&utm_medium=link&utm_source=editor'},
+  {name: 'WhatsApp', subtitle: 'Escríbenos', icon: 'whatsapp', href: 'https://api.whatsapp.com/send/?phone=34697721877&text&type=phone_number&app_absent=0'},
+  {name: 'Instagram', subtitle: 'Síguenos', icon: 'camera', href: 'https://www.instagram.com/cafeteriaspirit?igsh=MXBwZ3Y0NnhlNDYxag%3D%3D'},
+  {name: 'TikTok', subtitle: 'Vídeos', icon: 'tiktok', href: 'https://www.tiktok.com/@spiritcoffee?_t=8mkgPy4coZF&_r=1'},
+  {name: 'Google', subtitle: 'Déjanos una reseña', icon: 'star', href: 'https://google.com/maps/place//data=!4m3!3m2!1s0x12a4bdafe69b5aed:0x4b27331104bb0ad2!12e1?source=g.page.m.dd._&laa=lu-desktop-reviews-dialog-review-solicitation'},
+  {name: 'Just Eat', subtitle: 'Pedir a domicilio', image: 'assets/just-eat-logo.avif', href: 'https://www.just-eat.es/restaurants-spirit-and-coffee-montcada-i-reixac'},
+  {name: 'Uber Eats', subtitle: 'Pedir a domicilio', image: 'assets/uber-eats-logo.png', transparentIcon: true, href: 'https://www.ubereats.com/es/store/spirit-%26-coffee/S3m66DcHSLCtmmwzHhlp7A?diningMode=DELIVERY'},
 ];
 
-const quickAccess = () => `<div class="quick-grid">${quickLinks.map((item) => `<a class="quick-card" href="${item.href}" target="_blank" rel="noopener noreferrer" aria-label="${item.name}: ${item.subtitle}"><span class="quick-card__icon">${item.image ? `<img src="${item.image}" alt="" loading="lazy">` : icons[item.icon]}</span><span class="quick-card__copy"><strong>${item.name}</strong><small>${item.subtitle}</small></span></a>`).join('')}</div>`;
+const quickAccess = () => `<div class="quick-grid">${quickLinks.map((item) => `<a class="quick-card" href="${item.href}" target="_blank" rel="noopener noreferrer" aria-label="${item.name}: ${item.subtitle}"><span class="quick-card__icon ${item.transparentIcon ? 'quick-card__icon--transparent' : ''}">${item.image ? `<img src="${item.image}" alt="" loading="lazy">` : icons[item.icon]}</span><span class="quick-card__copy"><strong>${item.name}</strong><small>${item.subtitle}</small></span></a>`).join('')}</div>`;
 
 function intro() {
   return `<main class="intro-screen" data-action="skip-intro" aria-label="Introducción de Cafetería Spirit. Toca para omitir.">
