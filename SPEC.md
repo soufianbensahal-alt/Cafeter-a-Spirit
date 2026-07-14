@@ -24,7 +24,7 @@ La escala de espacio usa 4, 8, 12, 16, 20, 24 y 32 px. Los controles interactivo
 - `LoyaltyCard`: ocho sellos, contador, recompensa objetivo y mensaje dinámico.
 - `RewardCard`: arte 82×92 px, nombre máximo visual de una línea, coste y botón siempre visible.
 - `HistoryRow`: icono, descripción, fecha y variación de sellos.
-- `BottomNav`: cuatro destinos persistentes; altura de 76 px más safe-area.
+- `BottomNav`: componente flotante glassmorphism con cuatro destinos persistentes, desenfoque de fondo y separación mediante `safe-area-inset-bottom`.
 - `Modal`: confirmación de canje y código numérico de seis dígitos.
 
 ## Estados incluidos
