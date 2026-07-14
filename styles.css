@@ -38,11 +38,10 @@ button { color: inherit; }
 @keyframes screen-in { from { opacity: 0; transform: translateY(8px); } }
 
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 28px; }
-.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.brand__name, h1, h2, h3 { font-family: "DM Serif Display", Georgia, serif; font-weight: 400; }
-.brand__name { font-size: 21px; letter-spacing: .08em; }
-.logo { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: var(--mustard); color: #fff; flex: 0 0 auto; }
-.logo svg { width: 29px; height: 29px; }
+.brand { display: flex; align-items: center; justify-content: center; min-width: 72px; padding: 7px 14px; border-radius: 18px; background: var(--mustard); }
+h1, h2, h3 { font-family: "DM Serif Display", Georgia, serif; font-weight: 400; }
+.brand-logo { display: block; width: auto; object-fit: contain; flex: 0 0 auto; }
+.brand-logo--header { height: 58px; }
 .icon-btn { width: 48px; height: 48px; border: 1px solid rgba(29,27,22,.09); border-radius: 50%; background: rgba(255,255,255,.7); display: grid; place-items: center; cursor: pointer; }
 .icon-btn svg { width: 22px; height: 22px; }
 
@@ -113,8 +112,7 @@ h3 { font-size: 21px; margin: 0; }
 .settings-row:last-child { border-bottom: 0; }
 .settings-row small { color: var(--muted); }
 
-.hero-mark { width: 94px; height: 94px; margin: 10svh auto 34px; color: white; animation: logo-in .55s cubic-bezier(.2,1.4,.4,1) both; }
-.hero-mark svg { width: 100%; height: 100%; }
+.brand-logo--hero { height: 150px; margin: 7svh auto 34px; animation: logo-in .55s cubic-bezier(.2,1.4,.4,1) both; }
 @keyframes logo-in { from { opacity: 0; transform: scale(.72); } }
 .welcome { text-align: center; }
 .welcome h1 { color: white; letter-spacing: .05em; }
