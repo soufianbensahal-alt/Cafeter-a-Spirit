@@ -6,7 +6,9 @@ const icons = {
   cup: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8h13v8a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4zM17 10h2a3 3 0 0 1 0 6h-2M7 4c0 1 1 1 1 2M11 3c0 1 1 1 1 3M15 4c0 1 1 1 1 2"/></svg>`,
   card: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18"/></svg>`,
   phone: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3H4a1 1 0 0 0-1 1c0 9.4 7.6 17 17 17a1 1 0 0 0 1-1v-3l-4-2-2 2c-3.4-1.4-6.2-4.2-7.6-7.6l2-2z"/></svg>`,
+  whatsapp: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20.5 11.6a8.5 8.5 0 0 1-12.6 7.5L3 20.5l1.4-4.7A8.5 8.5 0 1 1 20.5 11.6Z"/><path d="M8.1 7.5c.2-.5.5-.5.8-.5h.5l1 2.3-.8 1c.8 1.6 2.1 2.9 3.7 3.6l1-.9 2.4 1.1v.6c0 .6-.3 1.1-.8 1.4-.7.4-1.7.5-2.7.2-3.9-1.1-6.4-3.8-6.8-6.5-.1-.9.2-1.7.7-2.3Z"/></svg>`,
   camera: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>`,
+  tiktok: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 3v11.2a4.3 4.3 0 1 1-3.6-4.2v3.1a1.4 1.4 0 1 0 .7 1.2V3h2.9Z"/><path d="M14 3c.5 2.8 2.2 4.4 5 4.8v3.1a8.6 8.6 0 0 1-5-2"/></svg>`,
   star: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/></svg>`,
   bag: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 8h14l1 13H4zM9 9V6a3 3 0 0 1 6 0v3"/></svg>`,
 };
@@ -21,9 +23,18 @@ const nav = (active) => `<nav class="bottom-nav" aria-label="Navegación princip
 
 const topbar = () => `<header class="topbar"><div class="brand">${brandLogo()}</div></header>`;
 
-const actionPill = (icon,title,meta,href) => href
-  ? `<a class="action-pill" href="${href}" target="_blank" rel="noopener noreferrer" aria-label="${title}. Abrir carta"><span class="action-pill__icon">${icons[icon]}</span><span class="action-pill__text"><span class="action-pill__title">${title}</span><span class="action-pill__meta">${meta}</span></span><span class="action-pill__arrow" aria-hidden="true">↗</span></a>`
-  : `<button class="action-pill" data-toast="Abriendo ${title}…"><span class="action-pill__icon">${icons[icon]}</span><span class="action-pill__text"><span class="action-pill__title">${title}</span><span class="action-pill__meta">${meta}</span></span><span class="action-pill__arrow">›</span></button>`;
+const quickLinks = [
+  {name: 'Carta', subtitle: 'Ver menú', icon: 'card', href: 'https://tr.ee/UbGt18dYlY'},
+  {name: 'WhatsApp', subtitle: 'Escríbenos', icon: 'whatsapp', href: 'https://tr.ee/MNZBFbQIOs'},
+  {name: 'Instagram', subtitle: 'Síguenos', icon: 'camera', href: 'https://tr.ee/LxuD-g65RT'},
+  {name: 'TikTok', subtitle: 'Vídeos', icon: 'tiktok', href: 'https://tr.ee/Vyl-YZpF5k'},
+  {name: 'Google', subtitle: 'Reseña', icon: 'star', href: 'https://tr.ee/znxC51EoQj'},
+  {name: 'Just Eat', subtitle: 'Delivery', image: 'assets/just-eat-logo.avif', href: 'https://tr.ee/0zJQN0zih0'},
+  {name: 'Uber Eats', subtitle: 'Delivery', image: 'assets/uber-eats-logo.png', href: 'https://tr.ee/Bxb4la_xFI'},
+  {name: 'Glovo', subtitle: 'Delivery', image: 'assets/glovo-logo.png', href: 'https://tr.ee/MdPZ4VJDFw'},
+];
+
+const quickAccess = () => `<div class="quick-grid">${quickLinks.map((item) => `<a class="quick-card" href="${item.href}" target="_blank" rel="noopener noreferrer" aria-label="${item.name}: ${item.subtitle}"><span class="quick-card__icon">${item.image ? `<img src="${item.image}" alt="" loading="lazy">` : icons[item.icon]}</span><span class="quick-card__copy"><strong>${item.name}</strong><small>${item.subtitle}</small></span></a>`).join('')}</div>`;
 
 function intro() {
   return `<main class="intro-screen" data-action="skip-intro" aria-label="Introducción de Cafetería Spirit. Toca para omitir.">
@@ -46,7 +57,7 @@ function onboarding() {
 
 function home() {
   const stamps = Array.from({length:8},(_,i)=>`<span class="stamp ${i<state.stamps?'stamp--earned':''}">${icons.cup}</span>`).join('');
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">Brunch & specialty coffee</p><h1>Hola, ${state.user} ✨<br>Hoy toca café.</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">Tu tarjeta Spirit</span><div class="loyalty-card__count">${state.stamps}/8</div></div><span class="reward-chip">Café gratis</span></div><div class="stamps">${stamps}</div><div class="progress-copy">Te quedan ${8-state.stamps} sellos para tu café gratis</div></article><div class="section-head"><h2>Accesos rápidos</h2><button class="text-btn" data-toast="Todos tus enlaces Spirit">Ver todos</button></div><div class="pill-list">${actionPill('card','Carta Cafetería Spirit','Ver carta completa','https://www.canva.com/design/DAFuLPRj4h0/7QGyk7rWcsZD3K84qNLTqA/view?utm_content=DAFuLPRj4h0&utm_campaign=designshare&utm_medium=link&utm_source=editor#2')}${actionPill('bag','Pedir para llevar','Just Eat y Uber Eats')}${actionPill('phone','WhatsApp','Escríbenos directamente')}${actionPill('camera','Instagram y TikTok','Síguenos para no perderte nada')}${actionPill('star','Déjanos una reseña','Cuéntalo en Google')}</div></section>${nav('home')}</main>`;
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">Brunch & specialty coffee</p><h1>Hola, ${state.user} ✨<br>Hoy toca café.</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">Tu tarjeta Spirit</span><div class="loyalty-card__count">${state.stamps}/8</div></div><span class="reward-chip">Café gratis</span></div><div class="stamps">${stamps}</div><div class="progress-copy">Te quedan ${8-state.stamps} sellos para tu café gratis</div></article><div class="section-head"><h2>Accesos rápidos</h2></div>${quickAccess()}</section>${nav('home')}</main>`;
 }
 
 function rewards() {

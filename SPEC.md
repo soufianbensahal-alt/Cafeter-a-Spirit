@@ -20,7 +20,7 @@ La escala de espacio usa 4, 8, 12, 16, 20, 24 y 32 px. Los controles interactivo
 
 ## Componentes
 
-- `ActionPill`: 68 px de alto, icono de 42 px, título truncado, metadato y flecha final.
+- `QuickAccess`: cuadrícula de ocho tarjetas de 132 px de alto, generadas desde configuración; 2 columnas en móvil, 3 en tablet y 4 en escritorio.
 - `LoyaltyCard`: ocho sellos, contador, recompensa objetivo y mensaje dinámico.
 - `RewardCard`: arte 82×92 px, nombre máximo visual de una línea, coste y botón siempre visible.
 - `HistoryRow`: icono, descripción, fecha y variación de sellos.
