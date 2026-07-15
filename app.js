@@ -48,7 +48,7 @@ const copy = {
 
 const defaultProfile = { firstName: 'Sofía', lastName: 'Fernández', email: 'sofia@email.com', photo: '' };
 const state = {
-  screen: 'intro', afterIntro: localStorage.getItem('spirit-seen') ? 'home' : (localStorage.getItem('spirit-onboarded') ? 'login' : 'onboarding'), onboarding: 0, onboardingDirection: 'forward', stamps: 6, historyEmpty: false,
+  screen: 'intro', afterIntro: localStorage.getItem('spirit-seen') ? 'home' : (localStorage.getItem('spirit-onboarded') ? 'login' : 'onboarding'), onboarding: 0, stamps: 6, historyEmpty: false,
   lang: localStorage.getItem('spirit-language') === 'ca' ? 'ca' : 'es',
   theme: document.documentElement.dataset.theme || 'light',
   notifications: localStorage.getItem('spirit-notifications') !== 'false',
@@ -101,7 +101,7 @@ function onboarding() {
     {title:t('onboarding3Title'), copy:t('onboarding3Copy'), image:'assets/onboarding-spirit.jpg', alt:t('onboarding3Photo')}
   ];
   const slide = slides[state.onboarding];
-  return `<main class="app-shell onboarding-shell onboarding-shell--${state.onboarding + 1}"><section class="screen screen--onboarding"><header class="onboarding-header">${brandLogo('onboarding')}${state.onboarding < slides.length - 1 ? `<button class="skip" data-action="finish-onboarding">${t('skip')}</button>` : ''}</header><div class="onboarding-stage onboarding-stage--${state.onboardingDirection}" data-onboarding-swipe><figure class="onboarding-photo"><img src="${slide.image}" alt="${slide.alt}"><span class="onboarding-photo__shade" aria-hidden="true"></span><span class="onboarding-counter">0${state.onboarding + 1} / 0${slides.length}</span></figure><article class="onboarding-panel"><p class="eyebrow">Spirit Coffee Club</p><h1>${slide.title}</h1><p class="onboarding-copy">${slide.copy}</p><div class="dots" aria-label="${state.onboarding + 1} de ${slides.length}">${slides.map((_,i)=>`<span class="dot ${i===state.onboarding?'dot--active':''}" ${i===state.onboarding?'aria-current="step"':''}></span>`).join('')}</div><button class="primary-button onboarding-cta" data-action="next-onboarding">${state.onboarding===slides.length-1?t('enter'):t('continue')}</button></article></div></section></main>`;
+  return `<main class="app-shell onboarding-shell onboarding-shell--${state.onboarding + 1}"><section class="screen screen--onboarding"><header class="onboarding-header">${brandLogo('onboarding')}${state.onboarding < slides.length - 1 ? `<button class="skip" data-action="finish-onboarding">${t('skip')}</button>` : ''}</header><div class="onboarding-stage" data-onboarding-swipe><figure class="onboarding-photo"><img src="${slide.image}" alt="${slide.alt}"><span class="onboarding-photo__shade" aria-hidden="true"></span></figure><article class="onboarding-panel"><p class="eyebrow">Spirit Coffee Club</p><h1>${slide.title}</h1><p class="onboarding-copy">${slide.copy}</p><div class="dots" aria-label="${state.onboarding + 1} de ${slides.length}">${slides.map((_,i)=>`<span class="dot ${i===state.onboarding?'dot--active':''}" ${i===state.onboarding?'aria-current="step"':''}></span>`).join('')}</div><button class="primary-button onboarding-cta" data-action="next-onboarding">${state.onboarding===slides.length-1?t('enter'):t('continue')}</button></article></div></section></main>`;
 }
 
 function home() {
@@ -148,12 +148,36 @@ function finishIntro() {
   render();
 }
 
-function moveOnboarding(step) {
+let onboardingTransitioning = false;
+const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+async function fadeOutOnboarding() {
+  const stage = document.querySelector('.onboarding-stage');
+  if (!stage) return;
+  document.querySelector('.skip')?.setAttribute('disabled', '');
+  stage.classList.add('onboarding-stage--leaving');
+  await wait(230);
+}
+
+async function moveOnboarding(step) {
   const next = state.onboarding + step;
-  if (next < 0 || next > 2) return;
-  state.onboardingDirection = step > 0 ? 'forward' : 'backward';
+  if (next < 0 || next > 2 || onboardingTransitioning) return;
+  onboardingTransitioning = true;
+  await fadeOutOnboarding();
   state.onboarding = next;
   render();
+  await wait(230);
+  onboardingTransitioning = false;
+}
+
+async function enterSpirit() {
+  if (onboardingTransitioning) return;
+  onboardingTransitioning = true;
+  await fadeOutOnboarding();
+  localStorage.setItem('spirit-onboarded', '1');
+  state.screen = 'login';
+  render();
+  onboardingTransitioning = false;
 }
 
 function logout() {
@@ -245,8 +269,8 @@ function bind() {
   document.querySelectorAll('[data-action]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{
     const action=el.dataset.action;
     if(action==='skip-intro'){ clearTimeout(render.introFallback); finishIntro(); }
-    if(action==='next-onboarding'){ if(state.onboarding<2) moveOnboarding(1); else { localStorage.setItem('spirit-onboarded','1'); state.screen='login'; render(); } }
-    if(action==='finish-onboarding'){ localStorage.setItem('spirit-onboarded','1'); state.screen='login'; render(); }
+    if(action==='next-onboarding'){ if(state.onboarding<2) moveOnboarding(1); else enterSpirit(); }
+    if(action==='finish-onboarding' && !onboardingTransitioning){ localStorage.setItem('spirit-onboarded','1'); state.screen='login'; render(); }
     if(action==='close-sheet'){ document.querySelector('[data-sheet-backdrop]')?.remove(); }
     if(action==='open-personal'){ openSheet(personalSheet()); }
     if(action==='open-language'){ openSheet(languageSheet()); }
