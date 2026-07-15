@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spirit-shell-v2';
+const CACHE_NAME = 'spirit-shell-v3';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -6,6 +6,9 @@ const APP_SHELL = [
   '/app.js',
   '/manifest.webmanifest',
   '/assets/spirit-logo-header.png',
+  '/assets/onboarding-coffee.jpg',
+  '/assets/onboarding-order.jpg',
+  '/assets/onboarding-spirit.jpg',
   '/assets/just-eat-logo.avif',
   '/assets/uber-eats-logo.png',
   '/assets/icons/spirit-192.png',

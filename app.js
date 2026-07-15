@@ -22,7 +22,7 @@ const savedProfile = (() => {
 const copy = {
   es: {
     navLabel: 'Navegación principal', home: 'Inicio', rewards: 'Premios', history: 'Historial', profile: 'Perfil', skip: 'Omitir', continue: 'Continuar', enter: 'Entrar en Spirit',
-    introLabel: 'Introducción automática de Cafetería Spirit.', onboarding1Title: 'Cada café suma', onboarding1Copy: 'Guarda tus sellos sin tarjetas de papel. Cada visita te acerca a tu próximo café.', onboarding2Title: 'Tus recompensas, a un toque', onboarding2Copy: 'Consulta lo que tienes disponible y canjéalo directamente en la cafetería.', onboarding3Title: 'Todo Spirit en un solo sitio', onboarding3Copy: 'La carta, tus pedidos y nuestras redes siempre a mano.',
+    introLabel: 'Introducción automática de Cafetería Spirit.', onboarding1Title: 'Cada café<br>suma', onboarding1Copy: 'Guarda tus sellos sin tarjetas de papel. Cada visita te acerca a tu próximo café.', onboarding1Photo: 'Café de especialidad de Spirit listo para disfrutar.', onboarding2Title: 'Pide sin<br>colas', onboarding2Copy: 'Haz tu pedido desde el móvil y recógelo listo al llegar a Spirit.', onboarding2Photo: 'Brunch de Spirit preparado para recoger.', onboarding3Title: 'Todo Spirit en<br>un solo sitio', onboarding3Copy: 'La carta, tus pedidos y nuestras redes siempre a mano.', onboarding3Photo: 'Selección artesana de Cafetería Spirit.',
     hello: 'Hola', coffeeToday: 'Hoy toca café.', yourCard: 'Tu tarjeta Spirit', freeCoffee: 'Café gratis', stampsLeft: 'Te quedan {count} sellos para tu café gratis', quickAccess: 'Accesos rápidos', viewMenu: 'Ver menú', writeUs: 'Escríbenos', followUs: 'Síguenos', videos: 'Vídeos', leaveReview: 'Déjanos una reseña', delivery: 'Pedir a domicilio',
     rewardsEyebrow: 'Tienes {count} sellos', rewardsTitle: 'Algo bueno<br>te espera.', rewardsCopy: 'Canjea tus sellos en caja y disfruta de tu momento Spirit.', available: 'Disponibles', specialtyCoffee: 'Café de especialidad', artisanCookie: 'Cookie artesana', spiritBrunch: 'Brunch Spirit', madeNow: 'Preparado al momento con mucho mimo.', stamps: 'sellos', missingStamps: 'Te faltan sellos', redeem: 'Canjear',
     historyEyebrow: 'Tus momentos Spirit', historyTitle: 'Cada visita<br>cuenta.', movements: 'Movimientos', viewHistory: 'Ver historial', viewEmpty: 'Ver vacío', visitStamp: 'Sello por visita', today: 'Hoy', noMovements: 'Aún no hay movimientos', noMovementsCopy: '¡Ven a por tu primer sello! Tu historia Spirit empieza con un café.',
@@ -34,7 +34,7 @@ const copy = {
   },
   ca: {
     navLabel: 'Navegació principal', home: 'Inici', rewards: 'Premis', history: 'Historial', profile: 'Perfil', skip: 'Omet', continue: 'Continuar', enter: 'Entrar a Spirit',
-    introLabel: 'Introducció automàtica de Cafeteria Spirit.', onboarding1Title: 'Cada cafè suma', onboarding1Copy: 'Guarda els teus segells sense targetes de paper. Cada visita t’acosta al teu pròxim cafè.', onboarding2Title: 'Les teves recompenses, a un toc', onboarding2Copy: 'Consulta què tens disponible i bescanvia-ho directament a la cafeteria.', onboarding3Title: 'Tot Spirit en un sol lloc', onboarding3Copy: 'La carta, les teves comandes i les nostres xarxes sempre a mà.',
+    introLabel: 'Introducció automàtica de Cafeteria Spirit.', onboarding1Title: 'Cada cafè<br>suma', onboarding1Copy: 'Guarda els teus segells sense targetes de paper. Cada visita t’acosta al teu pròxim cafè.', onboarding1Photo: 'Cafè d’especialitat de Spirit a punt per gaudir.', onboarding2Title: 'Demana sense<br>cues', onboarding2Copy: 'Fes la teva comanda des del mòbil i recull-la preparada en arribar a Spirit.', onboarding2Photo: 'Brunch de Spirit preparat per recollir.', onboarding3Title: 'Tot Spirit en<br>un sol lloc', onboarding3Copy: 'La carta, les teves comandes i les nostres xarxes sempre a mà.', onboarding3Photo: 'Selecció artesana de Cafeteria Spirit.',
     hello: 'Hola', coffeeToday: 'Avui toca cafè.', yourCard: 'La teva targeta Spirit', freeCoffee: 'Cafè gratis', stampsLeft: 'Et queden {count} segells per al teu cafè gratis', quickAccess: 'Accessos ràpids', viewMenu: 'Veure menú', writeUs: 'Escriu-nos', followUs: 'Segueix-nos', videos: 'Vídeos', leaveReview: 'Deixa’ns una ressenya', delivery: 'Demanar a domicili',
     rewardsEyebrow: 'Tens {count} segells', rewardsTitle: 'Una cosa bona<br>t’espera.', rewardsCopy: 'Bescanvia els teus segells a caixa i gaudeix del teu moment Spirit.', available: 'Disponibles', specialtyCoffee: 'Cafè d’especialitat', artisanCookie: 'Cookie artesana', spiritBrunch: 'Brunch Spirit', madeNow: 'Preparat al moment amb molta cura.', stamps: 'segells', missingStamps: 'Et falten segells', redeem: 'Bescanviar',
     historyEyebrow: 'Els teus moments Spirit', historyTitle: 'Cada visita<br>compta.', movements: 'Moviments', viewHistory: 'Veure historial', viewEmpty: 'Veure buit', visitStamp: 'Segell per visita', today: 'Avui', noMovements: 'Encara no hi ha moviments', noMovementsCopy: 'Vine a buscar el teu primer segell! La teva història Spirit comença amb un cafè.',
@@ -48,7 +48,7 @@ const copy = {
 
 const defaultProfile = { firstName: 'Sofía', lastName: 'Fernández', email: 'sofia@email.com', photo: '' };
 const state = {
-  screen: 'intro', afterIntro: localStorage.getItem('spirit-seen') ? 'home' : (localStorage.getItem('spirit-onboarded') ? 'login' : 'onboarding'), onboarding: 0, stamps: 6, historyEmpty: false,
+  screen: 'intro', afterIntro: localStorage.getItem('spirit-seen') ? 'home' : (localStorage.getItem('spirit-onboarded') ? 'login' : 'onboarding'), onboarding: 0, onboardingDirection: 'forward', stamps: 6, historyEmpty: false,
   lang: localStorage.getItem('spirit-language') === 'ca' ? 'ca' : 'es',
   theme: document.documentElement.dataset.theme || 'light',
   notifications: localStorage.getItem('spirit-notifications') !== 'false',
@@ -96,12 +96,12 @@ function intro() {
 
 function onboarding() {
   const slides = [
-    [t('onboarding1Title'),t('onboarding1Copy'),'cup'],
-    [t('onboarding2Title'),t('onboarding2Copy'),'gift'],
-    [t('onboarding3Title'),t('onboarding3Copy'),'card']
+    {title:t('onboarding1Title'), copy:t('onboarding1Copy'), image:'assets/onboarding-coffee.jpg', alt:t('onboarding1Photo')},
+    {title:t('onboarding2Title'), copy:t('onboarding2Copy'), image:'assets/onboarding-order.jpg', alt:t('onboarding2Photo')},
+    {title:t('onboarding3Title'), copy:t('onboarding3Copy'), image:'assets/onboarding-spirit.jpg', alt:t('onboarding3Photo')}
   ];
-  const [title,copy,icon] = slides[state.onboarding];
-  return `<main class="app-shell"><section class="screen screen--gold"><button class="skip" data-action="finish-onboarding">${t('skip')}</button>${brandLogo('hero')}<div class="welcome"><p class="eyebrow">Spirit Coffee Club</p><h1>${title}</h1><p class="subtitle">${copy}</p></div><div class="onboarding-art">${icons[icon]}</div><div class="dots">${slides.map((_,i)=>`<span class="dot ${i===state.onboarding?'dot--active':''}"></span>`).join('')}</div><button class="primary-button primary-button--light" data-action="next-onboarding">${state.onboarding===2?t('enter'):t('continue')}</button></section></main>`;
+  const slide = slides[state.onboarding];
+  return `<main class="app-shell onboarding-shell onboarding-shell--${state.onboarding + 1}"><section class="screen screen--onboarding"><header class="onboarding-header">${brandLogo('onboarding')}${state.onboarding < slides.length - 1 ? `<button class="skip" data-action="finish-onboarding">${t('skip')}</button>` : ''}</header><div class="onboarding-stage onboarding-stage--${state.onboardingDirection}" data-onboarding-swipe><figure class="onboarding-photo"><img src="${slide.image}" alt="${slide.alt}"><span class="onboarding-photo__shade" aria-hidden="true"></span><span class="onboarding-counter">0${state.onboarding + 1} / 0${slides.length}</span></figure><article class="onboarding-panel"><p class="eyebrow">Spirit Coffee Club</p><h1>${slide.title}</h1><p class="onboarding-copy">${slide.copy}</p><div class="dots" aria-label="${state.onboarding + 1} de ${slides.length}">${slides.map((_,i)=>`<span class="dot ${i===state.onboarding?'dot--active':''}" ${i===state.onboarding?'aria-current="step"':''}></span>`).join('')}</div><button class="primary-button onboarding-cta" data-action="next-onboarding">${state.onboarding===slides.length-1?t('enter'):t('continue')}</button></article></div></section></main>`;
 }
 
 function home() {
@@ -145,6 +145,14 @@ function passwordSheet() {
 function finishIntro() {
   if (state.screen !== 'intro') return;
   state.screen = state.afterIntro;
+  render();
+}
+
+function moveOnboarding(step) {
+  const next = state.onboarding + step;
+  if (next < 0 || next > 2) return;
+  state.onboardingDirection = step > 0 ? 'forward' : 'backward';
+  state.onboarding = next;
   render();
 }
 
@@ -237,7 +245,7 @@ function bind() {
   document.querySelectorAll('[data-action]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{
     const action=el.dataset.action;
     if(action==='skip-intro'){ clearTimeout(render.introFallback); finishIntro(); }
-    if(action==='next-onboarding'){ if(state.onboarding<2) state.onboarding++; else { localStorage.setItem('spirit-onboarded','1'); state.screen='login'; } render(); }
+    if(action==='next-onboarding'){ if(state.onboarding<2) moveOnboarding(1); else { localStorage.setItem('spirit-onboarded','1'); state.screen='login'; render(); } }
     if(action==='finish-onboarding'){ localStorage.setItem('spirit-onboarded','1'); state.screen='login'; render(); }
     if(action==='close-sheet'){ document.querySelector('[data-sheet-backdrop]')?.remove(); }
     if(action==='open-personal'){ openSheet(personalSheet()); }
@@ -249,6 +257,7 @@ function bind() {
     if(action==='logout'){ logout(); }
   })});
   document.querySelectorAll('[data-sheet-backdrop]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',(event)=>{if(event.target===el)el.remove();})});
+  document.querySelectorAll('[data-onboarding-swipe]:not([data-bound])').forEach(el=>{el.dataset.bound='1';let startX=0;let startY=0;el.addEventListener('touchstart',(event)=>{startX=event.changedTouches[0].clientX;startY=event.changedTouches[0].clientY;},{passive:true});el.addEventListener('touchend',(event)=>{const deltaX=event.changedTouches[0].clientX-startX;const deltaY=event.changedTouches[0].clientY-startY;if(Math.abs(deltaX)>52&&Math.abs(deltaX)>Math.abs(deltaY)*1.2)moveOnboarding(deltaX<0?1:-1);},{passive:true})});
   document.querySelectorAll('[data-language]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{state.lang=el.dataset.language;localStorage.setItem('spirit-language',state.lang);document.querySelector('[data-sheet-backdrop]')?.remove();render();})});
   document.querySelectorAll('[data-notifications]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',(event)=>{state.notifications=event.currentTarget.checked;localStorage.setItem('spirit-notifications',String(state.notifications));})});
   document.querySelectorAll('[data-theme-toggle]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',(event)=>applyTheme(event.currentTarget.checked?'dark':'light',true))});
