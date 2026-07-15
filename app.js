@@ -3,6 +3,7 @@ const icons = {
   gift: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 12v9H4v-9M2 7h20v5H2zM12 7v14M12 7H7.5a2.5 2.5 0 1 1 2.5-2.5C10 6 12 7 12 7Zm0 0h4.5A2.5 2.5 0 1 0 14 4.5C14 6 12 7 12 7Z"/></svg>`,
   clock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>`,
   user: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>`,
+  logout: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h5M14 8l4 4-4 4M8 12h10"/></svg>`,
   cup: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8h13v8a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4zM17 10h2a3 3 0 0 1 0 6h-2M7 4c0 1 1 1 1 2M11 3c0 1 1 1 1 3M15 4c0 1 1 1 1 2"/></svg>`,
   card: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18"/></svg>`,
   phone: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3H4a1 1 0 0 0-1 1c0 9.4 7.6 17 17 17a1 1 0 0 0 1-1v-3l-4-2-2 2c-3.4-1.4-6.2-4.2-7.6-7.6l2-2z"/></svg>`,
@@ -21,11 +22,11 @@ const savedProfile = (() => {
 const copy = {
   es: {
     navLabel: 'Navegación principal', home: 'Inicio', rewards: 'Premios', history: 'Historial', profile: 'Perfil', skip: 'Omitir', continue: 'Continuar', enter: 'Entrar en Spirit',
-    introLabel: 'Introducción de Cafetería Spirit. Toca para omitir.', onboarding1Title: 'Cada café suma', onboarding1Copy: 'Guarda tus sellos sin tarjetas de papel. Cada visita te acerca a tu próximo café.', onboarding2Title: 'Tus recompensas, a un toque', onboarding2Copy: 'Consulta lo que tienes disponible y canjéalo directamente en la cafetería.', onboarding3Title: 'Todo Spirit en un solo sitio', onboarding3Copy: 'La carta, tus pedidos y nuestras redes siempre a mano.',
+    introLabel: 'Introducción automática de Cafetería Spirit.', onboarding1Title: 'Cada café suma', onboarding1Copy: 'Guarda tus sellos sin tarjetas de papel. Cada visita te acerca a tu próximo café.', onboarding2Title: 'Tus recompensas, a un toque', onboarding2Copy: 'Consulta lo que tienes disponible y canjéalo directamente en la cafetería.', onboarding3Title: 'Todo Spirit en un solo sitio', onboarding3Copy: 'La carta, tus pedidos y nuestras redes siempre a mano.',
     hello: 'Hola', coffeeToday: 'Hoy toca café.', yourCard: 'Tu tarjeta Spirit', freeCoffee: 'Café gratis', stampsLeft: 'Te quedan {count} sellos para tu café gratis', quickAccess: 'Accesos rápidos', viewMenu: 'Ver menú', writeUs: 'Escríbenos', followUs: 'Síguenos', videos: 'Vídeos', leaveReview: 'Déjanos una reseña', delivery: 'Pedir a domicilio',
     rewardsEyebrow: 'Tienes {count} sellos', rewardsTitle: 'Algo bueno<br>te espera.', rewardsCopy: 'Canjea tus sellos en caja y disfruta de tu momento Spirit.', available: 'Disponibles', specialtyCoffee: 'Café de especialidad', artisanCookie: 'Cookie artesana', spiritBrunch: 'Brunch Spirit', madeNow: 'Preparado al momento con mucho mimo.', stamps: 'sellos', missingStamps: 'Te faltan sellos', redeem: 'Canjear',
     historyEyebrow: 'Tus momentos Spirit', historyTitle: 'Cada visita<br>cuenta.', movements: 'Movimientos', viewHistory: 'Ver historial', viewEmpty: 'Ver vacío', visitStamp: 'Sello por visita', today: 'Hoy', noMovements: 'Aún no hay movimientos', noMovementsCopy: '¡Ven a por tu primer sello! Tu historia Spirit empieza con un café.',
-    profileEyebrow: 'Tu espacio', profileTitle: 'Muy tú.<br>Muy Spirit.', yourAccount: 'Tu cuenta', settings: 'Ajustes', personalData: 'Datos personales', notifications: 'Notificaciones', language: 'Idioma', spanish: 'Castellano', catalan: 'Catalán', inviteFriend: 'Invita a un amigo', logout: 'Cerrar sesión',
+    profileEyebrow: 'Tu espacio', profileTitle: 'Muy tú.<br>Muy Spirit.', yourAccount: 'Tu cuenta', settings: 'Ajustes', personalData: 'Datos personales', notifications: 'Notificaciones', darkMode: 'Modo oscuro', language: 'Idioma', spanish: 'Castellano', catalan: 'Catalán', inviteFriend: 'Invita a un amigo', logout: 'Cerrar sesión',
     personalEyebrow: 'Tu cuenta', personalTitle: 'Datos personales', changePhoto: 'Fotografía de perfil', gallery: 'Galería', camera: 'Cámara', firstName: 'Nombre', lastName: 'Apellidos', email: 'Correo electrónico', emailReadOnly: 'Gestionado por tu cuenta', changePassword: 'Cambiar contraseña', save: 'Guardar', close: 'Cerrar',
     passwordEyebrow: 'Seguridad', passwordTitle: 'Cambiar contraseña', currentPassword: 'Contraseña actual', newPassword: 'Nueva contraseña', confirmPassword: 'Confirmar contraseña', passwordLength: 'La nueva contraseña debe tener al menos 8 caracteres.', passwordMismatch: 'Las contraseñas no coinciden.', passwordIncorrect: 'La contraseña actual no es correcta.', passwordSaved: 'Contraseña actualizada',
     languageEyebrow: 'Preferencias', languageTitle: 'Idioma de la aplicación', welcome: 'Bienvenida a casa', loginTitle: 'Tu café.<br>Tus sellos.', phone: 'Teléfono', namePlaceholder: '¿Cómo te llamas?', privacy: 'Acepto la política de privacidad y el tratamiento de mis datos según el RGPD.', createAccount: 'Crear mi cuenta',
@@ -33,11 +34,11 @@ const copy = {
   },
   ca: {
     navLabel: 'Navegació principal', home: 'Inici', rewards: 'Premis', history: 'Historial', profile: 'Perfil', skip: 'Omet', continue: 'Continuar', enter: 'Entrar a Spirit',
-    introLabel: 'Introducció de Cafeteria Spirit. Toca per ometre.', onboarding1Title: 'Cada cafè suma', onboarding1Copy: 'Guarda els teus segells sense targetes de paper. Cada visita t’acosta al teu pròxim cafè.', onboarding2Title: 'Les teves recompenses, a un toc', onboarding2Copy: 'Consulta què tens disponible i bescanvia-ho directament a la cafeteria.', onboarding3Title: 'Tot Spirit en un sol lloc', onboarding3Copy: 'La carta, les teves comandes i les nostres xarxes sempre a mà.',
+    introLabel: 'Introducció automàtica de Cafeteria Spirit.', onboarding1Title: 'Cada cafè suma', onboarding1Copy: 'Guarda els teus segells sense targetes de paper. Cada visita t’acosta al teu pròxim cafè.', onboarding2Title: 'Les teves recompenses, a un toc', onboarding2Copy: 'Consulta què tens disponible i bescanvia-ho directament a la cafeteria.', onboarding3Title: 'Tot Spirit en un sol lloc', onboarding3Copy: 'La carta, les teves comandes i les nostres xarxes sempre a mà.',
     hello: 'Hola', coffeeToday: 'Avui toca cafè.', yourCard: 'La teva targeta Spirit', freeCoffee: 'Cafè gratis', stampsLeft: 'Et queden {count} segells per al teu cafè gratis', quickAccess: 'Accessos ràpids', viewMenu: 'Veure menú', writeUs: 'Escriu-nos', followUs: 'Segueix-nos', videos: 'Vídeos', leaveReview: 'Deixa’ns una ressenya', delivery: 'Demanar a domicili',
     rewardsEyebrow: 'Tens {count} segells', rewardsTitle: 'Una cosa bona<br>t’espera.', rewardsCopy: 'Bescanvia els teus segells a caixa i gaudeix del teu moment Spirit.', available: 'Disponibles', specialtyCoffee: 'Cafè d’especialitat', artisanCookie: 'Cookie artesana', spiritBrunch: 'Brunch Spirit', madeNow: 'Preparat al moment amb molta cura.', stamps: 'segells', missingStamps: 'Et falten segells', redeem: 'Bescanviar',
     historyEyebrow: 'Els teus moments Spirit', historyTitle: 'Cada visita<br>compta.', movements: 'Moviments', viewHistory: 'Veure historial', viewEmpty: 'Veure buit', visitStamp: 'Segell per visita', today: 'Avui', noMovements: 'Encara no hi ha moviments', noMovementsCopy: 'Vine a buscar el teu primer segell! La teva història Spirit comença amb un cafè.',
-    profileEyebrow: 'El teu espai', profileTitle: 'Molt tu.<br>Molt Spirit.', yourAccount: 'El teu compte', settings: 'Configuració', personalData: 'Dades personals', notifications: 'Notificacions', language: 'Idioma', spanish: 'Castellà', catalan: 'Català', inviteFriend: 'Convida un amic', logout: 'Tancar sessió',
+    profileEyebrow: 'El teu espai', profileTitle: 'Molt tu.<br>Molt Spirit.', yourAccount: 'El teu compte', settings: 'Configuració', personalData: 'Dades personals', notifications: 'Notificacions', darkMode: 'Mode fosc', language: 'Idioma', spanish: 'Castellà', catalan: 'Català', inviteFriend: 'Convida un amic', logout: 'Tancar sessió',
     personalEyebrow: 'El teu compte', personalTitle: 'Dades personals', changePhoto: 'Fotografia de perfil', gallery: 'Galeria', camera: 'Càmera', firstName: 'Nom', lastName: 'Cognoms', email: 'Correu electrònic', emailReadOnly: 'Gestionat pel teu compte', changePassword: 'Canviar contrasenya', save: 'Desar', close: 'Tancar',
     passwordEyebrow: 'Seguretat', passwordTitle: 'Canviar contrasenya', currentPassword: 'Contrasenya actual', newPassword: 'Nova contrasenya', confirmPassword: 'Confirmar contrasenya', passwordLength: 'La nova contrasenya ha de tenir almenys 8 caràcters.', passwordMismatch: 'Les contrasenyes no coincideixen.', passwordIncorrect: 'La contrasenya actual no és correcta.', passwordSaved: 'Contrasenya actualitzada',
     languageEyebrow: 'Preferències', languageTitle: 'Idioma de l’aplicació', welcome: 'Benvinguda a casa', loginTitle: 'El teu cafè.<br>Els teus segells.', phone: 'Telèfon', namePlaceholder: 'Com et dius?', privacy: 'Accepto la política de privacitat i el tractament de les meves dades segons el RGPD.', createAccount: 'Crear el meu compte',
@@ -45,16 +46,24 @@ const copy = {
   }
 };
 
+const defaultProfile = { firstName: 'Sofía', lastName: 'Fernández', email: 'sofia@email.com', photo: '' };
 const state = {
-  screen: 'intro', afterIntro: localStorage.getItem('spirit-seen') ? 'home' : 'onboarding', onboarding: 0, stamps: 6, historyEmpty: false,
+  screen: 'intro', afterIntro: localStorage.getItem('spirit-seen') ? 'home' : (localStorage.getItem('spirit-onboarded') ? 'login' : 'onboarding'), onboarding: 0, stamps: 6, historyEmpty: false,
   lang: localStorage.getItem('spirit-language') === 'ca' ? 'ca' : 'es',
+  theme: document.documentElement.dataset.theme || 'light',
   notifications: localStorage.getItem('spirit-notifications') !== 'false',
-  profile: { firstName: 'Sofía', lastName: 'Fernández', email: 'sofia@email.com', photo: '', ...savedProfile }
+  profile: { ...defaultProfile, ...savedProfile }
 };
 const app = document.querySelector('#app');
 const t = (key, values = {}) => Object.entries(values).reduce((value, [name, replacement]) => value.replaceAll(`{${name}}`, replacement), copy[state.lang][key] || key);
 const escapeHTML = (value = '') => String(value).replace(/[&<>'"]/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 const saveProfile = () => localStorage.setItem('spirit-profile', JSON.stringify(state.profile));
+const applyTheme = (theme, persist = false) => {
+  state.theme = theme;
+  document.documentElement.dataset.theme = theme;
+  document.querySelector('#theme-color')?.setAttribute('content', theme === 'dark' ? '#171612' : '#eecf62');
+  if (persist) localStorage.setItem('spirit-theme', theme);
+};
 const initials = () => `${state.profile.firstName[0] || ''}${state.profile.lastName[0] || ''}`.toUpperCase();
 const avatar = (className = 'avatar') => state.profile.photo ? `<span class="${className}"><img src="${state.profile.photo}" alt="${escapeHTML(state.profile.firstName)}"></span>` : `<span class="${className}">${escapeHTML(initials())}</span>`;
 const brandLogo = (variant = 'header') => `<img class="brand-logo brand-logo--${variant}" src="assets/spirit-logo-header.png" alt="Spirit">`;
@@ -63,7 +72,7 @@ const nav = (active) => `<nav class="bottom-nav" aria-label="${t('navLabel')}">
   ${[['home','home','home'],['rewards','rewards','gift'],['history','history','clock'],['profile','profile','user']].map(([id,label,icon]) => `<button class="nav-item ${active===id?'nav-item--active':''}" data-nav="${id}" aria-label="${t(label)}"><span class="nav-icon">${icons[icon]}</span><span>${t(label)}</span></button>`).join('')}
 </nav>`;
 
-const topbar = () => `<header class="topbar topbar--centered"><div class="brand">${brandLogo('home')}</div></header>`;
+const topbar = (withLogout = false) => `<header class="topbar topbar--centered"><div class="brand">${brandLogo('home')}</div>${withLogout ? `<button class="topbar-action" type="button" data-action="logout" aria-label="${t('logout')}">${icons.logout}</button>` : ''}</header>`;
 
 const quickLinks = [
   {name: 'Carta', subtitle: 'viewMenu', icon: 'card', href: 'https://www.canva.com/design/DAFuLPRj4h0/7QGyk7rWcsZD3K84qNLTqA/view?utm_content=DAFuLPRj4h0&utm_campaign=designshare&utm_medium=link&utm_source=editor'},
@@ -78,10 +87,9 @@ const quickLinks = [
 const quickAccess = () => `<div class="quick-grid">${quickLinks.map((item) => `<a class="quick-card" href="${item.href}" target="_blank" rel="noopener noreferrer" aria-label="${item.name}: ${t(item.subtitle)}"><span class="quick-card__icon ${item.transparentIcon ? 'quick-card__icon--transparent' : ''}">${item.image ? `<img src="${item.image}" alt="" loading="lazy">` : icons[item.icon]}</span><span class="quick-card__copy"><strong>${item.name}</strong><small>${t(item.subtitle)}</small></span></a>`).join('')}</div>`;
 
 function intro() {
-  return `<main class="intro-screen" data-action="skip-intro" aria-label="${t('introLabel')}">
-    <video class="intro-video" autoplay muted playsinline preload="auto" data-intro-video>
-      <source src="assets/spirit-coffee-intro.mp4" type="video/mp4">
-    </video>
+  return `<main class="intro-screen" aria-label="${t('introLabel')}">
+    <div class="intro-ambient" aria-hidden="true"><span></span><span></span><span></span></div>
+    <div class="intro-brand"><img class="intro-logo" src="assets/spirit-logo-header.png" alt="Spirit" data-intro-logo><p>Brunch & Specialty Coffee</p></div>
     <button class="intro-skip" type="button" data-action="skip-intro">${t('skip')}</button>
   </main>`;
 }
@@ -98,7 +106,7 @@ function onboarding() {
 
 function home() {
   const stamps = Array.from({length:8},(_,i)=>`<span class="stamp ${i<state.stamps?'stamp--earned':''}">${icons.cup}</span>`).join('');
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${state.stamps}/8</div></div><span class="reward-chip">${t('freeCoffee')}</span></div><div class="stamps">${stamps}</div><div class="progress-copy">${t('stampsLeft',{count:8-state.stamps})}</div></article><div class="section-head"><h2>${t('quickAccess')}</h2></div>${quickAccess()}</section>${nav('home')}</main>`;
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${state.stamps}/8</div></div><span class="reward-chip">${t('freeCoffee')}</span></div><div class="stamps">${stamps}</div><div class="progress-copy">${t('stampsLeft',{count:8-state.stamps})}</div></article><div class="section-head"><h2>${t('quickAccess')}</h2></div>${quickAccess()}</section>${nav('home')}</main>`;
 }
 
 function rewards() {
@@ -112,7 +120,7 @@ function history() {
 }
 
 function profile() {
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('profileEyebrow')}</p><h1>${t('profileTitle')}</h1><div class="section-head"><h2>${t('yourAccount')}</h2></div><article class="profile-card">${avatar()}<div><h3>${escapeHTML(state.profile.firstName)} ${escapeHTML(state.profile.lastName)}</h3><p>${escapeHTML(state.profile.email)} · ${state.stamps} ${t('stamps')}</p></div></article><div class="section-head"><h2>${t('settings')}</h2></div><div class="settings-list"><button class="settings-row" data-action="open-personal"><span>${t('personalData')}</span><span>›</span></button><label class="settings-row settings-row--switch"><span>${t('notifications')}</span><span class="switch"><input type="checkbox" data-notifications ${state.notifications?'checked':''}><span class="switch__track" aria-hidden="true"></span></span></label><button class="settings-row" data-action="open-language"><span>${t('language')}</span><small>${state.lang==='ca'?t('catalan'):t('spanish')}</small></button><button class="settings-row" data-action="share"><span>${t('inviteFriend')}</span><span>›</span></button><button class="settings-row settings-row--danger" data-action="logout"><span>${t('logout')}</span><span>›</span></button></div><div class="section-head"><h2>Spirit Coffee</h2></div><p class="subtitle">Passeig Rocamora, 9<br>Montcada i Reixac · Barcelona</p></section>${nav('profile')}</main>`;
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('profileEyebrow')}</p><h1>${t('profileTitle')}</h1><div class="section-head"><h2>${t('yourAccount')}</h2></div><article class="profile-card">${avatar()}<div><h3>${escapeHTML(state.profile.firstName)} ${escapeHTML(state.profile.lastName)}</h3><p>${escapeHTML(state.profile.email)} · ${state.stamps} ${t('stamps')}</p></div></article><div class="section-head"><h2>${t('settings')}</h2></div><div class="settings-list"><button class="settings-row" data-action="open-personal"><span>${t('personalData')}</span><span>›</span></button><label class="settings-row settings-row--switch"><span>${t('notifications')}</span><span class="switch"><input type="checkbox" data-notifications ${state.notifications?'checked':''}><span class="switch__track" aria-hidden="true"></span></span></label><label class="settings-row settings-row--switch"><span>${t('darkMode')}</span><span class="switch"><input type="checkbox" data-theme-toggle ${state.theme==='dark'?'checked':''}><span class="switch__track" aria-hidden="true"></span></span></label><button class="settings-row" data-action="open-language"><span>${t('language')}</span><small>${state.lang==='ca'?t('catalan'):t('spanish')}</small></button><button class="settings-row" data-action="share"><span>${t('inviteFriend')}</span><span>›</span></button><button class="settings-row settings-row--danger" data-action="logout"><span>${t('logout')}</span><span>›</span></button></div><div class="section-head"><h2>Spirit Coffee</h2></div><p class="subtitle">Passeig Rocamora, 9<br>Montcada i Reixac · Barcelona</p></section>${nav('profile')}</main>`;
 }
 
 function login() {
@@ -140,17 +148,27 @@ function finishIntro() {
   render();
 }
 
+function logout() {
+  localStorage.removeItem('spirit-seen');
+  localStorage.setItem('spirit-onboarded', '1');
+  localStorage.removeItem('spirit-profile');
+  localStorage.removeItem('spirit-password-hash');
+  state.profile = { ...defaultProfile };
+  state.historyEmpty = false;
+  state.onboarding = 0;
+  state.screen = 'login';
+  render();
+  scrollTo(0, 0);
+}
+
 function render() {
   document.documentElement.lang = state.lang;
   app.innerHTML = ({intro,onboarding,login,home,rewards,history,profile})[state.screen]();
   bind();
   if (state.screen === 'intro') {
-    const video = document.querySelector('[data-intro-video]');
-    video.addEventListener('ended', finishIntro, {once: true});
-    video.addEventListener('error', finishIntro, {once: true});
-    video.play().catch(() => {});
+    document.querySelector('[data-intro-logo]')?.addEventListener('error', finishIntro, {once: true});
     clearTimeout(render.introFallback);
-    render.introFallback = setTimeout(finishIntro, 4300);
+    render.introFallback = setTimeout(finishIntro, 2600);
   }
 }
 function showToast(message) { const toast=document.querySelector('#toast'); toast.textContent=message; toast.classList.add('toast--show'); clearTimeout(showToast.timer); showToast.timer=setTimeout(()=>toast.classList.remove('toast--show'),2200); }
@@ -219,8 +237,8 @@ function bind() {
   document.querySelectorAll('[data-action]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{
     const action=el.dataset.action;
     if(action==='skip-intro'){ clearTimeout(render.introFallback); finishIntro(); }
-    if(action==='next-onboarding'){ if(state.onboarding<2) state.onboarding++; else { localStorage.setItem('spirit-seen','1'); state.screen='login'; } render(); }
-    if(action==='finish-onboarding'){ localStorage.setItem('spirit-seen','1'); state.screen='login'; render(); }
+    if(action==='next-onboarding'){ if(state.onboarding<2) state.onboarding++; else { localStorage.setItem('spirit-onboarded','1'); state.screen='login'; } render(); }
+    if(action==='finish-onboarding'){ localStorage.setItem('spirit-onboarded','1'); state.screen='login'; render(); }
     if(action==='close-sheet'){ document.querySelector('[data-sheet-backdrop]')?.remove(); }
     if(action==='open-personal'){ openSheet(personalSheet()); }
     if(action==='open-language'){ openSheet(languageSheet()); }
@@ -228,11 +246,12 @@ function bind() {
     if(action==='share'){ shareSpirit(); }
     if(action==='confirm-redeem'){ state.stamps=0; document.querySelector('[data-sheet-backdrop]')?.remove(); showToast(t('enjoy')); setTimeout(()=>{state.screen='home';render();},900); }
     if(action==='toggle-empty'){ state.historyEmpty=!state.historyEmpty; render(); }
-    if(action==='logout'){ localStorage.removeItem('spirit-seen'); state.onboarding=0; state.screen='onboarding'; render(); }
+    if(action==='logout'){ logout(); }
   })});
   document.querySelectorAll('[data-sheet-backdrop]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',(event)=>{if(event.target===el)el.remove();})});
   document.querySelectorAll('[data-language]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{state.lang=el.dataset.language;localStorage.setItem('spirit-language',state.lang);document.querySelector('[data-sheet-backdrop]')?.remove();render();})});
   document.querySelectorAll('[data-notifications]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',(event)=>{state.notifications=event.currentTarget.checked;localStorage.setItem('spirit-notifications',String(state.notifications));})});
+  document.querySelectorAll('[data-theme-toggle]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',(event)=>applyTheme(event.currentTarget.checked?'dark':'light',true))});
   document.querySelectorAll('[data-photo-input]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',async(event)=>{try{state.profile.photo=await imageToAvatar(event.currentTarget.files[0]);saveProfile();document.querySelectorAll('.avatar').forEach(avatarElement=>{avatarElement.innerHTML=`<img src="${state.profile.photo}" alt="${escapeHTML(state.profile.firstName)}">`;});}catch{showToast(t('invalidImage'));}event.currentTarget.value='';})});
   document.querySelector('[data-form="login"]')?.addEventListener('submit',(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);const fullName=data.get('name').trim().split(/\s+/);state.profile.firstName=fullName.shift()||state.profile.firstName;state.profile.lastName=fullName.join(' ')||state.profile.lastName;state.profile.email=data.get('email').trim();saveProfile();localStorage.setItem('spirit-seen','1');state.screen='home';render();});
   document.querySelector('[data-form="profile"]')?.addEventListener('submit',(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);state.profile.firstName=data.get('firstName').trim();state.profile.lastName=data.get('lastName').trim();saveProfile();document.querySelector('[data-sheet-backdrop]')?.remove();render();});
@@ -240,3 +259,11 @@ function bind() {
 }
 
 render();
+
+if (!localStorage.getItem('spirit-theme')) {
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) => applyTheme(event.matches ? 'dark' : 'light'));
+}
+
+if ('serviceWorker' in navigator) {
+  addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
