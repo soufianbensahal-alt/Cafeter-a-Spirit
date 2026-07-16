@@ -168,6 +168,11 @@ body.business-mode #toast { display: none; }
 .business-app--loading .business-spinner { color: #695c2c; }
 .signed-out-card { width: min(100%, 460px); padding: 32px 24px; border-radius: 30px; text-align: center; }
 .signed-out-card img { width: 112px; }
+.business-login-form { display: grid; gap: 10px; margin-top: 20px; text-align: left; }
+.business-login-form label { margin: 3px 3px 0; color: var(--business-ink); font-size: 12px; font-weight: 800; }
+.business-login-form input { width: 100%; min-height: 58px; border: 1px solid var(--business-line); border-radius: 18px; background: rgba(255,255,255,.72); padding: 0 16px; color: var(--business-ink); outline: none; transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease; }
+.business-login-form input:focus { border-color: #695c2c; background: white; box-shadow: 0 0 0 4px rgba(105,92,44,.13); }
+.business-login-form .business-message { margin: 2px 3px; text-align: left; }
 
 @media (min-width: 700px) {
   .business-app { padding-top: max(32px, env(safe-area-inset-top)); }

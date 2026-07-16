@@ -1,12 +1,19 @@
 import {
   MockLoyaltyError,
+  mockBeginLoyaltySimulation,
   mockConfirmStamp,
+  mockEndLoyaltySimulation,
   mockGetRecentTransactions,
-  mockLoginEmployee,
-  mockLogoutEmployee,
   mockValidateCode,
   mockValidateQr
 } from '../services/mock-loyalty-service.js';
+import {
+  EmployeeAuthorizationError,
+  restoreEmployeeSession,
+  signInEmployee,
+  signOut,
+  subscribeToAuthChanges
+} from '../services/employee-service.js';
 
 const isBusinessRoute = /^\/cafeteria\/?$/.test(window.location.pathname);
 
@@ -16,7 +23,7 @@ if (isBusinessRoute) {
   document.title = 'SPIRIT · Modo cafetería';
 
   const state = {
-    view: 'loading',
+    view: 'checking',
     employee: null,
     code: '',
     error: '',
@@ -34,6 +41,7 @@ if (isBusinessRoute) {
   let scanFrame = 0;
   let scannerBusy = false;
   let detector = null;
+  let manualSignOut = false;
 
   const icons = {
     scan: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/><path d="M7 12h10"/></svg>',
@@ -43,12 +51,14 @@ if (isBusinessRoute) {
 
   const escapeHTML = (value = '') => String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
   const formatTime = (timestamp) => new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(new Date(timestamp));
+  const employeeInitials = () => String(state.employee?.employeeName || 'SP').split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+  const roleLabel = (role) => ({ owner: 'Propietario', manager: 'Responsable', employee: 'Empleado' })[role] || 'Empleado';
 
-  const brandHeader = () => `<header class="business-header"><img src="/assets/spirit-logo-header.png" alt="Spirit"><div><span class="business-kicker">Panel de equipo</span><strong>Modo cafetería</strong></div><span class="session-badge"><i></i>Sesión simulada</span></header>`;
+  const brandHeader = () => `<header class="business-header"><img src="/assets/spirit-logo-header.png" alt="Spirit"><div><span class="business-kicker">${escapeHTML(state.employee?.businessName || 'Panel de equipo')}</span><strong>Modo cafetería</strong></div><span class="session-badge"><i></i>Sesión segura</span></header>`;
 
   const transactionList = () => `<section class="business-history" aria-labelledby="recent-title"><div class="business-section-head"><div><span class="business-kicker">Actividad</span><h2 id="recent-title">Últimas operaciones</h2></div>${icons.clock}</div>${state.transactions.length ? `<ol>${state.transactions.map((item) => `<li><time datetime="${escapeHTML(item.timestamp)}">${formatTime(item.timestamp)}</time><div><strong>${escapeHTML(item.customerMasked)}</strong><span>${escapeHTML(item.result)}</span></div><b>${escapeHTML(item.progress)}</b></li>`).join('')}</ol>` : '<p class="business-empty">Todavía no hay operaciones en esta sesión.</p>'}</section>`;
 
-  const homeView = () => `<main class="business-app">${brandHeader()}<section class="employee-strip"><div class="employee-avatar" aria-hidden="true">MS</div><div><span>Empleado</span><strong>${escapeHTML(state.employee?.employeeName || '')}</strong></div><span class="employee-status">Activa</span></section><section class="business-action-card"><p class="business-kicker">Añadir un sello</p><h1>Procesa al cliente en segundos.</h1><p>Escanea su QR o introduce el código de seis dígitos.</p><button class="business-primary business-primary--scan" type="button" data-business-action="open-scanner">${icons.scan}<span>Escanear QR</span></button><div class="business-divider"><span>o</span></div><form class="business-code-form" data-business-form="code" novalidate><label for="business-code">Código del cliente</label><input id="business-code" name="code" type="text" value="${escapeHTML(state.code)}" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" enterkeyhint="done" placeholder="000000" aria-describedby="business-code-help business-error" ${state.loading ? 'disabled' : ''}><small id="business-code-help">Exactamente 6 dígitos</small><p class="business-message business-message--error" id="business-error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.code.length !== 6 || state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Validando…' : 'Validar código'}</button></form></section>${transactionList()}<button class="business-logout" type="button" data-business-action="logout">Cerrar sesión simulada</button><p class="business-security-note">Entorno de demostración · La protección real se añadirá con Supabase Auth y RLS.</p></main>`;
+  const homeView = () => `<main class="business-app">${brandHeader()}<section class="employee-strip"><div class="employee-avatar" aria-hidden="true">${escapeHTML(employeeInitials())}</div><div><span>${escapeHTML(roleLabel(state.employee?.role))}</span><strong>${escapeHTML(state.employee?.employeeName || '')}</strong></div><span class="employee-status">Activa</span></section><section class="business-action-card"><p class="business-kicker">Añadir un sello</p><h1>Procesa al cliente en segundos.</h1><p>Escanea su QR o introduce el código de seis dígitos.</p><button class="business-primary business-primary--scan" type="button" data-business-action="open-scanner">${icons.scan}<span>Escanear QR</span></button><div class="business-divider"><span>o</span></div><form class="business-code-form" data-business-form="code" novalidate><label for="business-code">Código del cliente</label><input id="business-code" name="code" type="text" value="${escapeHTML(state.code)}" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" enterkeyhint="done" placeholder="000000" aria-describedby="business-code-help business-error" ${state.loading ? 'disabled' : ''}><small id="business-code-help">Exactamente 6 dígitos</small><p class="business-message business-message--error" id="business-error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.code.length !== 6 || state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Validando…' : 'Validar código'}</button></form></section>${transactionList()}<button class="business-logout" type="button" data-business-action="logout">Cerrar sesión</button><p class="business-security-note">Acceso protegido con Supabase Auth · QR, códigos y sellos continúan en modo demostración.</p></main>`;
 
   const progress = (value, goal) => `<div class="business-progress" role="img" aria-label="${value} de ${goal} sellos"><div><strong>${value}</strong><span>/ ${goal}</span></div><div class="business-progress__track"><span style="width:${(value / goal) * 100}%"></span></div></div>`;
 
@@ -61,13 +71,17 @@ if (isBusinessRoute) {
 
   const scannerView = () => `<main class="business-app business-app--scanner"><header class="scanner-header"><div><span class="business-kicker">Modo cafetería</span><strong>Escanear QR</strong></div><button type="button" data-business-action="close-scanner" aria-label="Cerrar escáner">×</button></header><section class="scanner-card"><div class="scanner-viewport"><video data-scanner-video playsinline muted aria-label="Vista de la cámara"></video><div class="scanner-guide" aria-hidden="true"><span></span><span></span><span></span><span></span></div></div><p class="scanner-instruction">Coloca el QR del cliente dentro del recuadro.</p>${state.cameras.length > 1 ? `<label class="camera-select">Cámara<select data-camera-select>${state.cameras.map((camera, index) => `<option value="${escapeHTML(camera.deviceId)}" ${camera.deviceId === state.selectedCamera ? 'selected' : ''}>${escapeHTML(camera.label || `Cámara ${index + 1}`)}</option>`).join('')}</select></label>` : ''}<p class="business-message business-message--scanner" role="status">${escapeHTML(state.scannerMessage)}</p><p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-secondary business-secondary--light" type="button" data-business-action="close-scanner">Introducir código manualmente</button></section></main>`;
 
-  const signedOutView = () => `<main class="business-app business-app--signed-out"><section class="signed-out-card"><img src="/assets/spirit-logo-header.png" alt="Spirit"><p class="business-kicker">Modo cafetería</p><h1>Sesión cerrada.</h1><p>Este acceso es una simulación. La autenticación real se incorporará con Supabase.</p><button class="business-primary" type="button" data-business-action="login">Iniciar sesión simulada</button></section></main>`;
+  const signedOutView = () => `<main class="business-app business-app--signed-out"><section class="signed-out-card"><img src="/assets/spirit-logo-header.png" alt="Spirit"><p class="business-kicker">Modo cafetería</p><h1>Acceso de equipo.</h1><p>Inicia sesión con la cuenta autorizada de Cafetería Spirit.</p><form class="business-login-form" data-business-form="login" novalidate><label for="employee-email">Correo electrónico</label><input id="employee-email" name="email" type="email" autocomplete="username" inputmode="email" required><label for="employee-password">Contraseña</label><input id="employee-password" name="password" type="password" minlength="8" autocomplete="current-password" required><p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Comprobando…' : 'Acceder'}</button></form></section></main>`;
 
-  const loadingView = () => `<main class="business-app business-app--loading"><img src="/assets/spirit-logo-header.png" alt="Spirit"><span class="business-spinner" aria-hidden="true"></span><p>Preparando modo cafetería…</p></main>`;
+  const authStateView = (title, copy, action = 'retry-auth', actionLabel = 'Volver a comprobar') => `<main class="business-app business-app--signed-out"><section class="signed-out-card"><img src="/assets/spirit-logo-header.png" alt="Spirit"><p class="business-kicker">Modo cafetería</p><h1>${escapeHTML(title)}</h1><p>${escapeHTML(copy)}</p><button class="business-primary" type="button" data-business-action="${action}">${escapeHTML(actionLabel)}</button><button class="business-secondary" type="button" data-business-action="logout">Cerrar sesión</button></section></main>`;
+  const unauthorizedView = () => authStateView('Acceso no autorizado.', state.error || 'Tu cuenta no tiene una membresía activa para este negocio.');
+  const expiredView = () => authStateView('Sesión caducada.', 'Vuelve a iniciar sesión para continuar.', 'show-login', 'Iniciar sesión');
+  const networkErrorView = () => authStateView('Sin conexión.', state.error || 'No se ha podido validar tu acceso. Revisa tu conexión.');
+  const loadingView = () => `<main class="business-app business-app--loading"><img src="/assets/spirit-logo-header.png" alt="Spirit"><span class="business-spinner" aria-hidden="true"></span><p>Comprobando sesión y permisos…</p></main>`;
 
   function render() {
     stopScannerIfLeaving();
-    const views = { loading: loadingView, home: homeView, preview: previewView, success: successView, scanner: scannerView, signedOut: signedOutView };
+    const views = { checking: loadingView, home: homeView, preview: previewView, success: successView, scanner: scannerView, signedOut: signedOutView, unauthorized: unauthorizedView, expired: expiredView, networkError: networkErrorView };
     app.innerHTML = views[state.view]();
     bind();
     if (state.view === 'scanner') startScanner();
@@ -75,14 +89,18 @@ if (isBusinessRoute) {
 
   function readableError(error) {
     if (error instanceof MockLoyaltyError) return error.message;
+    if (error?.code === 'invalid_credentials') return 'El correo o la contraseña no son correctos.';
+    if (error?.code === 'email_not_confirmed') return 'Confirma tu correo antes de iniciar sesión.';
+    if (error instanceof EmployeeAuthorizationError || error?.message) return error.message;
     return 'Ha ocurrido un error inesperado. Inténtalo de nuevo.';
   }
 
-  async function loadHome() {
-    state.view = 'loading';
+  async function loadAuthorizedHome(employee) {
+    state.view = 'checking';
     render();
     try {
-      state.employee = await mockLoginEmployee();
+      state.employee = employee;
+      mockBeginLoyaltySimulation(employee);
       state.transactions = await mockGetRecentTransactions();
       state.view = 'home';
     } catch (error) {
@@ -90,6 +108,52 @@ if (isBusinessRoute) {
       state.view = 'signedOut';
     }
     render();
+  }
+
+  function routeAuthorizationError(error) {
+    state.error = readableError(error);
+    if (error?.code === 'not_authenticated') state.view = 'signedOut';
+    else if (error?.code === 'network_error') state.view = 'networkError';
+    else if (['no_membership', 'inactive_membership', 'inactive_business'].includes(error?.code)) state.view = 'unauthorized';
+    else state.view = 'signedOut';
+  }
+
+  async function restoreAccess() {
+    state.view = 'checking';
+    state.error = '';
+    render();
+    try {
+      const employee = await restoreEmployeeSession();
+      if (!employee) {
+        state.view = 'signedOut';
+        render();
+        return;
+      }
+      await loadAuthorizedHome(employee);
+    } catch (error) {
+      routeAuthorizationError(error);
+      render();
+    }
+  }
+
+  async function submitEmployeeLogin(form) {
+    if (state.loading) return;
+    const data = new FormData(form);
+    state.loading = true;
+    state.error = '';
+    render();
+    try {
+      const employee = await signInEmployee(data.get('email'), data.get('password'));
+      await loadAuthorizedHome(employee);
+    } catch (error) {
+      routeAuthorizationError(error);
+      if (state.view === 'unauthorized') return render();
+      state.view = error?.code === 'network_error' ? 'networkError' : 'signedOut';
+      render();
+    } finally {
+      state.loading = false;
+      render();
+    }
   }
 
   async function validateCode() {
@@ -108,7 +172,7 @@ if (isBusinessRoute) {
       state.view = 'preview';
     } catch (error) {
       state.error = readableError(error);
-      if (error?.code === 'session_expired') state.view = 'signedOut';
+      if (error?.code === 'session_expired') state.view = 'expired';
     } finally {
       state.loading = false;
       render();
@@ -126,7 +190,7 @@ if (isBusinessRoute) {
       state.view = 'success';
     } catch (error) {
       state.error = readableError(error);
-      if (error?.code === 'session_expired') state.view = 'signedOut';
+      if (error?.code === 'session_expired') state.view = 'expired';
     } finally {
       state.confirming = false;
       render();
@@ -241,6 +305,10 @@ if (isBusinessRoute) {
   }
 
   function bind() {
+    document.querySelector('[data-business-form="login"]')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      submitEmployeeLogin(event.currentTarget);
+    });
     document.querySelector('[data-business-form="code"]')?.addEventListener('submit', (event) => {
       event.preventDefault();
       validateCode();
@@ -266,12 +334,33 @@ if (isBusinessRoute) {
       if (action === 'cancel-preview' && !state.confirming) resetCustomer();
       if (action === 'confirm-stamp') confirmStamp();
       if (action === 'next-customer') resetCustomer();
-      if (action === 'logout') { stopScanner(); await mockLogoutEmployee(); state.view = 'signedOut'; render(); }
-      if (action === 'login') loadHome();
+      if (action === 'logout') {
+        manualSignOut = true;
+        stopScanner();
+        mockEndLoyaltySimulation();
+        try { await signOut(); } catch (error) { state.error = readableError(error); }
+        state.employee = null;
+        state.view = 'signedOut';
+        render();
+        manualSignOut = false;
+      }
+      if (action === 'retry-auth') restoreAccess();
+      if (action === 'show-login') { state.employee = null; state.error = ''; state.view = 'signedOut'; render(); }
     }));
   }
 
+  subscribeToAuthChanges((event) => {
+    if (event !== 'SIGNED_OUT' || manualSignOut) return;
+    const hadEmployee = Boolean(state.employee);
+    stopScanner();
+    mockEndLoyaltySimulation();
+    state.employee = null;
+    state.error = '';
+    state.view = hadEmployee ? 'expired' : 'signedOut';
+    render();
+  });
+
   addEventListener('pagehide', stopScanner);
   addEventListener('beforeunload', stopScanner);
-  loadHome();
+  restoreAccess();
 }

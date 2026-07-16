@@ -1,5 +1,4 @@
 const TRANSACTIONS_KEY = 'spirit-business-transactions';
-const EMPLOYEE_SESSION_TTL = 8 * 60 * 60 * 1000;
 const delay = (milliseconds = 420) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 const memoryStorage = new Map();
@@ -9,7 +8,7 @@ const storage = typeof localStorage === 'undefined' ? {
   removeItem: (key) => memoryStorage.delete(key)
 } : localStorage;
 
-let employeeSession = null;
+let employeeContext = null;
 const stampSessions = new Map();
 
 export class MockLoyaltyError extends Error {
@@ -20,20 +19,11 @@ export class MockLoyaltyError extends Error {
   }
 }
 
-const createEmployeeSession = () => ({
-  id: `employee-${Date.now()}`,
-  employeeName: 'Marta · Equipo Spirit',
-  businessName: 'Cafetería Spirit',
-  status: 'active',
-  expiresAt: Date.now() + EMPLOYEE_SESSION_TTL
-});
-
 const requireEmployeeSession = () => {
-  if (!employeeSession || employeeSession.status !== 'active' || employeeSession.expiresAt <= Date.now()) {
-    employeeSession = null;
-    throw new MockLoyaltyError('session_expired', 'La sesión simulada ha caducado. Iníciala de nuevo.');
+  if (!employeeContext) {
+    throw new MockLoyaltyError('session_expired', 'La sesión de empleado ha caducado. Inicia sesión de nuevo.');
   }
-  return employeeSession;
+  return employeeContext;
 };
 
 const createStampSession = (source) => {
@@ -62,10 +52,8 @@ const readTransactions = () => {
   }
 };
 
-export async function mockLoginEmployee() {
-  await delay(260);
-  employeeSession = createEmployeeSession();
-  return { ...employeeSession };
+export function mockBeginLoyaltySimulation(context) {
+  employeeContext = context ? { ...context } : null;
 }
 
 export async function mockValidateCode(rawCode) {
@@ -116,16 +104,13 @@ export async function mockGetRecentTransactions() {
   return readTransactions();
 }
 
-export async function mockLogoutEmployee() {
-  await delay(180);
-  if (employeeSession) employeeSession.status = 'logged_out';
-  employeeSession = null;
+export function mockEndLoyaltySimulation() {
+  employeeContext = null;
   stampSessions.clear();
-  return true;
 }
 
 export function mockResetForTests() {
-  employeeSession = null;
+  employeeContext = null;
   stampSessions.clear();
   storage.removeItem(TRANSACTIONS_KEY);
 }

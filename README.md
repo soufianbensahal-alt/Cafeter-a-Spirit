@@ -17,7 +17,7 @@ En Vercel, el modo de empleados está disponible en `/cafeteria` mediante la ree
 ## Flujos incluidos
 
 - Intro audiovisual de Spirit a pantalla completa, reproducida antes de acceder a la app y omisible con un toque.
-- Onboarding de tres pasos y alta con consentimiento RGPD.
+- Onboarding de tres pasos, registro y acceso con Supabase Auth.
 - Inicio con tarjeta de ocho sellos y accesos rápidos.
 - Recompensas con estados disponible y deshabilitado.
 - Modal de canje con código de seis dígitos.
@@ -32,7 +32,10 @@ La experiencia del cliente permanece en `/`. La interfaz operativa para empleado
 
 - `business/business-view.js`: interfaz, estados, validación, confirmación y control del escáner.
 - `business/business.css`: estilos mobile-first y responsive del modo cafetería.
-- `services/mock-loyalty-service.js`: autenticación, validación, confirmación e historial simulados mediante funciones asíncronas.
+- `services/auth-service.js`: sesión, acceso, registro, recuperación y cierre con Supabase Auth.
+- `services/employee-service.js`: autorización del equipo mediante `business_members` y estado del negocio.
+- `services/customer-service.js`: perfil y flujo Auth del cliente.
+- `services/mock-loyalty-service.js`: validación, confirmación, sellos e historial todavía simulados.
 
 El historial simulado se guarda en `localStorage` bajo la clave `spirit-business-transactions` y conserva como máximo cinco operaciones. Esta persistencia es exclusivamente de demostración.
 
@@ -50,21 +53,26 @@ El historial simulado se guarda en `localStorage` bajo la clave `spirit-business
 
 El lector usa `getUserMedia` y la API nativa `BarcodeDetector`; no se ha incorporado ninguna dependencia externa. Si el navegador no ofrece detección QR nativa, la aplicación muestra un mensaje comprensible y mantiene disponible la introducción manual.
 
-## Próxima fase: integración con Supabase
+## Autenticación y autorización
 
-El modo actual no constituye autenticación ni seguridad reales. Para producción se sustituirá `services/mock-loyalty-service.js` conservando su contrato asíncrono:
+La identidad se valida con Supabase Auth. La autorización del modo cafetería se obtiene exclusivamente de `business_members` y `businesses`; nunca se toman roles desde `user_metadata`.
 
-- `mockLoginEmployee()` y `mockLogoutEmployee()` por Supabase Auth.
-- Validación de pertenencia mediante `business_members` y políticas RLS.
+- Cliente: registro, confirmación de correo, acceso, recuperación de contraseña y cierre de sesión reales.
+- Empleado: correo y contraseña, restauración segura tras recarga, validación de membresía activa, rol permitido y negocio activo.
+- Estados protegidos: comprobando, sin autenticar, sin permisos, autorizado, sesión caducada y error de red.
+- El panel nunca se muestra antes de completar la autorización.
+
+Continúan simulados:
+
 - `mockValidateCode()` y `mockValidateQr()` por consultas a `stamp_sessions`.
 - `mockConfirmStamp()` por una función RPC atómica que cree `stamp_transactions` y actualice `customer_cards`.
 - `mockGetRecentTransactions()` por historial del establecimiento y, si procede, suscripción Realtime.
 
-No hay claves, URLs, contraseñas reales ni credenciales `service_role` en este prototipo.
+No hay contraseñas ni credenciales `service_role` en el repositorio. La URL y la clave publicable se inyectan durante el build.
 
 ## Preparación de Supabase
 
-La base de datos y el cliente están preparados, pero la experiencia sigue usando `mock-loyalty-service.js`. No se realizan consultas reales todavía.
+La base de datos, el cliente y Supabase Auth están conectados. Los mocks se limitan a la fidelización que todavía no escribe datos reales.
 
 ### Dependencias fijadas
 
@@ -119,6 +127,8 @@ La migración inicial crea:
 - `stamp_sessions`
 - `stamp_transactions`
 
+La migración `add_auth_profile_trigger` crea el perfil al insertar un usuario Auth y añade el índice compuesto de la relación empleado-negocio. Su función es `SECURITY DEFINER` porque el alta ocurre antes de disponer de una sesión RLS; está aislada en `private`, fija `search_path = ''` y no concede `EXECUTE` a `PUBLIC`, `anon` ni `authenticated`. `raw_user_meta_data.display_name` se usa únicamente como texto de presentación, nunca para autorización.
+
 `supabase/seed.sql` añade Cafetería Spirit y el programa Tarjeta Café Spirit de 10 sellos, con recompensa Café gratuito. No crea usuarios ni credenciales.
 
 ### Seguridad y RLS
@@ -133,3 +143,31 @@ La migración inicial crea:
 - La futura confirmación de sellos debe implementarse mediante una operación RPC atómica con validación explícita de usuario y negocio.
 
 El service worker sólo almacena el shell y recursos estáticos del mismo origen. No intercepta peticiones a Supabase ni rutas de API del mismo origen.
+
+### Crear el primer propietario
+
+Este procedimiento se realiza una sola vez desde Supabase Dashboard o una conexión administrativa. No debe implementarse como endpoint público:
+
+1. Crea el usuario en **Authentication → Users** y confirma su correo.
+2. Copia su UUID de `auth.users`; no copies ni compartas su contraseña.
+3. Crea el negocio y conserva el UUID devuelto.
+4. Inserta la membresía con rol `owner` y `active = true`.
+5. Comprueba que tanto el negocio como la membresía estén activos.
+
+```sql
+begin;
+
+insert into public.businesses (id, name, active)
+values ('<BUSINESS_UUID>', 'Cafetería Spirit - Montcada', true);
+
+insert into public.business_members (business_id, user_id, role, active)
+values ('<BUSINESS_UUID>', '<AUTH_USER_UUID>', 'owner', true);
+
+commit;
+```
+
+Los UUID deben sustituirse manualmente por los valores del Dashboard. No se deben incorporar al frontend permisos administrativos ni claves secretas.
+
+### URLs de Auth
+
+Configura en **Authentication → URL Configuration** la URL pública de producción y las URLs de preview/desarrollo permitidas. La recuperación usa `/?auth=recovery` y el alta vuelve a `/`. Si una URL no está permitida, Supabase rechazará o redirigirá incorrectamente los enlaces de correo.

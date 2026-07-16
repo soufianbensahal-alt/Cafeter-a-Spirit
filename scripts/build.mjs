@@ -14,7 +14,12 @@ await mkdir(`${outputDirectory}/services`, { recursive: true });
 await cp('assets', `${outputDirectory}/assets`, { recursive: true });
 await copyFile('business/business.css', `${outputDirectory}/business/business.css`);
 await copyFile('business/business-view.js', `${outputDirectory}/business/business-view.js`);
-await copyFile('services/mock-loyalty-service.js', `${outputDirectory}/services/mock-loyalty-service.js`);
+await Promise.all([
+  'auth-service.js',
+  'customer-service.js',
+  'employee-service.js',
+  'mock-loyalty-service.js'
+].map((file) => copyFile(`services/${file}`, `${outputDirectory}/services/${file}`)));
 await Promise.all(files.map((file) => copyFile(file, `${outputDirectory}/${file}`)));
 
 await build({

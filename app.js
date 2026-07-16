@@ -1,3 +1,16 @@
+import {
+  completeCustomerPasswordRecovery,
+  getCurrentUser,
+  getCustomerContext,
+  requestCustomerPasswordReset,
+  signInCustomer,
+  signOut,
+  signUpCustomer,
+  subscribeToAuthChanges,
+  updateCustomerPassword,
+  updateCustomerProfile
+} from './services/customer-service.js';
+
 const isBusinessMode = /^\/cafeteria\/?$/.test(window.location.pathname);
 
 const icons = {
@@ -31,7 +44,7 @@ const copy = {
     profileEyebrow: 'Tu espacio', profileTitle: 'Muy tú.<br>Muy Spirit.', yourAccount: 'Tu cuenta', settings: 'Ajustes', personalData: 'Datos personales', notifications: 'Notificaciones', darkMode: 'Modo oscuro', language: 'Idioma', spanish: 'Castellano', catalan: 'Catalán', inviteFriend: 'Invita a un amigo', logout: 'Cerrar sesión',
     personalEyebrow: 'Tu cuenta', personalTitle: 'Datos personales', changePhoto: 'Fotografía de perfil', gallery: 'Galería', camera: 'Cámara', firstName: 'Nombre', lastName: 'Apellidos', email: 'Correo electrónico', emailReadOnly: 'Gestionado por tu cuenta', changePassword: 'Cambiar contraseña', save: 'Guardar', close: 'Cerrar',
     passwordEyebrow: 'Seguridad', passwordTitle: 'Cambiar contraseña', currentPassword: 'Contraseña actual', newPassword: 'Nueva contraseña', confirmPassword: 'Confirmar contraseña', passwordLength: 'La nueva contraseña debe tener al menos 8 caracteres.', passwordMismatch: 'Las contraseñas no coinciden.', passwordIncorrect: 'La contraseña actual no es correcta.', passwordSaved: 'Contraseña actualizada',
-    languageEyebrow: 'Preferencias', languageTitle: 'Idioma de la aplicación', welcome: 'Bienvenida a casa', loginTitle: 'Tu café.<br>Tus sellos.', phone: 'Teléfono', namePlaceholder: '¿Cómo te llamas?', privacy: 'Acepto la política de privacidad y el tratamiento de mis datos según el RGPD.', createAccount: 'Crear mi cuenta',
+    languageEyebrow: 'Preferencias', languageTitle: 'Idioma de la aplicación', welcome: 'Bienvenida a casa', loginTitle: 'Tu café.<br>Tus sellos.', phone: 'Teléfono', namePlaceholder: '¿Cómo te llamas?', privacy: 'Acepto la política de privacidad y el tratamiento de mis datos según el RGPD.', createAccount: 'Crear mi cuenta', signIn: 'Iniciar sesión', password: 'Contraseña', forgotPassword: 'He olvidado mi contraseña', sendRecovery: 'Enviar enlace de recuperación', backToSignIn: 'Volver al acceso', repeatPassword: 'Repetir contraseña', checkSession: 'Comprobando tu sesión…', authConfirmation: 'Revisa tu correo para confirmar la cuenta antes de iniciar sesión.', recoverySent: 'Si existe una cuenta con ese correo, recibirás un enlace de recuperación.', completeRecovery: 'Guardar nueva contraseña',
     redeemReady: 'Listo para canjear', redeemCopy: 'Enseña este código al equipo de Spirit. Caduca en 10 minutos.', confirmAtCafe: 'Confirmar en caja', enjoy: '¡Disfrútalo! Nos vemos pronto en Spirit ☕', shareText: 'Descubre Cafetería Spirit · Brunch and Specialty Coffee Montcada', shareCopied: 'Enlace copiado para compartir', invalidImage: 'No se ha podido procesar la imagen.'
   },
   ca: {
@@ -43,18 +56,23 @@ const copy = {
     profileEyebrow: 'El teu espai', profileTitle: 'Molt tu.<br>Molt Spirit.', yourAccount: 'El teu compte', settings: 'Configuració', personalData: 'Dades personals', notifications: 'Notificacions', darkMode: 'Mode fosc', language: 'Idioma', spanish: 'Castellà', catalan: 'Català', inviteFriend: 'Convida un amic', logout: 'Tancar sessió',
     personalEyebrow: 'El teu compte', personalTitle: 'Dades personals', changePhoto: 'Fotografia de perfil', gallery: 'Galeria', camera: 'Càmera', firstName: 'Nom', lastName: 'Cognoms', email: 'Correu electrònic', emailReadOnly: 'Gestionat pel teu compte', changePassword: 'Canviar contrasenya', save: 'Desar', close: 'Tancar',
     passwordEyebrow: 'Seguretat', passwordTitle: 'Canviar contrasenya', currentPassword: 'Contrasenya actual', newPassword: 'Nova contrasenya', confirmPassword: 'Confirmar contrasenya', passwordLength: 'La nova contrasenya ha de tenir almenys 8 caràcters.', passwordMismatch: 'Les contrasenyes no coincideixen.', passwordIncorrect: 'La contrasenya actual no és correcta.', passwordSaved: 'Contrasenya actualitzada',
-    languageEyebrow: 'Preferències', languageTitle: 'Idioma de l’aplicació', welcome: 'Benvinguda a casa', loginTitle: 'El teu cafè.<br>Els teus segells.', phone: 'Telèfon', namePlaceholder: 'Com et dius?', privacy: 'Accepto la política de privacitat i el tractament de les meves dades segons el RGPD.', createAccount: 'Crear el meu compte',
+    languageEyebrow: 'Preferències', languageTitle: 'Idioma de l’aplicació', welcome: 'Benvinguda a casa', loginTitle: 'El teu cafè.<br>Els teus segells.', phone: 'Telèfon', namePlaceholder: 'Com et dius?', privacy: 'Accepto la política de privacitat i el tractament de les meves dades segons el RGPD.', createAccount: 'Crear el meu compte', signIn: 'Iniciar sessió', password: 'Contrasenya', forgotPassword: 'He oblidat la contrasenya', sendRecovery: 'Enviar enllaç de recuperació', backToSignIn: 'Tornar a l’accés', repeatPassword: 'Repetir contrasenya', checkSession: 'Comprovant la sessió…', authConfirmation: 'Revisa el correu per confirmar el compte abans d’iniciar sessió.', recoverySent: 'Si existeix un compte amb aquest correu, rebràs un enllaç de recuperació.', completeRecovery: 'Desar la nova contrasenya',
     redeemReady: 'A punt per bescanviar', redeemCopy: 'Ensenya aquest codi a l’equip de Spirit. Caduca en 10 minuts.', confirmAtCafe: 'Confirmar a caixa', enjoy: 'Gaudeix-ne! Ens veiem aviat a Spirit ☕', shareText: 'Descobreix Cafeteria Spirit · Brunch and Specialty Coffee Montcada', shareCopied: 'Enllaç copiat per compartir', invalidImage: 'No s’ha pogut processar la imatge.'
   }
 };
 
 const defaultProfile = { firstName: 'Sofía', lastName: 'Fernández', email: 'sofia@email.com', photo: '' };
 const state = {
-  screen: 'intro', afterIntro: localStorage.getItem('spirit-seen') ? 'home' : (localStorage.getItem('spirit-onboarded') ? 'login' : 'onboarding'), onboarding: 0, stamps: 6, historyEmpty: false,
+  screen: 'intro', afterIntro: localStorage.getItem('spirit-onboarded') ? 'login' : 'onboarding', onboarding: 0, stamps: 6, historyEmpty: false,
   lang: localStorage.getItem('spirit-language') === 'ca' ? 'ca' : 'es',
   theme: document.documentElement.dataset.theme || 'light',
   notifications: localStorage.getItem('spirit-notifications') !== 'false',
-  profile: { ...defaultProfile, ...savedProfile }
+  profile: { ...defaultProfile, ...savedProfile },
+  authStatus: 'checking',
+  authMode: new URLSearchParams(location.search).get('auth') === 'recovery' ? 'recovery' : 'signin',
+  authLoading: false,
+  authError: '',
+  authNotice: ''
 };
 const app = document.querySelector('#app');
 const t = (key, values = {}) => Object.entries(values).reduce((value, [name, replacement]) => value.replaceAll(`{${name}}`, replacement), copy[state.lang][key] || key);
@@ -126,7 +144,21 @@ function profile() {
 }
 
 function login() {
-  return `<main class="app-shell"><section class="screen screen--gold">${topbar()}<p class="eyebrow">${t('welcome')}</p><h1>${t('loginTitle')}</h1><form class="form" data-form="login"><div class="field"><label for="name">${t('firstName')}</label><input id="name" name="name" maxlength="28" autocomplete="name" placeholder="${t('namePlaceholder')}" required></div><div class="field"><label for="email">${t('email')}</label><input id="email" name="email" type="email" autocomplete="email" placeholder="tu@email.com" required></div><div class="field"><label for="phone">${t('phone')}</label><input id="phone" type="tel" autocomplete="tel" placeholder="+34 600 000 000" required></div><label class="check"><input type="checkbox" required><span>${t('privacy')}</span></label><button class="primary-button" type="submit">${t('createAccount')}</button></form></section></main>`;
+  const message = `<p class="form-notice" role="status">${escapeHTML(state.authNotice)}</p><p class="form-error" role="alert">${escapeHTML(state.authError)}</p>`;
+  let form;
+  if (state.authMode === 'forgot') {
+    form = `<form class="form" data-form="customer-forgot"><div class="field"><label for="forgot-email">${t('email')}</label><input id="forgot-email" name="email" type="email" autocomplete="email" inputmode="email" required></div>${message}<button class="primary-button" type="submit" ${state.authLoading ? 'disabled' : ''}>${state.authLoading ? t('checkSession') : t('sendRecovery')}</button><button class="auth-link" type="button" data-action="auth-signin">${t('backToSignIn')}</button></form>`;
+  } else if (state.authMode === 'recovery') {
+    form = `<form class="form" data-form="customer-recovery"><div class="field"><label for="recovery-password">${t('newPassword')}</label><input id="recovery-password" name="password" type="password" minlength="8" autocomplete="new-password" required></div><div class="field"><label for="recovery-confirmation">${t('repeatPassword')}</label><input id="recovery-confirmation" name="confirmation" type="password" minlength="8" autocomplete="new-password" required></div>${message}<button class="primary-button" type="submit" ${state.authLoading ? 'disabled' : ''}>${state.authLoading ? t('checkSession') : t('completeRecovery')}</button></form>`;
+  } else {
+    const signingUp = state.authMode === 'signup';
+    form = `<div class="auth-switch" role="group" aria-label="Autenticación"><button type="button" class="${!signingUp ? 'auth-switch--active' : ''}" data-action="auth-signin">${t('signIn')}</button><button type="button" class="${signingUp ? 'auth-switch--active' : ''}" data-action="auth-signup">${t('createAccount')}</button></div><form class="form" data-form="customer-auth" data-auth-mode="${signingUp ? 'signup' : 'signin'}">${signingUp ? `<div class="field"><label for="name">${t('firstName')}</label><input id="name" name="name" maxlength="80" autocomplete="name" placeholder="${t('namePlaceholder')}" required></div>` : ''}<div class="field"><label for="email">${t('email')}</label><input id="email" name="email" type="email" autocomplete="username" inputmode="email" placeholder="tu@email.com" required></div><div class="field"><label for="password">${t('password')}</label><input id="password" name="password" type="password" minlength="8" autocomplete="${signingUp ? 'new-password' : 'current-password'}" required></div>${signingUp ? `<label class="check"><input type="checkbox" required><span>${t('privacy')}</span></label>` : `<button class="auth-link" type="button" data-action="auth-forgot">${t('forgotPassword')}</button>`}${message}<button class="primary-button" type="submit" ${state.authLoading ? 'disabled' : ''}>${state.authLoading ? t('checkSession') : signingUp ? t('createAccount') : t('signIn')}</button></form>`;
+  }
+  return `<main class="app-shell"><section class="screen screen--gold">${topbar()}<p class="eyebrow">${t('welcome')}</p><h1>${t('loginTitle')}</h1>${form}</section></main>`;
+}
+
+function authLoading() {
+  return `<main class="app-shell"><section class="screen screen--gold auth-loading">${topbar()}<span class="auth-spinner" aria-hidden="true"></span><p>${t('checkSession')}</p></section></main>`;
 }
 
 const sheet = (content, className = '') => `<div class="modal-backdrop" data-sheet-backdrop><div class="modal ${className}" role="dialog" aria-modal="true">${content}</div></div>`;
@@ -144,9 +176,61 @@ function passwordSheet() {
   return sheet(`<div class="sheet-head"><div><p class="eyebrow">${t('passwordEyebrow')}</p><h2>${t('passwordTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-sheet" aria-label="${t('close')}">×</button></div><form class="sheet-form" data-form="password"><div class="field"><label for="current-password">${t('currentPassword')}</label><input id="current-password" name="currentPassword" type="password" autocomplete="current-password" required></div><div class="field"><label for="new-password">${t('newPassword')}</label><input id="new-password" name="newPassword" type="password" minlength="8" autocomplete="new-password" required></div><div class="field"><label for="confirm-password">${t('confirmPassword')}</label><input id="confirm-password" name="confirmPassword" type="password" minlength="8" autocomplete="new-password" required></div><p class="form-error" data-password-error role="alert"></p><button class="primary-button" type="submit">${t('save')}</button></form>`, 'modal--form');
 }
 
+const readableAuthError = (error) => {
+  const messages = {
+    invalid_credentials: 'El correo o la contraseña no son correctos.',
+    email_not_confirmed: 'Confirma tu correo antes de iniciar sesión.',
+    user_already_exists: 'Ya existe una cuenta con este correo.',
+    weak_password: 'La contraseña no cumple los requisitos de seguridad.',
+    over_request_rate_limit: 'Demasiados intentos. Espera unos minutos antes de volver a probar.',
+    network_error: 'No se ha podido conectar con Spirit. Revisa tu conexión.'
+  };
+  return messages[error?.code] || error?.message || 'No se ha podido completar la operación.';
+};
+
+function applyCustomerContext(context) {
+  if (!context) return;
+  state.profile = {
+    ...state.profile,
+    firstName: context.firstName,
+    lastName: context.lastName,
+    email: context.email
+  };
+  state.authStatus = 'authenticated';
+  state.afterIntro = 'home';
+  localStorage.setItem('spirit-seen', '1');
+  saveProfile();
+}
+
+function clearCustomerIdentity() {
+  localStorage.removeItem('spirit-seen');
+  localStorage.removeItem('spirit-profile');
+  state.profile = { ...defaultProfile };
+  state.authStatus = 'unauthenticated';
+  state.authMode = 'signin';
+  state.authError = '';
+  state.authNotice = '';
+}
+
+async function initializeCustomerAuth() {
+  try {
+    const user = await getCurrentUser();
+    const context = user ? await getCustomerContext(user) : null;
+    if (context) applyCustomerContext(context);
+    else state.authStatus = 'unauthenticated';
+  } catch (error) {
+    state.authStatus = 'error';
+    state.authError = readableAuthError(error);
+  }
+  if (state.screen === 'authLoading') {
+    state.screen = state.authStatus === 'authenticated' ? 'home' : 'login';
+    render();
+  }
+}
+
 function finishIntro() {
   if (state.screen !== 'intro') return;
-  state.screen = state.afterIntro;
+  state.screen = state.authStatus === 'checking' ? 'authLoading' : state.afterIntro;
   render();
 }
 
@@ -182,12 +266,11 @@ async function enterSpirit() {
   onboardingTransitioning = false;
 }
 
-function logout() {
-  localStorage.removeItem('spirit-seen');
+async function logout() {
+  try { await signOut(); }
+  catch (error) { showToast(readableAuthError(error)); }
+  clearCustomerIdentity();
   localStorage.setItem('spirit-onboarded', '1');
-  localStorage.removeItem('spirit-profile');
-  localStorage.removeItem('spirit-password-hash');
-  state.profile = { ...defaultProfile };
   state.historyEmpty = false;
   state.onboarding = 0;
   state.screen = 'login';
@@ -197,7 +280,7 @@ function logout() {
 
 function render() {
   document.documentElement.lang = state.lang;
-  app.innerHTML = ({intro,onboarding,login,home,rewards,history,profile})[state.screen]();
+  app.innerHTML = ({intro,onboarding,login,authLoading,home,rewards,history,profile})[state.screen]();
   bind();
   if (state.screen === 'intro') {
     document.querySelector('[data-intro-logo]')?.addEventListener('error', finishIntro, {once: true});
@@ -234,12 +317,6 @@ async function imageToAvatar(file) {
   return canvas.toDataURL('image/jpeg', .86);
 }
 
-async function hashPassword(value) {
-  const bytes = new TextEncoder().encode(value);
-  const hash = await crypto.subtle.digest('SHA-256', bytes);
-  return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
 async function shareSpirit() {
   const data = { title: 'Spirit Coffee', text: t('shareText'), url: location.href };
   const copyFallback = async () => {
@@ -268,7 +345,7 @@ async function shareSpirit() {
 function bind() {
   document.querySelectorAll('[data-nav]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{state.screen=el.dataset.nav; render(); scrollTo(0,0);})});
   document.querySelectorAll('[data-redeem]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{if(!el.disabled){app.insertAdjacentHTML('beforeend',modal(el.dataset.redeem)); bind();}})});
-  document.querySelectorAll('[data-action]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{
+  document.querySelectorAll('[data-action]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',async()=>{
     const action=el.dataset.action;
     if(action==='skip-intro'){ clearTimeout(render.introFallback); finishIntro(); }
     if(action==='next-onboarding'){ if(state.onboarding<2) moveOnboarding(1); else enterSpirit(); }
@@ -280,7 +357,10 @@ function bind() {
     if(action==='share'){ shareSpirit(); }
     if(action==='confirm-redeem'){ state.stamps=0; document.querySelector('[data-sheet-backdrop]')?.remove(); showToast(t('enjoy')); setTimeout(()=>{state.screen='home';render();},900); }
     if(action==='toggle-empty'){ state.historyEmpty=!state.historyEmpty; render(); }
-    if(action==='logout'){ logout(); }
+    if(action==='auth-signin'){ state.authMode='signin'; state.authError=''; state.authNotice=''; render(); }
+    if(action==='auth-signup'){ state.authMode='signup'; state.authError=''; state.authNotice=''; render(); }
+    if(action==='auth-forgot'){ state.authMode='forgot'; state.authError=''; state.authNotice=''; render(); }
+    if(action==='logout'){ await logout(); }
   })});
   document.querySelectorAll('[data-sheet-backdrop]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',(event)=>{if(event.target===el)el.remove();})});
   document.querySelectorAll('[data-onboarding-swipe]:not([data-bound])').forEach(el=>{el.dataset.bound='1';let startX=0;let startY=0;el.addEventListener('touchstart',(event)=>{startX=event.changedTouches[0].clientX;startY=event.changedTouches[0].clientY;},{passive:true});el.addEventListener('touchend',(event)=>{const deltaX=event.changedTouches[0].clientX-startX;const deltaY=event.changedTouches[0].clientY-startY;if(Math.abs(deltaX)>52&&Math.abs(deltaX)>Math.abs(deltaY)*1.2)moveOnboarding(deltaX<0?1:-1);},{passive:true})});
@@ -288,12 +368,47 @@ function bind() {
   document.querySelectorAll('[data-notifications]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',(event)=>{state.notifications=event.currentTarget.checked;localStorage.setItem('spirit-notifications',String(state.notifications));})});
   document.querySelectorAll('[data-theme-toggle]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',(event)=>applyTheme(event.currentTarget.checked?'dark':'light',true))});
   document.querySelectorAll('[data-photo-input]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',async(event)=>{try{state.profile.photo=await imageToAvatar(event.currentTarget.files[0]);saveProfile();document.querySelectorAll('.avatar').forEach(avatarElement=>{avatarElement.innerHTML=`<img src="${state.profile.photo}" alt="${escapeHTML(state.profile.firstName)}">`;});}catch{showToast(t('invalidImage'));}event.currentTarget.value='';})});
-  document.querySelector('[data-form="login"]')?.addEventListener('submit',(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);const fullName=data.get('name').trim().split(/\s+/);state.profile.firstName=fullName.shift()||state.profile.firstName;state.profile.lastName=fullName.join(' ')||state.profile.lastName;state.profile.email=data.get('email').trim();saveProfile();localStorage.setItem('spirit-seen','1');state.screen='home';render();});
-  document.querySelector('[data-form="profile"]')?.addEventListener('submit',(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);state.profile.firstName=data.get('firstName').trim();state.profile.lastName=data.get('lastName').trim();saveProfile();document.querySelector('[data-sheet-backdrop]')?.remove();render();});
-  document.querySelector('[data-form="password"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);const current=data.get('currentPassword');const next=data.get('newPassword');const confirmation=data.get('confirmPassword');const error=e.currentTarget.querySelector('[data-password-error]');error.textContent='';if(next.length<8){error.textContent=t('passwordLength');return;}if(next!==confirmation){error.textContent=t('passwordMismatch');return;}const savedHash=localStorage.getItem('spirit-password-hash');if(savedHash&&await hashPassword(current)!==savedHash){error.textContent=t('passwordIncorrect');return;}localStorage.setItem('spirit-password-hash',await hashPassword(next));document.querySelector('[data-sheet-backdrop]')?.remove();});
+  document.querySelector('[data-form="customer-auth"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const form=e.currentTarget;const data=new FormData(form);state.authLoading=true;state.authError='';state.authNotice='';render();try{if(form.dataset.authMode==='signup'){const result=await signUpCustomer({email:data.get('email'),password:data.get('password'),displayName:data.get('name')});if(result.confirmationRequired){state.authMode='signin';state.authNotice=t('authConfirmation');state.screen='login';}else{applyCustomerContext(result.context);state.screen='home';}}else{applyCustomerContext(await signInCustomer(data.get('email'),data.get('password')));state.screen='home';}}catch(error){state.authError=readableAuthError(error);state.screen='login';}finally{state.authLoading=false;render();}});
+  document.querySelector('[data-form="customer-forgot"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);state.authLoading=true;state.authError='';state.authNotice='';render();try{await requestCustomerPasswordReset(data.get('email'));state.authNotice=t('recoverySent');state.authMode='signin';}catch(error){state.authError=readableAuthError(error);}finally{state.authLoading=false;state.screen='login';render();}});
+  document.querySelector('[data-form="customer-recovery"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);const password=data.get('password');if(password!==data.get('confirmation')){state.authError=t('passwordMismatch');render();return;}state.authLoading=true;state.authError='';render();try{await completeCustomerPasswordRecovery(password);const context=await getCustomerContext();applyCustomerContext(context);history.replaceState({},'',location.pathname);state.screen='home';}catch(error){state.authError=readableAuthError(error);}finally{state.authLoading=false;render();}});
+  document.querySelector('[data-form="profile"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);try{const context=await updateCustomerProfile(`${data.get('firstName')} ${data.get('lastName')}`);applyCustomerContext(context);document.querySelector('[data-sheet-backdrop]')?.remove();render();}catch(error){showToast(readableAuthError(error));}});
+  document.querySelector('[data-form="password"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);const current=data.get('currentPassword');const next=data.get('newPassword');const confirmation=data.get('confirmPassword');const error=e.currentTarget.querySelector('[data-password-error]');error.textContent='';if(next.length<8){error.textContent=t('passwordLength');return;}if(next!==confirmation){error.textContent=t('passwordMismatch');return;}try{await updateCustomerPassword(state.profile.email,current,next);document.querySelector('[data-sheet-backdrop]')?.remove();showToast(t('passwordSaved'));}catch(authError){error.textContent=readableAuthError(authError);}});
 }
 
-if (!isBusinessMode) render();
+if (!isBusinessMode) {
+  render();
+  initializeCustomerAuth();
+  try {
+    subscribeToAuthChanges(async(event, user) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        state.authMode = 'recovery';
+        state.authError = '';
+        state.screen = 'login';
+        render();
+        return;
+      }
+      if (event === 'SIGNED_OUT') {
+        clearCustomerIdentity();
+        if (!['intro', 'onboarding'].includes(state.screen)) state.screen = 'login';
+        render();
+        return;
+      }
+      if (event === 'SIGNED_IN' && user && state.authStatus !== 'authenticated') {
+        try {
+          applyCustomerContext(await getCustomerContext(user));
+          if (state.screen === 'login') state.screen = 'home';
+          render();
+        } catch (error) {
+          state.authError = readableAuthError(error);
+          render();
+        }
+      }
+    });
+  } catch (error) {
+    state.authStatus = 'error';
+    state.authError = readableAuthError(error);
+  }
+}
 
 if (!localStorage.getItem('spirit-theme')) {
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) => applyTheme(event.matches ? 'dark' : 'light'));

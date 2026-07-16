@@ -1,27 +1,34 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(25);
 
 insert into auth.users (id, email) values
   ('10000000-0000-4000-8000-000000000001', 'customer-one@spirit.test'),
   ('10000000-0000-4000-8000-000000000002', 'customer-two@spirit.test'),
   ('20000000-0000-4000-8000-000000000001', 'employee@spirit.test'),
-  ('20000000-0000-4000-8000-000000000002', 'outsider@spirit.test');
+  ('20000000-0000-4000-8000-000000000002', 'outsider@spirit.test'),
+  ('20000000-0000-4000-8000-000000000003', 'inactive@spirit.test'),
+  ('20000000-0000-4000-8000-000000000004', 'inactive-business@spirit.test');
 
-insert into public.profiles (id, display_name) values
-  ('10000000-0000-4000-8000-000000000001', 'Cliente Uno'),
-  ('10000000-0000-4000-8000-000000000002', 'Cliente Dos'),
-  ('20000000-0000-4000-8000-000000000001', 'Empleado Spirit'),
-  ('20000000-0000-4000-8000-000000000002', 'Empleado Externo');
+update public.profiles
+set display_name = case id
+  when '10000000-0000-4000-8000-000000000001' then 'Cliente Uno'
+  when '10000000-0000-4000-8000-000000000002' then 'Cliente Dos'
+  when '20000000-0000-4000-8000-000000000001' then 'Empleado Spirit'
+  when '20000000-0000-4000-8000-000000000002' then 'Empleado Externo'
+  else display_name
+end;
+
+insert into public.businesses (id, name, active) values
+  ('00000000-0000-4000-8000-000000000002', 'Otro negocio', true),
+  ('00000000-0000-4000-8000-000000000003', 'Negocio inactivo', false);
 
 insert into public.business_members (id, business_id, user_id, role, active)
-values (
-  '30000000-0000-4000-8000-000000000001',
-  '00000000-0000-4000-8000-000000000001',
-  '20000000-0000-4000-8000-000000000001',
-  'employee',
-  true
-);
+values
+  ('30000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', 'employee', true),
+  ('30000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', 'employee', true),
+  ('30000000-0000-4000-8000-000000000003', '00000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000003', 'employee', false),
+  ('30000000-0000-4000-8000-000000000004', '00000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000004', 'manager', true);
 
 insert into public.customer_cards (id, customer_id, loyalty_program_id, current_stamps)
 values
@@ -81,6 +88,7 @@ select results_eq(
   array[7::bigint],
   'RLS está activa en las siete tablas públicas'
 );
+select results_eq('select count(*) from public.profiles', array[6::bigint], 'el trigger Auth crea un perfil por usuario');
 
 set local role authenticated;
 set local request.jwt.claim.sub = '10000000-0000-4000-8000-000000000001';
@@ -116,12 +124,36 @@ select results_eq('select count(*) from public.loyalty_programs', array[1::bigin
 select results_eq('select count(*) from public.stamp_transactions', array[1::bigint], 'el empleado ve las transacciones de su negocio');
 select results_eq('select count(*) from public.profiles', array[0::bigint], 'el empleado no puede consultar perfiles ajenos');
 select results_eq('select count(*) from public.customer_cards', array[0::bigint], 'el empleado no consulta tarjetas directamente');
+select throws_ok(
+  $$update public.customer_cards set current_stamps = current_stamps + 1$$,
+  '42501',
+  null,
+  'el empleado no puede modificar saldos'
+);
+select throws_ok(
+  $$insert into public.stamp_transactions (customer_card_id, business_id, employee_id, quantity, transaction_type) values ('40000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', 1, 'stamp')$$,
+  '42501',
+  null,
+  'el empleado no puede insertar transacciones directamente'
+);
+select throws_ok(
+  $$update public.stamp_sessions set used_at = now()$$,
+  '42501',
+  null,
+  'el empleado no puede marcar sesiones como usadas'
+);
 
 set local request.jwt.claim.sub = '20000000-0000-4000-8000-000000000002';
 
-select results_eq('select count(*) from public.business_members', array[0::bigint], 'un empleado externo no ve pertenencias de Spirit');
-select results_eq('select count(*) from public.businesses', array[0::bigint], 'un empleado externo no ve Cafetería Spirit');
-select results_eq('select count(*) from public.stamp_transactions', array[0::bigint], 'un empleado externo no ve transacciones de Spirit');
+select results_eq('select count(*) from public.business_members', array[1::bigint], 'un empleado externo sólo ve su propia pertenencia');
+select results_eq($$select count(*) from public.business_members where business_id = '00000000-0000-4000-8000-000000000001'$$, array[0::bigint], 'otro negocio no ve pertenencias de Spirit');
+select results_eq($$select count(*) from public.businesses where id = '00000000-0000-4000-8000-000000000001'$$, array[0::bigint], 'otro negocio no ve Cafetería Spirit');
+select results_eq($$select count(*) from public.stamp_transactions where business_id = '00000000-0000-4000-8000-000000000001'$$, array[0::bigint], 'otro negocio no ve transacciones de Spirit');
+
+set local request.jwt.claim.sub = '20000000-0000-4000-8000-000000000003';
+
+select results_eq('select count(*) from public.business_members', array[1::bigint], 'el empleado inactivo ve su propia pertenencia');
+select results_eq('select count(*) from public.businesses', array[0::bigint], 'la pertenencia inactiva no abre acceso al negocio');
 
 reset role;
 set local role anon;
