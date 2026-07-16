@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/cafeteria",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/cafeteria/",
+      "destination": "/index.html"
+    }
+  ]
+}

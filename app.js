@@ -1,3 +1,5 @@
+const isBusinessMode = /^\/cafeteria\/?$/.test(window.location.pathname);
+
 const icons = {
   home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 11 9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>`,
   gift: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 12v9H4v-9M2 7h20v5H2zM12 7v14M12 7H7.5a2.5 2.5 0 1 1 2.5-2.5C10 6 12 7 12 7Zm0 0h4.5A2.5 2.5 0 1 0 14 4.5C14 6 12 7 12 7Z"/></svg>`,
@@ -291,7 +293,7 @@ function bind() {
   document.querySelector('[data-form="password"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);const current=data.get('currentPassword');const next=data.get('newPassword');const confirmation=data.get('confirmPassword');const error=e.currentTarget.querySelector('[data-password-error]');error.textContent='';if(next.length<8){error.textContent=t('passwordLength');return;}if(next!==confirmation){error.textContent=t('passwordMismatch');return;}const savedHash=localStorage.getItem('spirit-password-hash');if(savedHash&&await hashPassword(current)!==savedHash){error.textContent=t('passwordIncorrect');return;}localStorage.setItem('spirit-password-hash',await hashPassword(next));document.querySelector('[data-sheet-backdrop]')?.remove();});
 }
 
-render();
+if (!isBusinessMode) render();
 
 if (!localStorage.getItem('spirit-theme')) {
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) => applyTheme(event.matches ? 'dark' : 'light'));
