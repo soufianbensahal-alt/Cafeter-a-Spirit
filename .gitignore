@@ -1,5 +1,6 @@
 .env
-.env.local
+.env.*
+!.env.example
 node_modules/
 dist/
 build/
@@ -7,4 +8,6 @@ build/
 .vercel/
 tmp/
 spirit-intro-remotion/
+supabase/.branches/
+supabase/.temp/
 spirit-intro-remotion/

@@ -1,0 +1,21 @@
+{
+  "name": "cafeteria-spirit-pwa",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "preview": "node scripts/preview.mjs",
+    "supabase": "supabase"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.110.6"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1",
+    "supabase": "2.109.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

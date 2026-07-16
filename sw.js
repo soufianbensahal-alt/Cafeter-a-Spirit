@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spirit-shell-v5';
+const CACHE_NAME = 'spirit-shell-v6';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -36,7 +36,8 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET' || new URL(event.request.url).origin !== location.origin) return;
+  const requestUrl = new URL(event.request.url);
+  if (event.request.method !== 'GET' || requestUrl.origin !== location.origin) return;
 
   if (event.request.mode === 'navigate') {
     event.respondWith(
@@ -50,6 +51,10 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
+
+  const isStaticResource = APP_SHELL.includes(requestUrl.pathname)
+    || requestUrl.pathname.startsWith('/assets/');
+  if (!isStaticResource) return;
 
   event.respondWith(
     caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
