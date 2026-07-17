@@ -33,12 +33,14 @@ const toServiceError = (error) => {
   const message = String(error?.message || '');
   const knownCode = [
     'not_authenticated',
+    'loyalty_program_unavailable',
     'customer_card_not_available',
     'creation_rate_limited',
     'code_generation_failed'
   ].find((code) => message.includes(code));
   const messages = {
     not_authenticated: 'Inicia sesión para generar una solicitud de sello.',
+    loyalty_program_unavailable: 'El programa de fidelización de Spirit no está disponible.',
     customer_card_not_available: 'Tu tarjeta Spirit todavía no está activa.',
     creation_rate_limited: 'Has generado varias solicitudes. Espera unos minutos antes de intentarlo de nuevo.',
     code_generation_failed: 'No se ha podido generar un código seguro. Inténtalo de nuevo.'
@@ -51,24 +53,18 @@ const toServiceError = (error) => {
 };
 
 export async function getOwnCustomerCard() {
-  const { data, error } = await requireSupabase()
-    .from('customer_cards')
-    .select('id, current_stamps, available_rewards, updated_at, loyalty_programs(name, stamps_required, reward_description, active)')
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  const { data, error } = await requireSupabase().rpc('ensure_own_customer_card');
   if (error) throw toServiceError(error);
-  if (!data) throw new StampSessionError('customer_card_not_available', 'Tu tarjeta Spirit todavía no está activa.');
-  const program = Array.isArray(data.loyalty_programs) ? data.loyalty_programs[0] : data.loyalty_programs;
-  if (!program?.active) throw new StampSessionError('customer_card_not_available', 'Tu programa Spirit todavía no está activo.');
+  const card = firstRow(data);
+  if (!card) throw new StampSessionError('customer_card_not_available', 'Tu tarjeta Spirit todavía no está activa.');
   return Object.freeze({
-    id: data.id,
-    currentStamps: data.current_stamps,
-    availableRewards: data.available_rewards,
-    updatedAt: data.updated_at,
-    programName: program.name,
-    stampsRequired: program.stamps_required,
-    rewardDescription: program.reward_description
+    id: card.id,
+    currentStamps: card.current_stamps,
+    availableRewards: card.available_rewards,
+    updatedAt: card.updated_at,
+    programName: card.program_name,
+    stampsRequired: card.stamps_required,
+    rewardDescription: card.reward_description
   });
 }
 

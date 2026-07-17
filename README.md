@@ -152,6 +152,14 @@ commit;
 
 Los UUID deben sustituirse manualmente por los valores del Dashboard. No se deben incorporar al frontend permisos administrativos ni claves secretas.
 
+### Inicialización de la tarjeta de fidelización
+
+La migración `initialize_spirit_loyalty_data` crea de forma idempotente el negocio `Cafetería Spirit - Montcada` y su programa activo `Tarjeta Café Spirit`. Los índices normalizados de nombre y la restricción existente `(customer_id, loyalty_program_id)` impiden duplicar el negocio, el programa o una tarjeta.
+
+La misma migración realiza un backfill para usuarios de Auth existentes que aún no tengan tarjeta. A partir de entonces, el frontend invoca `ensure_own_customer_card()` al restaurar o iniciar una sesión autenticada. Se eligió ese momento porque sirve tanto para registros nuevos como para cuentas antiguas, admite reintentos y no acopla el trigger global de Auth a un negocio concreto. La RPC no recibe un `user_id`: deriva siempre el cliente de `auth.uid()` y usa un `INSERT ... ON CONFLICT DO NOTHING`.
+
+`authenticated` sólo recibe `EXECUTE` sobre esa RPC y conserva acceso de lectura sobre su propia tarjeta mediante RLS. `anon` no puede ejecutarla y el navegador no obtiene permisos directos de inserción o actualización sobre `customer_cards`.
+
 ### URLs de Auth
 
 Configura en **Authentication → URL Configuration** la URL pública de producción como **Site URL** y añade como **Redirect URLs** cada origen permitido con la ruta `/reset-password`. La recuperación usa una pantalla propia en esa ruta y el alta vuelve a `/`.

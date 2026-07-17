@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(29);
+select plan(33);
 
 insert into auth.users (id, email) values
   ('10000000-0000-4000-8000-000000000001', 'customer-one@spirit.test'),
@@ -101,6 +101,14 @@ select ok(
   has_function_privilege('authenticated', 'public.confirm_stamp_session(uuid)', 'execute'),
   'authenticated puede invocar la confirmación protegida'
 );
+select ok(
+  not has_function_privilege('anon', 'public.ensure_own_customer_card()', 'execute'),
+  'anon no puede inicializar tarjetas'
+);
+select ok(
+  has_function_privilege('authenticated', 'public.ensure_own_customer_card()', 'execute'),
+  'authenticated puede inicializar exclusivamente su propia tarjeta'
+);
 select results_eq('select count(*) from public.profiles', array[6::bigint], 'el trigger Auth crea un perfil por usuario');
 
 set local role authenticated;
@@ -128,6 +136,16 @@ select throws_ok(
   '42501',
   null,
   'las sesiones de sellado no se exponen directamente'
+);
+select results_eq(
+  $$select count(*) from public.ensure_own_customer_card()$$,
+  array[1::bigint],
+  'la inicialización devuelve la tarjeta del usuario autenticado'
+);
+select results_eq(
+  $$select count(distinct card.id) from public.ensure_own_customer_card() as ensured join public.customer_cards as card on card.id = ensured.id where card.customer_id = '10000000-0000-4000-8000-000000000001'$$,
+  array[1::bigint],
+  'repetir la inicialización no duplica la tarjeta del cliente'
 );
 
 set local request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
