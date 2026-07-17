@@ -70,7 +70,7 @@ export async function updateCustomerProfile(displayName) {
 
 export const requestCustomerPasswordReset = (email) => sendPasswordReset(
   email,
-  new URL('/?auth=recovery', window.location.origin).href
+  new URL('/reset-password', window.location.origin).href
 );
 
 export const updateCustomerPassword = (email, currentPassword, nextPassword) => (
@@ -80,4 +80,3 @@ export const updateCustomerPassword = (email, currentPassword, nextPassword) => 
 export const completeCustomerPasswordRecovery = (nextPassword) => updatePassword(nextPassword);
 
 export { getCurrentUser, signOut, subscribeToAuthChanges };
-

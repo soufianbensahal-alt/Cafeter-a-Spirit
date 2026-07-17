@@ -12,6 +12,18 @@ import {
 } from './services/customer-service.js';
 
 const isBusinessMode = /^\/cafeteria\/?$/.test(window.location.pathname);
+const isPasswordRecoveryRoute = /^\/reset-password\/?$/.test(window.location.pathname)
+  || new URLSearchParams(window.location.search).get('auth') === 'recovery';
+
+const recoveryLinkError = (() => {
+  if (!isPasswordRecoveryRoute) return null;
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const query = new URLSearchParams(window.location.search);
+  const code = hash.get('error_code') || query.get('error_code');
+  const error = hash.get('error') || query.get('error');
+  if (!code && !error) return null;
+  return code || error;
+})();
 
 const icons = {
   home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 11 9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>`,
@@ -44,7 +56,7 @@ const copy = {
     profileEyebrow: 'Tu espacio', profileTitle: 'Muy tú.<br>Muy Spirit.', yourAccount: 'Tu cuenta', settings: 'Ajustes', personalData: 'Datos personales', notifications: 'Notificaciones', darkMode: 'Modo oscuro', language: 'Idioma', spanish: 'Castellano', catalan: 'Catalán', inviteFriend: 'Invita a un amigo', logout: 'Cerrar sesión',
     personalEyebrow: 'Tu cuenta', personalTitle: 'Datos personales', changePhoto: 'Fotografía de perfil', gallery: 'Galería', camera: 'Cámara', firstName: 'Nombre', lastName: 'Apellidos', email: 'Correo electrónico', emailReadOnly: 'Gestionado por tu cuenta', changePassword: 'Cambiar contraseña', save: 'Guardar', close: 'Cerrar',
     passwordEyebrow: 'Seguridad', passwordTitle: 'Cambiar contraseña', currentPassword: 'Contraseña actual', newPassword: 'Nueva contraseña', confirmPassword: 'Confirmar contraseña', passwordLength: 'La nueva contraseña debe tener al menos 8 caracteres.', passwordMismatch: 'Las contraseñas no coinciden.', passwordIncorrect: 'La contraseña actual no es correcta.', passwordSaved: 'Contraseña actualizada',
-    languageEyebrow: 'Preferencias', languageTitle: 'Idioma de la aplicación', welcome: 'Bienvenida a casa', loginTitle: 'Tu café.<br>Tus sellos.', phone: 'Teléfono', namePlaceholder: '¿Cómo te llamas?', privacy: 'Acepto la política de privacidad y el tratamiento de mis datos según el RGPD.', createAccount: 'Crear mi cuenta', signIn: 'Iniciar sesión', password: 'Contraseña', forgotPassword: 'He olvidado mi contraseña', sendRecovery: 'Enviar enlace de recuperación', backToSignIn: 'Volver al acceso', repeatPassword: 'Repetir contraseña', checkSession: 'Comprobando tu sesión…', authConfirmation: 'Revisa tu correo para confirmar la cuenta antes de iniciar sesión.', recoverySent: 'Si existe una cuenta con ese correo, recibirás un enlace de recuperación.', completeRecovery: 'Guardar nueva contraseña',
+    languageEyebrow: 'Preferencias', languageTitle: 'Idioma de la aplicación', welcome: 'Bienvenida a casa', loginTitle: 'Tu café.<br>Tus sellos.', phone: 'Teléfono', namePlaceholder: '¿Cómo te llamas?', privacy: 'Acepto la política de privacidad y el tratamiento de mis datos según el RGPD.', createAccount: 'Crear mi cuenta', signIn: 'Iniciar sesión', password: 'Contraseña', forgotPassword: 'He olvidado mi contraseña', sendRecovery: 'Enviar enlace de recuperación', backToSignIn: 'Volver al acceso', repeatPassword: 'Confirmar nueva contraseña', checkSession: 'Comprobando tu sesión…', authConfirmation: 'Revisa tu correo para confirmar la cuenta antes de iniciar sesión.', recoverySent: 'Si existe una cuenta con ese correo, recibirás un enlace de recuperación.', recoveryEyebrow: 'Seguridad de tu cuenta', recoveryTitle: 'Crea una nueva<br>contraseña.', recoveryCopy: 'Introduce una contraseña segura y repítela para confirmar que está escrita correctamente.', recoveryChecking: 'Validando el enlace de recuperación…', recoveryInvalidTitle: 'El enlace ya no es válido.', recoveryInvalidCopy: 'El enlace ha caducado, ya se ha utilizado o no puede verificarse. Solicita uno nuevo para continuar.', requestAnotherRecovery: 'Solicitar otro enlace', recoveryCompleteTitle: 'Contraseña actualizada.', recoveryCompleteCopy: 'Tu nueva contraseña ya está activa. Puedes continuar con tu cuenta Spirit.', continueToSpirit: 'Continuar en Spirit', recoverySessionMissing: 'No se ha podido validar el enlace. Solicita uno nuevo.', completeRecovery: 'Guardar nueva contraseña',
     redeemReady: 'Listo para canjear', redeemCopy: 'Enseña este código al equipo de Spirit. Caduca en 10 minutos.', confirmAtCafe: 'Confirmar en caja', enjoy: '¡Disfrútalo! Nos vemos pronto en Spirit ☕', shareText: 'Descubre Cafetería Spirit · Brunch and Specialty Coffee Montcada', shareCopied: 'Enlace copiado para compartir', invalidImage: 'No se ha podido procesar la imagen.'
   },
   ca: {
@@ -56,20 +68,20 @@ const copy = {
     profileEyebrow: 'El teu espai', profileTitle: 'Molt tu.<br>Molt Spirit.', yourAccount: 'El teu compte', settings: 'Configuració', personalData: 'Dades personals', notifications: 'Notificacions', darkMode: 'Mode fosc', language: 'Idioma', spanish: 'Castellà', catalan: 'Català', inviteFriend: 'Convida un amic', logout: 'Tancar sessió',
     personalEyebrow: 'El teu compte', personalTitle: 'Dades personals', changePhoto: 'Fotografia de perfil', gallery: 'Galeria', camera: 'Càmera', firstName: 'Nom', lastName: 'Cognoms', email: 'Correu electrònic', emailReadOnly: 'Gestionat pel teu compte', changePassword: 'Canviar contrasenya', save: 'Desar', close: 'Tancar',
     passwordEyebrow: 'Seguretat', passwordTitle: 'Canviar contrasenya', currentPassword: 'Contrasenya actual', newPassword: 'Nova contrasenya', confirmPassword: 'Confirmar contrasenya', passwordLength: 'La nova contrasenya ha de tenir almenys 8 caràcters.', passwordMismatch: 'Les contrasenyes no coincideixen.', passwordIncorrect: 'La contrasenya actual no és correcta.', passwordSaved: 'Contrasenya actualitzada',
-    languageEyebrow: 'Preferències', languageTitle: 'Idioma de l’aplicació', welcome: 'Benvinguda a casa', loginTitle: 'El teu cafè.<br>Els teus segells.', phone: 'Telèfon', namePlaceholder: 'Com et dius?', privacy: 'Accepto la política de privacitat i el tractament de les meves dades segons el RGPD.', createAccount: 'Crear el meu compte', signIn: 'Iniciar sessió', password: 'Contrasenya', forgotPassword: 'He oblidat la contrasenya', sendRecovery: 'Enviar enllaç de recuperació', backToSignIn: 'Tornar a l’accés', repeatPassword: 'Repetir contrasenya', checkSession: 'Comprovant la sessió…', authConfirmation: 'Revisa el correu per confirmar el compte abans d’iniciar sessió.', recoverySent: 'Si existeix un compte amb aquest correu, rebràs un enllaç de recuperació.', completeRecovery: 'Desar la nova contrasenya',
+    languageEyebrow: 'Preferències', languageTitle: 'Idioma de l’aplicació', welcome: 'Benvinguda a casa', loginTitle: 'El teu cafè.<br>Els teus segells.', phone: 'Telèfon', namePlaceholder: 'Com et dius?', privacy: 'Accepto la política de privacitat i el tractament de les meves dades segons el RGPD.', createAccount: 'Crear el meu compte', signIn: 'Iniciar sessió', password: 'Contrasenya', forgotPassword: 'He oblidat la contrasenya', sendRecovery: 'Enviar enllaç de recuperació', backToSignIn: 'Tornar a l’accés', repeatPassword: 'Confirmar la nova contrasenya', checkSession: 'Comprovant la sessió…', authConfirmation: 'Revisa el correu per confirmar el compte abans d’iniciar sessió.', recoverySent: 'Si existeix un compte amb aquest correu, rebràs un enllaç de recuperació.', recoveryEyebrow: 'Seguretat del teu compte', recoveryTitle: 'Crea una nova<br>contrasenya.', recoveryCopy: 'Introdueix una contrasenya segura i repeteix-la per confirmar que està escrita correctament.', recoveryChecking: 'Validant l’enllaç de recuperació…', recoveryInvalidTitle: 'L’enllaç ja no és vàlid.', recoveryInvalidCopy: 'L’enllaç ha caducat, ja s’ha utilitzat o no es pot verificar. Sol·licita’n un de nou per continuar.', requestAnotherRecovery: 'Sol·licitar un altre enllaç', recoveryCompleteTitle: 'Contrasenya actualitzada.', recoveryCompleteCopy: 'La teva nova contrasenya ja està activa. Pots continuar amb el teu compte Spirit.', continueToSpirit: 'Continuar a Spirit', recoverySessionMissing: 'No s’ha pogut validar l’enllaç. Sol·licita’n un de nou.', completeRecovery: 'Desar la nova contrasenya',
     redeemReady: 'A punt per bescanviar', redeemCopy: 'Ensenya aquest codi a l’equip de Spirit. Caduca en 10 minuts.', confirmAtCafe: 'Confirmar a caixa', enjoy: 'Gaudeix-ne! Ens veiem aviat a Spirit ☕', shareText: 'Descobreix Cafeteria Spirit · Brunch and Specialty Coffee Montcada', shareCopied: 'Enllaç copiat per compartir', invalidImage: 'No s’ha pogut processar la imatge.'
   }
 };
 
 const defaultProfile = { firstName: 'Sofía', lastName: 'Fernández', email: 'sofia@email.com', photo: '' };
 const state = {
-  screen: 'intro', afterIntro: localStorage.getItem('spirit-onboarded') ? 'login' : 'onboarding', onboarding: 0, stamps: 6, historyEmpty: false,
+  screen: isPasswordRecoveryRoute ? 'login' : 'intro', afterIntro: localStorage.getItem('spirit-onboarded') ? 'login' : 'onboarding', onboarding: 0, stamps: 6, historyEmpty: false,
   lang: localStorage.getItem('spirit-language') === 'ca' ? 'ca' : 'es',
   theme: document.documentElement.dataset.theme || 'light',
   notifications: localStorage.getItem('spirit-notifications') !== 'false',
   profile: { ...defaultProfile, ...savedProfile },
   authStatus: 'checking',
-  authMode: new URLSearchParams(location.search).get('auth') === 'recovery' ? 'recovery' : 'signin',
+  authMode: isPasswordRecoveryRoute ? (recoveryLinkError ? 'recoveryError' : 'recoveryChecking') : 'signin',
   authLoading: false,
   authError: '',
   authNotice: ''
@@ -145,16 +157,23 @@ function profile() {
 
 function login() {
   const message = `<p class="form-notice" role="status">${escapeHTML(state.authNotice)}</p><p class="form-error" role="alert">${escapeHTML(state.authError)}</p>`;
+  const recoveryMode = ['recoveryChecking', 'recovery', 'recoveryError', 'recoverySuccess'].includes(state.authMode);
   let form;
   if (state.authMode === 'forgot') {
     form = `<form class="form" data-form="customer-forgot"><div class="field"><label for="forgot-email">${t('email')}</label><input id="forgot-email" name="email" type="email" autocomplete="email" inputmode="email" required></div>${message}<button class="primary-button" type="submit" ${state.authLoading ? 'disabled' : ''}>${state.authLoading ? t('checkSession') : t('sendRecovery')}</button><button class="auth-link" type="button" data-action="auth-signin">${t('backToSignIn')}</button></form>`;
+  } else if (state.authMode === 'recoveryChecking') {
+    form = `<div class="form recovery-state" role="status"><span class="auth-spinner" aria-hidden="true"></span><p>${t('recoveryChecking')}</p></div>`;
+  } else if (state.authMode === 'recoveryError') {
+    form = `<div class="form recovery-state recovery-state--error"><span class="recovery-state__icon" aria-hidden="true">!</span><h2>${t('recoveryInvalidTitle')}</h2><p>${t('recoveryInvalidCopy')}</p>${message}<button class="primary-button" type="button" data-action="recovery-request">${t('requestAnotherRecovery')}</button><button class="auth-link auth-link--centered" type="button" data-action="auth-signin">${t('backToSignIn')}</button></div>`;
+  } else if (state.authMode === 'recoverySuccess') {
+    form = `<div class="form recovery-state recovery-state--success"><span class="recovery-state__icon" aria-hidden="true">✓</span><h2>${t('recoveryCompleteTitle')}</h2><p>${t('recoveryCompleteCopy')}</p><button class="primary-button" type="button" data-action="recovery-continue">${t('continueToSpirit')}</button></div>`;
   } else if (state.authMode === 'recovery') {
-    form = `<form class="form" data-form="customer-recovery"><div class="field"><label for="recovery-password">${t('newPassword')}</label><input id="recovery-password" name="password" type="password" minlength="8" autocomplete="new-password" required></div><div class="field"><label for="recovery-confirmation">${t('repeatPassword')}</label><input id="recovery-confirmation" name="confirmation" type="password" minlength="8" autocomplete="new-password" required></div>${message}<button class="primary-button" type="submit" ${state.authLoading ? 'disabled' : ''}>${state.authLoading ? t('checkSession') : t('completeRecovery')}</button></form>`;
+    form = `<form class="form" data-form="customer-recovery"><div class="field"><label for="recovery-password">${t('newPassword')}</label><input id="recovery-password" name="password" type="password" minlength="8" autocomplete="new-password" aria-describedby="recovery-password-note" required><small id="recovery-password-note" class="field-note">${t('passwordLength')}</small></div><div class="field"><label for="recovery-confirmation">${t('repeatPassword')}</label><input id="recovery-confirmation" name="confirmation" type="password" minlength="8" autocomplete="new-password" required></div>${message}<button class="primary-button" type="submit" ${state.authLoading ? 'disabled' : ''}>${state.authLoading ? t('checkSession') : t('completeRecovery')}</button></form>`;
   } else {
     const signingUp = state.authMode === 'signup';
     form = `<div class="auth-switch" role="group" aria-label="Autenticación"><button type="button" class="${!signingUp ? 'auth-switch--active' : ''}" data-action="auth-signin">${t('signIn')}</button><button type="button" class="${signingUp ? 'auth-switch--active' : ''}" data-action="auth-signup">${t('createAccount')}</button></div><form class="form" data-form="customer-auth" data-auth-mode="${signingUp ? 'signup' : 'signin'}">${signingUp ? `<div class="field"><label for="name">${t('firstName')}</label><input id="name" name="name" maxlength="80" autocomplete="name" placeholder="${t('namePlaceholder')}" required></div>` : ''}<div class="field"><label for="email">${t('email')}</label><input id="email" name="email" type="email" autocomplete="username" inputmode="email" placeholder="tu@email.com" required></div><div class="field"><label for="password">${t('password')}</label><input id="password" name="password" type="password" minlength="8" autocomplete="${signingUp ? 'new-password' : 'current-password'}" required></div>${signingUp ? `<label class="check"><input type="checkbox" required><span>${t('privacy')}</span></label>` : `<button class="auth-link" type="button" data-action="auth-forgot">${t('forgotPassword')}</button>`}${message}<button class="primary-button" type="submit" ${state.authLoading ? 'disabled' : ''}>${state.authLoading ? t('checkSession') : signingUp ? t('createAccount') : t('signIn')}</button></form>`;
   }
-  return `<main class="app-shell"><section class="screen screen--gold">${topbar()}<p class="eyebrow">${t('welcome')}</p><h1>${t('loginTitle')}</h1>${form}</section></main>`;
+  return `<main class="app-shell"><section class="screen screen--gold ${recoveryMode ? 'screen--recovery' : ''}">${topbar()}<p class="eyebrow">${t(recoveryMode ? 'recoveryEyebrow' : 'welcome')}</p><h1>${t(recoveryMode ? 'recoveryTitle' : 'loginTitle')}</h1>${recoveryMode && state.authMode === 'recovery' ? `<p class="subtitle recovery-intro">${t('recoveryCopy')}</p>` : ''}${form}</section></main>`;
 }
 
 function authLoading() {
@@ -183,7 +202,10 @@ const readableAuthError = (error) => {
     user_already_exists: 'Ya existe una cuenta con este correo.',
     weak_password: 'La contraseña no cumple los requisitos de seguridad.',
     over_request_rate_limit: 'Demasiados intentos. Espera unos minutos antes de volver a probar.',
-    network_error: 'No se ha podido conectar con Spirit. Revisa tu conexión.'
+    network_error: 'No se ha podido conectar con Spirit. Revisa tu conexión.',
+    session_not_found: t('recoverySessionMissing'),
+    otp_expired: t('recoverySessionMissing'),
+    access_denied: t('recoverySessionMissing')
   };
   return messages[error?.code] || error?.message || 'No se ha podido completar la operación.';
 };
@@ -215,6 +237,22 @@ function clearCustomerIdentity() {
 async function initializeCustomerAuth() {
   try {
     const user = await getCurrentUser();
+    if (isPasswordRecoveryRoute) {
+      if (recoveryLinkError) {
+        state.authStatus = 'unauthenticated';
+        state.authMode = 'recoveryError';
+      } else if (user) {
+        state.authStatus = 'authenticated';
+        if (state.authMode === 'recoveryChecking') state.authMode = 'recovery';
+      } else {
+        state.authStatus = 'unauthenticated';
+        state.authMode = 'recoveryError';
+        state.authError = t('recoverySessionMissing');
+      }
+      state.screen = 'login';
+      render();
+      return;
+    }
     const context = user ? await getCustomerContext(user) : null;
     if (context) applyCustomerContext(context);
     else state.authStatus = 'unauthenticated';
@@ -357,9 +395,11 @@ function bind() {
     if(action==='share'){ shareSpirit(); }
     if(action==='confirm-redeem'){ state.stamps=0; document.querySelector('[data-sheet-backdrop]')?.remove(); showToast(t('enjoy')); setTimeout(()=>{state.screen='home';render();},900); }
     if(action==='toggle-empty'){ state.historyEmpty=!state.historyEmpty; render(); }
-    if(action==='auth-signin'){ state.authMode='signin'; state.authError=''; state.authNotice=''; render(); }
+    if(action==='auth-signin'){ if(isPasswordRecoveryRoute)window.history.replaceState({},'', '/'); state.authMode='signin'; state.authError=''; state.authNotice=''; render(); }
     if(action==='auth-signup'){ state.authMode='signup'; state.authError=''; state.authNotice=''; render(); }
     if(action==='auth-forgot'){ state.authMode='forgot'; state.authError=''; state.authNotice=''; render(); }
+    if(action==='recovery-request'){ window.history.replaceState({},'', '/'); state.authMode='forgot'; state.authError=''; state.authNotice=''; render(); }
+    if(action==='recovery-continue'){ window.history.replaceState({},'', '/'); state.authMode='signin'; state.screen='home'; render(); scrollTo(0,0); }
     if(action==='logout'){ await logout(); }
   })});
   document.querySelectorAll('[data-sheet-backdrop]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',(event)=>{if(event.target===el)el.remove();})});
@@ -370,7 +410,7 @@ function bind() {
   document.querySelectorAll('[data-photo-input]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',async(event)=>{try{state.profile.photo=await imageToAvatar(event.currentTarget.files[0]);saveProfile();document.querySelectorAll('.avatar').forEach(avatarElement=>{avatarElement.innerHTML=`<img src="${state.profile.photo}" alt="${escapeHTML(state.profile.firstName)}">`;});}catch{showToast(t('invalidImage'));}event.currentTarget.value='';})});
   document.querySelector('[data-form="customer-auth"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const form=e.currentTarget;const data=new FormData(form);state.authLoading=true;state.authError='';state.authNotice='';render();try{if(form.dataset.authMode==='signup'){const result=await signUpCustomer({email:data.get('email'),password:data.get('password'),displayName:data.get('name')});if(result.confirmationRequired){state.authMode='signin';state.authNotice=t('authConfirmation');state.screen='login';}else{applyCustomerContext(result.context);state.screen='home';}}else{applyCustomerContext(await signInCustomer(data.get('email'),data.get('password')));state.screen='home';}}catch(error){state.authError=readableAuthError(error);state.screen='login';}finally{state.authLoading=false;render();}});
   document.querySelector('[data-form="customer-forgot"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);state.authLoading=true;state.authError='';state.authNotice='';render();try{await requestCustomerPasswordReset(data.get('email'));state.authNotice=t('recoverySent');state.authMode='signin';}catch(error){state.authError=readableAuthError(error);}finally{state.authLoading=false;state.screen='login';render();}});
-  document.querySelector('[data-form="customer-recovery"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);const password=data.get('password');if(password!==data.get('confirmation')){state.authError=t('passwordMismatch');render();return;}state.authLoading=true;state.authError='';render();try{await completeCustomerPasswordRecovery(password);const context=await getCustomerContext();applyCustomerContext(context);history.replaceState({},'',location.pathname);state.screen='home';}catch(error){state.authError=readableAuthError(error);}finally{state.authLoading=false;render();}});
+  document.querySelector('[data-form="customer-recovery"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);const password=String(data.get('password')||'');const confirmation=String(data.get('confirmation')||'');if(password.length<8){state.authError=t('passwordLength');render();return;}if(password!==confirmation){state.authError=t('passwordMismatch');render();return;}state.authLoading=true;state.authError='';render();try{await completeCustomerPasswordRecovery(password);const context=await getCustomerContext();if(!context)throw Object.assign(new Error(t('recoverySessionMissing')),{code:'session_not_found'});applyCustomerContext(context);window.history.replaceState({},'', '/');state.authMode='recoverySuccess';state.screen='login';}catch(error){state.authError=readableAuthError(error);if(['session_not_found','otp_expired','access_denied'].includes(error?.code))state.authMode='recoveryError';}finally{state.authLoading=false;render();}});
   document.querySelector('[data-form="profile"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);try{const context=await updateCustomerProfile(`${data.get('firstName')} ${data.get('lastName')}`);applyCustomerContext(context);document.querySelector('[data-sheet-backdrop]')?.remove();render();}catch(error){showToast(readableAuthError(error));}});
   document.querySelector('[data-form="password"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);const current=data.get('currentPassword');const next=data.get('newPassword');const confirmation=data.get('confirmPassword');const error=e.currentTarget.querySelector('[data-password-error]');error.textContent='';if(next.length<8){error.textContent=t('passwordLength');return;}if(next!==confirmation){error.textContent=t('passwordMismatch');return;}try{await updateCustomerPassword(state.profile.email,current,next);document.querySelector('[data-sheet-backdrop]')?.remove();showToast(t('passwordSaved'));}catch(authError){error.textContent=readableAuthError(authError);}});
 }
@@ -381,6 +421,7 @@ if (!isBusinessMode) {
   try {
     subscribeToAuthChanges(async(event, user) => {
       if (event === 'PASSWORD_RECOVERY') {
+        state.authStatus = 'authenticated';
         state.authMode = 'recovery';
         state.authError = '';
         state.screen = 'login';
@@ -394,6 +435,13 @@ if (!isBusinessMode) {
         return;
       }
       if (event === 'SIGNED_IN' && user && state.authStatus !== 'authenticated') {
+        if (isPasswordRecoveryRoute && ['recoveryChecking', 'recovery'].includes(state.authMode)) {
+          state.authStatus = 'authenticated';
+          state.authMode = 'recovery';
+          state.screen = 'login';
+          render();
+          return;
+        }
         try {
           applyCustomerContext(await getCustomerContext(user));
           if (state.screen === 'login') state.screen = 'home';

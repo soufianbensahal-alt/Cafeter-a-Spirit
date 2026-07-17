@@ -186,6 +186,18 @@ h3 { font-size: 21px; line-height: 1.16; margin: 0; letter-spacing: -.012em; }
 .auth-link { min-height: 40px; padding: 0 4px; border: 0; background: transparent; color: var(--mustard-deep); font-weight: 800; text-align: left; cursor: pointer; }
 .form-notice { min-height: 0; margin: 0 4px; color: #496347; font-size: 12px; font-weight: 700; line-height: 1.45; }
 .form-notice:empty { display: none; }
+.screen--recovery { display: flex; flex-direction: column; }
+.screen--recovery .topbar { flex: 0 0 auto; }
+.screen--recovery > h1 { max-width: 430px; }
+.recovery-intro { max-width: 420px; margin-top: -4px; }
+.recovery-state { min-height: 240px; align-content: center; justify-items: center; text-align: center; }
+.recovery-state .auth-spinner { margin-bottom: 4px; }
+.recovery-state h2 { margin: 0; font-family: "DM Serif Display", serif; font-size: clamp(28px, 8vw, 38px); font-weight: 400; line-height: 1.02; }
+.recovery-state p { max-width: 360px; margin: 0; color: var(--muted); line-height: 1.55; }
+.recovery-state .primary-button { width: 100%; margin-top: 8px; }
+.recovery-state__icon { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; background: rgba(238,207,98,.38); color: var(--ink); font-size: 26px; font-weight: 900; box-shadow: inset 0 0 0 1px rgba(105,92,44,.12); }
+.recovery-state--success .recovery-state__icon { background: var(--mustard); }
+.auth-link--centered { width: 100%; text-align: center; }
 .auth-loading { min-height: 100svh; display: grid; align-content: center; justify-items: center; gap: 16px; color: var(--muted); font-weight: 700; }
 .auth-loading .topbar { position: absolute; inset: max(18px, env(safe-area-inset-top)) 20px auto; }
 .auth-spinner { width: 30px; height: 30px; border: 3px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: auth-spin .75s linear infinite; }
@@ -305,6 +317,8 @@ html[data-theme="dark"] .auth-switch { border-color: rgba(238,207,98,.16); backg
 html[data-theme="dark"] .auth-switch .auth-switch--active { background: #302d26; color: #f7f0de; box-shadow: 0 5px 16px rgba(0,0,0,.24); }
 html[data-theme="dark"] .auth-link { color: var(--mustard); }
 html[data-theme="dark"] .form-notice { color: #b9d2ae; }
+html[data-theme="dark"] .recovery-state__icon { background: rgba(238,207,98,.14); color: var(--mustard); box-shadow: inset 0 0 0 1px rgba(238,207,98,.18); }
+html[data-theme="dark"] .recovery-state--success .recovery-state__icon { background: var(--mustard); color: #171612; }
 html[data-theme="dark"] .modal-backdrop { background: rgba(0,0,0,.68); }
 html[data-theme="dark"] .modal { border-color: rgba(238,207,98,.15); background: rgba(33,31,25,.96); color: #f7f0de; box-shadow: 0 28px 80px rgba(0,0,0,.48); }
 html[data-theme="dark"] .sheet-close,

@@ -170,4 +170,16 @@ Los UUID deben sustituirse manualmente por los valores del Dashboard. No se debe
 
 ### URLs de Auth
 
-Configura en **Authentication → URL Configuration** la URL pública de producción y las URLs de preview/desarrollo permitidas. La recuperación usa `/?auth=recovery` y el alta vuelve a `/`. Si una URL no está permitida, Supabase rechazará o redirigirá incorrectamente los enlaces de correo.
+Configura en **Authentication → URL Configuration** la URL pública de producción como **Site URL** y añade como **Redirect URLs** cada origen permitido con la ruta `/reset-password`. La recuperación usa una pantalla propia en esa ruta y el alta vuelve a `/`.
+
+Ejemplos locales:
+
+```text
+http://127.0.0.1:4173/reset-password
+http://localhost:3000/reset-password
+http://localhost:4173/reset-password
+```
+
+En producción añade `https://<dominio-publico>/reset-password`. Si la URL solicitada no está en la lista permitida, Supabase utiliza el Site URL como destino alternativo; por eso un Site URL antiguo como `http://localhost:3000` provoca que el enlace del correo abra una página inexistente.
+
+La pantalla valida la sesión temporal emitida por `PASSWORD_RECOVERY`, solicita la nueva contraseña dos veces, exige un mínimo de ocho caracteres y sólo entonces llama a `supabase.auth.updateUser()`. También ofrece un estado específico para enlaces caducados, inválidos o ya utilizados.
