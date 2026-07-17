@@ -1,12 +1,6 @@
 import {
-  MockLoyaltyError,
-  mockBeginLoyaltySimulation,
-  mockConfirmStamp,
-  mockEndLoyaltySimulation,
-  mockGetRecentTransactions,
-  mockPrepareConfirmation
-} from '../services/mock-loyalty-service.js';
-import {
+  confirmStampSession,
+  getBusinessStampHistory,
   StampSessionError,
   validateStampCode,
   validateStampQr
@@ -64,7 +58,7 @@ if (isBusinessRoute) {
 
   const transactionList = () => `<section class="business-history" aria-labelledby="recent-title"><div class="business-section-head"><div><span class="business-kicker">Actividad</span><h2 id="recent-title">Últimas operaciones</h2></div>${icons.clock}</div>${state.transactions.length ? `<ol>${state.transactions.map((item) => `<li><time datetime="${escapeHTML(item.timestamp)}">${formatTime(item.timestamp)}</time><div><strong>${escapeHTML(item.customerMasked)}</strong><span>${escapeHTML(item.result)}</span></div><b>${escapeHTML(item.progress)}</b></li>`).join('')}</ol>` : '<p class="business-empty">Todavía no hay operaciones en esta sesión.</p>'}</section>`;
 
-  const homeView = () => `<main class="business-app">${brandHeader()}<section class="employee-strip"><div class="employee-avatar" aria-hidden="true">${escapeHTML(employeeInitials())}</div><div><span>${escapeHTML(roleLabel(state.employee?.role))}</span><strong>${escapeHTML(state.employee?.employeeName || '')}</strong></div><span class="employee-status">Activa</span></section><section class="business-action-card"><p class="business-kicker">Añadir un sello</p><h1>Procesa al cliente en segundos.</h1><p>Escanea su QR temporal o introduce el código de seis dígitos.</p><button class="business-primary business-primary--scan" type="button" data-business-action="open-scanner">${icons.scan}<span>Escanear QR</span></button><div class="business-divider"><span>o</span></div><form class="business-code-form" data-business-form="code" novalidate><label for="business-code">Código del cliente</label><input id="business-code" name="code" type="text" value="${escapeHTML(state.code)}" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" enterkeyhint="done" placeholder="000000" aria-describedby="business-code-help business-error" ${state.loading ? 'disabled' : ''}><small id="business-code-help">Exactamente 6 dígitos · válido durante 60 segundos</small><p class="business-message business-message--error" id="business-error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.code.length !== 6 || state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Validando…' : 'Validar código'}</button></form></section>${transactionList()}<button class="business-logout" type="button" data-business-action="logout">Cerrar sesión</button><p class="business-security-note">Acceso protegido con Supabase Auth · QR y códigos se validan en el servidor. La confirmación del sello sigue en modo demostración.</p></main>`;
+  const homeView = () => `<main class="business-app">${brandHeader()}<section class="employee-strip"><div class="employee-avatar" aria-hidden="true">${escapeHTML(employeeInitials())}</div><div><span>${escapeHTML(roleLabel(state.employee?.role))}</span><strong>${escapeHTML(state.employee?.employeeName || '')}</strong></div><span class="employee-status">Activa</span></section><section class="business-action-card"><p class="business-kicker">Añadir un sello</p><h1>Procesa al cliente en segundos.</h1><p>Escanea su QR temporal o introduce el código de seis dígitos.</p><button class="business-primary business-primary--scan" type="button" data-business-action="open-scanner">${icons.scan}<span>Escanear QR</span></button><div class="business-divider"><span>o</span></div><form class="business-code-form" data-business-form="code" novalidate><label for="business-code">Código del cliente</label><input id="business-code" name="code" type="text" value="${escapeHTML(state.code)}" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" enterkeyhint="done" placeholder="000000" aria-describedby="business-code-help business-error" ${state.loading ? 'disabled' : ''}><small id="business-code-help">Exactamente 6 dígitos · válido durante 60 segundos</small><p class="business-message business-message--error" id="business-error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.code.length !== 6 || state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Validando…' : 'Validar código'}</button></form></section>${transactionList()}<button class="business-logout" type="button" data-business-action="logout">Cerrar sesión</button><p class="business-security-note">Acceso protegido con Supabase Auth · Validación, confirmación y recompensas se procesan de forma atómica en el servidor.</p></main>`;
 
   const progress = (value, goal) => `<div class="business-progress" role="img" aria-label="${value} de ${goal} sellos"><div><strong>${value}</strong><span>/ ${goal}</span></div><div class="business-progress__track"><span style="width:${(value / goal) * 100}%"></span></div></div>`;
 
@@ -73,7 +67,7 @@ if (isBusinessRoute) {
     return `<main class="business-app">${brandHeader()}<section class="business-preview"><button class="business-back" type="button" data-business-action="cancel-preview">← Cancelar</button><p class="business-kicker">Confirmación necesaria</p><h1>Revisa antes de añadir.</h1><div class="customer-card"><div class="customer-card__heading"><span class="customer-avatar" aria-hidden="true">S</span><div><small>Cliente</small><strong>${escapeHTML(session.customer)}</strong></div></div><dl><div><dt>Programa</dt><dd>${escapeHTML(session.program)}</dd></div><div><dt>Progreso actual</dt><dd>${session.currentProgress} de ${session.goal} sellos</dd></div><div><dt>Tras confirmar</dt><dd>${session.nextProgress} de ${session.goal} sellos</dd></div><div><dt>Recompensa</dt><dd>${escapeHTML(session.reward)}</dd></div></dl>${progress(session.nextProgress, session.goal)}</div><p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary business-primary--confirm" type="button" data-business-action="confirm-stamp" ${state.confirming ? 'disabled' : ''}>${state.confirming ? '<span class="business-spinner" aria-hidden="true"></span>Añadiendo sello…' : 'Confirmar sello'}</button><button class="business-secondary" type="button" data-business-action="cancel-preview" ${state.confirming ? 'disabled' : ''}>Cancelar</button></section></main>`;
   };
 
-  const successView = () => `<main class="business-app business-app--success">${brandHeader()}<section class="business-success"><span class="business-success__icon">${icons.check}</span><p class="business-kicker">Operación completada</p><h1>Sello añadido.</h1><p>El cliente ya tiene <strong>${state.confirmation.progress} de ${state.confirmation.goal} sellos</strong> en su Tarjeta Café Spirit.</p><button class="business-primary" type="button" data-business-action="next-customer">Procesar siguiente cliente</button><button class="business-secondary" type="button" data-business-action="next-customer">Volver al inicio</button></section>${transactionList()}</main>`;
+  const successView = () => `<main class="business-app business-app--success">${brandHeader()}<section class="business-success"><span class="business-success__icon">${icons.check}</span><p class="business-kicker">${state.confirmation.status === 'already_processed' ? 'Operación recuperada' : 'Operación completada'}</p><h1>${state.confirmation.status === 'already_processed' ? 'Sello ya procesado.' : 'Sello añadido.'}</h1><p>La tarjeta queda en <strong>${state.confirmation.progress} de ${state.confirmation.goal} sellos</strong>${state.confirmation.rewardEarned > 0 ? ` y ha conseguido <strong>${state.confirmation.rewardEarned} recompensa${state.confirmation.rewardEarned > 1 ? 's' : ''}</strong>` : ''}.</p><button class="business-primary" type="button" data-business-action="next-customer">Procesar siguiente cliente</button><button class="business-secondary" type="button" data-business-action="next-customer">Volver al inicio</button></section>${transactionList()}</main>`;
 
   const scannerView = () => `<main class="business-app business-app--scanner"><header class="scanner-header"><div><span class="business-kicker">Modo cafetería</span><strong>Escanear QR</strong></div><button type="button" data-business-action="close-scanner" aria-label="Cerrar escáner">×</button></header><section class="scanner-card"><div class="scanner-viewport"><video data-scanner-video playsinline muted aria-label="Vista de la cámara"></video><div class="scanner-guide" aria-hidden="true"><span></span><span></span><span></span><span></span></div></div><p class="scanner-instruction">Coloca el QR del cliente dentro del recuadro.</p>${state.cameras.length > 1 ? `<label class="camera-select">Cámara<select data-camera-select>${state.cameras.map((camera, index) => `<option value="${escapeHTML(camera.deviceId)}" ${camera.deviceId === state.selectedCamera ? 'selected' : ''}>${escapeHTML(camera.label || `Cámara ${index + 1}`)}</option>`).join('')}</select></label>` : ''}<p class="business-message business-message--scanner" role="status">${escapeHTML(state.scannerMessage)}</p><p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-secondary business-secondary--light" type="button" data-business-action="close-scanner">Introducir código manualmente</button></section></main>`;
 
@@ -95,7 +89,6 @@ if (isBusinessRoute) {
 
   function readableError(error) {
     if (error instanceof StampSessionError) return error.message;
-    if (error instanceof MockLoyaltyError) return error.message;
     if (error?.code === 'invalid_credentials') return 'El correo o la contraseña no son correctos.';
     if (error?.code === 'email_not_confirmed') return 'Confirma tu correo antes de iniciar sesión.';
     if (error instanceof EmployeeAuthorizationError || error?.message) return error.message;
@@ -107,8 +100,7 @@ if (isBusinessRoute) {
     render();
     try {
       state.employee = employee;
-      mockBeginLoyaltySimulation(employee);
-      state.transactions = await mockGetRecentTransactions();
+      state.transactions = await getBusinessStampHistory(employee.businessId);
       state.view = 'home';
     } catch (error) {
       state.error = readableError(error);
@@ -175,7 +167,7 @@ if (isBusinessRoute) {
     render();
     try {
       const validated = await validateStampCode(state.employee.businessId, state.code);
-      state.stampSession = mockPrepareConfirmation(validated);
+      state.stampSession = validated;
       state.code = '';
       state.view = 'preview';
     } catch (error) {
@@ -193,8 +185,8 @@ if (isBusinessRoute) {
     state.error = '';
     render();
     try {
-      state.confirmation = await mockConfirmStamp(state.stampSession);
-      state.transactions = await mockGetRecentTransactions();
+      state.confirmation = await confirmStampSession(state.stampSession?.id);
+      state.transactions = await getBusinessStampHistory(state.employee.businessId);
       state.view = 'success';
     } catch (error) {
       state.error = readableError(error);
@@ -257,7 +249,7 @@ if (isBusinessRoute) {
           renderScannerMessages();
           try {
             const validated = await validateStampQr(state.employee.businessId, content);
-            state.stampSession = mockPrepareConfirmation(validated);
+            state.stampSession = validated;
             stopScanner();
             state.view = 'preview';
             render();
@@ -355,7 +347,6 @@ if (isBusinessRoute) {
       if (action === 'logout') {
         manualSignOut = true;
         stopScanner();
-        mockEndLoyaltySimulation();
         try { await signOut(); } catch (error) { state.error = readableError(error); }
         state.employee = null;
         state.view = 'signedOut';
@@ -371,7 +362,6 @@ if (isBusinessRoute) {
     if (event !== 'SIGNED_OUT' || manualSignOut) return;
     const hadEmployee = Boolean(state.employee);
     stopScanner();
-    mockEndLoyaltySimulation();
     state.employee = null;
     state.error = '';
     state.view = hadEmployee ? 'expired' : 'signedOut';

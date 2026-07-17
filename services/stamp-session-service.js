@@ -11,7 +11,11 @@ const STATUS_MESSAGES = Object.freeze({
   used: 'Esta solicitud ya no está disponible. Pide al cliente que genere una nueva.',
   wrong_business: 'Este QR pertenece a otro negocio y no puede validarse aquí.',
   rate_limited: 'Demasiados intentos. Espera un minuto antes de volver a probar.',
-  not_authorized: 'Tu sesión no tiene permisos activos para validar esta solicitud.'
+  not_authorized: 'Tu sesión no tiene permisos activos para realizar esta operación.',
+  not_authenticated: 'La sesión de empleado ha caducado. Inicia sesión de nuevo.',
+  not_found: 'No se ha encontrado la solicitud. Vuelve a validar el QR o el código.',
+  inactive_program: 'El programa de fidelización ya no está activo.',
+  already_processed: 'Esta solicitud ya había sido procesada.'
 });
 
 export class StampSessionError extends Error {
@@ -93,8 +97,11 @@ const validatedSession = (row, source) => {
     const code = row?.status || 'unexpected';
     throw new StampSessionError(code, STATUS_MESSAGES[code] || 'No se ha podido validar la solicitud.');
   }
+  if (!row.stamp_session_id) {
+    throw new StampSessionError('invalid_response', 'La validación no ha devuelto una sesión confirmable.');
+  }
   return Object.freeze({
-    id: crypto.randomUUID(),
+    id: row.stamp_session_id,
     source,
     customer: row.customer_masked,
     customerMasked: row.customer_masked,
@@ -140,6 +147,55 @@ export async function validateStampQr(businessId, rawContent) {
     });
     if (error) throw error;
     return validatedSession(firstRow(data), 'qr');
+  } catch (error) {
+    throw toServiceError(error);
+  }
+}
+
+export async function confirmStampSession(stampSessionId) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(stampSessionId || ''))) {
+    throw new StampSessionError('not_found', STATUS_MESSAGES.not_found);
+  }
+  try {
+    const { data, error } = await requireSupabase().rpc('confirm_stamp_session', {
+      p_stamp_session_id: stampSessionId
+    });
+    if (error) throw error;
+    const row = firstRow(data);
+    if (!['confirmed', 'already_processed'].includes(row?.status)) {
+      const code = row?.status || 'unexpected';
+      throw new StampSessionError(code, STATUS_MESSAGES[code] || 'No se ha podido confirmar el sello.');
+    }
+    return Object.freeze({
+      status: row.status,
+      transactionId: row.transaction_id,
+      progress: row.current_stamps,
+      availableRewards: row.available_rewards,
+      rewardEarned: row.reward_earned,
+      goal: row.stamps_required,
+      reward: row.reward_description,
+      timestamp: row.confirmed_at
+    });
+  } catch (error) {
+    throw toServiceError(error);
+  }
+}
+
+export async function getBusinessStampHistory(businessId, limit = 10) {
+  try {
+    const { data, error } = await requireSupabase().rpc('get_business_stamp_history', {
+      p_business_id: businessId,
+      p_limit: Math.min(Math.max(Number(limit) || 10, 1), 50)
+    });
+    if (error) throw error;
+    return Object.freeze((data || []).map((row) => Object.freeze({
+      id: row.transaction_id,
+      timestamp: row.occurred_at,
+      customerMasked: row.customer_masked,
+      result: row.result,
+      progress: `${row.current_stamps} de ${row.stamps_required}`,
+      rewardEarned: row.reward_earned
+    })));
   } catch (error) {
     throw toServiceError(error);
   }

@@ -1,6 +1,6 @@
 # Spirit Coffee Loyalty
 
-PWA de fidelización de Cafetería Spirit con experiencia de cliente y modo operativo de cafetería. El frontend sigue siendo HTML, CSS y JavaScript; un build mínimo prepara la distribución estática y el cliente futuro de Supabase.
+PWA de fidelización de Cafetería Spirit con experiencia de cliente y modo operativo de cafetería. El frontend sigue siendo HTML, CSS y JavaScript; el build prepara la distribución estática y el cliente de Supabase.
 
 ## Ejecutar
 
@@ -10,7 +10,7 @@ npm run build
 npm run preview
 ```
 
-Abre `http://localhost:4173`. Para desarrollo visual sin Supabase también puede servirse el directorio raíz; los mocks continúan siendo la implementación activa.
+Abre `http://localhost:4173`. Los flujos autenticados y operativos requieren las variables públicas de Supabase.
 
 En Vercel, el modo de empleados está disponible en `/cafeteria` mediante la reescritura definida en `vercel.json`. Para probar esa ruta localmente se necesita un servidor con fallback de SPA (por ejemplo, `vercel dev`); `python -m http.server` no aplica reescrituras.
 
@@ -35,23 +35,11 @@ La experiencia del cliente permanece en `/`. La interfaz operativa para empleado
 - `services/auth-service.js`: sesión, acceso, registro, recuperación y cierre con Supabase Auth.
 - `services/employee-service.js`: autorización del equipo mediante `business_members` y estado del negocio.
 - `services/customer-service.js`: perfil y flujo Auth del cliente.
-- `services/mock-loyalty-service.js`: validación, confirmación, sellos e historial todavía simulados.
+- `services/stamp-session-service.js`: creación, validación y confirmación RPC de solicitudes de sello, además del historial mínimo del negocio.
 
-El historial simulado se guarda en `localStorage` bajo la clave `spirit-business-transactions` y conserva como máximo cinco operaciones. Esta persistencia es exclusivamente de demostración.
+El historial operativo procede de `stamp_transactions` y muestra únicamente cliente enmascarado, hora, resultado y progreso. No se almacena actividad de sellado en `localStorage`.
 
-### Datos de prueba
-
-| Entrada | Resultado |
-|---|---|
-| `123456` | Cliente válido |
-| `111111` | Código caducado |
-| `222222` | Código ya utilizado |
-| `333333` | Código de otra cafetería |
-| Cualquier otro código de seis cifras | Código incorrecto |
-| QR `SPIRIT:STAMP:DEMO123` | Cliente válido |
-| Otro contenido QR | QR no válido |
-
-El lector usa `getUserMedia` y la API nativa `BarcodeDetector`; no se ha incorporado ninguna dependencia externa. Si el navegador no ofrece detección QR nativa, la aplicación muestra un mensaje comprensible y mantiene disponible la introducción manual.
+El lector usa `getUserMedia` y la API nativa `BarcodeDetector`. El QR temporal se genera localmente con la dependencia `qrcode`; si el navegador no ofrece detección QR nativa, la aplicación mantiene disponible la introducción manual.
 
 ## Autenticación y autorización
 
@@ -62,17 +50,13 @@ La identidad se valida con Supabase Auth. La autorización del modo cafetería s
 - Estados protegidos: comprobando, sin autenticar, sin permisos, autorizado, sesión caducada y error de red.
 - El panel nunca se muestra antes de completar la autorización.
 
-Continúan simulados:
-
-- `mockValidateCode()` y `mockValidateQr()` por consultas a `stamp_sessions`.
-- `mockConfirmStamp()` por una función RPC atómica que cree `stamp_transactions` y actualice `customer_cards`.
-- `mockGetRecentTransactions()` por historial del establecimiento y, si procede, suscripción Realtime.
+La validación, confirmación, generación de recompensas e historial operativo se ejecutan mediante RPC autenticadas. El frontend no puede escribir directamente en `stamp_sessions`, `customer_cards` ni `stamp_transactions`.
 
 No hay contraseñas ni credenciales `service_role` en el repositorio. La URL y la clave publicable se inyectan durante el build.
 
 ## Preparación de Supabase
 
-La base de datos, el cliente y Supabase Auth están conectados. Los mocks se limitan a la fidelización que todavía no escribe datos reales.
+La base de datos, el cliente y Supabase Auth están conectados. La fidelización operativa escribe mediante una única función transaccional protegida.
 
 ### Dependencias fijadas
 
