@@ -18,10 +18,9 @@ En Vercel, el modo de empleados está disponible en `/cafeteria` mediante la ree
 
 - Intro audiovisual de Spirit a pantalla completa, reproducida antes de acceder a la app y omisible con un toque.
 - Onboarding de tres pasos, registro y acceso con Supabase Auth.
-- Inicio con tarjeta de ocho sellos y accesos rápidos.
-- Recompensas con estados disponible y deshabilitado.
-- Modal de canje con código de seis dígitos.
-- Historial con estado poblado y vacío.
+- Inicio con progreso, objetivo y recompensas procedentes de la tarjeta real.
+- Recompensas disponibles según el programa activo; el canje todavía se realiza en cafetería.
+- Historial real de operaciones autorizado por RLS.
 - Perfil, ajustes y cierre de sesión.
 
 El sistema visual está definido mediante variables CSS en `styles.css`: paleta, espaciado, radios, sombras y tipografía.
@@ -36,6 +35,7 @@ La experiencia del cliente permanece en `/`. La interfaz operativa para empleado
 - `services/employee-service.js`: autorización del equipo mediante `business_members` y estado del negocio.
 - `services/customer-service.js`: perfil y flujo Auth del cliente.
 - `services/stamp-session-service.js`: creación, validación y confirmación RPC de solicitudes de sello, además del historial mínimo del negocio.
+- `services/loyalty-monitor.js`: reglas puras para reconciliar Realtime y su fallback sin duplicar estado.
 
 El historial operativo procede de `stamp_transactions` y muestra únicamente cliente enmascarado, hora, resultado y progreso. No se almacena actividad de sellado en `localStorage`.
 
@@ -50,7 +50,7 @@ La identidad se valida con Supabase Auth. La autorización del modo cafetería s
 - Estados protegidos: comprobando, sin autenticar, sin permisos, autorizado, sesión caducada y error de red.
 - El panel nunca se muestra antes de completar la autorización.
 
-La validación, confirmación, generación de recompensas e historial operativo se ejecutan mediante RPC autenticadas. El frontend no puede escribir directamente en `stamp_sessions`, `customer_cards` ni `stamp_transactions`.
+La validación, confirmación, generación de recompensas e historial operativo se ejecutan mediante RPC autenticadas. El frontend no puede escribir directamente en `stamp_sessions`, `customer_cards` ni `stamp_transactions`. La base de datos es siempre la fuente de verdad; el navegador vuelve a consultar la tarjeta después de recibir el evento.
 
 No hay contraseñas ni credenciales `service_role` en el repositorio. La URL y la clave publicable se inyectan durante el build.
 
@@ -113,7 +113,7 @@ La migración inicial crea:
 
 La migración `add_auth_profile_trigger` crea el perfil al insertar un usuario Auth y añade el índice compuesto de la relación empleado-negocio. Su función es `SECURITY DEFINER` porque el alta ocurre antes de disponer de una sesión RLS; está aislada en `private`, fija `search_path = ''` y no concede `EXECUTE` a `PUBLIC`, `anon` ni `authenticated`. `raw_user_meta_data.display_name` se usa únicamente como texto de presentación, nunca para autorización.
 
-`supabase/seed.sql` añade Cafetería Spirit y el programa Tarjeta Café Spirit de 10 sellos, con recompensa Café gratuito. No crea usuarios ni credenciales.
+`supabase/seed.sql` añade datos exclusivamente para desarrollo local. No crea usuarios ni credenciales y no debe ejecutarse en Preview o Production.
 
 ### Seguridad y RLS
 
@@ -124,9 +124,9 @@ La migración `add_auth_profile_trigger` crea el perfil al insertar un usuario A
 - El navegador sólo puede crear o cambiar `display_name` en el perfil propio.
 - No existen grants web para alterar `current_stamps`, `available_rewards`, `used_at` ni insertar `stamp_transactions`.
 - `stamp_sessions` no se expone directamente a los roles web.
-- La futura confirmación de sellos debe implementarse mediante una operación RPC atómica con validación explícita de usuario y negocio.
+- `confirm_stamp_session` es el único punto de confirmación: bloquea sesión y tarjeta, valida usuario, negocio y programa, marca `used_at`, inserta una transacción y calcula recompensas atómicamente.
 
-El service worker sólo almacena el shell y recursos estáticos del mismo origen. No intercepta peticiones a Supabase ni rutas de API del mismo origen.
+El service worker sólo precachea el shell y recursos estáticos del mismo origen. Las navegaciones usan red con fallback al shell ya precacheado; no se guardan respuestas de navegación, Supabase, datos autenticados, tokens ni respuestas privadas.
 
 ### Crear el primer propietario
 
@@ -176,6 +176,49 @@ La fase 3 sustituye la generación y validación simuladas por tres RPC autentic
 - `validate_stamp_qr(business_id, qr)` acepta exclusivamente `SPIRIT:STAMP:V1:<token>` y comprueba empleado, membresía activa, negocio, caducidad y uso.
 - `validate_stamp_code(business_id, code)` realiza las mismas comprobaciones, limita a diez validaciones por empleado, negocio y minuto y nunca devuelve datos del cliente para intentos fallidos.
 
-Las funciones son `SECURITY DEFINER` de forma intencionada porque `stamp_sessions` y el registro privado de intentos no tienen permisos web directos. Todas fijan `search_path = ''`, validan `auth.uid()` y sólo conceden `EXECUTE` a `authenticated`. La validación devuelve un nombre enmascarado y el progreso previsto, pero no incrementa sellos ni modifica `used_at`; la confirmación permanece simulada hasta la siguiente fase.
+Las funciones son `SECURITY DEFINER` de forma intencionada porque `stamp_sessions` y el registro privado de intentos no tienen permisos web directos. Todas fijan `search_path = ''`, validan `auth.uid()` y sólo conceden `EXECUTE` a `authenticated`. La validación devuelve un nombre enmascarado y el progreso previsto, pero no incrementa sellos ni modifica `used_at`. `confirm_stamp_session` realiza después la escritura transaccional e idempotente. El índice único parcial sobre `stamp_session_id`, `used_at` y los bloqueos de fila evitan duplicados ante doble pulsación o concurrencia.
 
 El token y el QR sólo viven en memoria y en el DOM mientras el panel está abierto. No se guardan en `localStorage`, URL, analytics ni logs y se eliminan al cerrar, caducar, navegar o terminar la sesión.
+
+### Actualización inmediata y fallback
+
+Mientras el cliente muestra un QR o código temporal, la app abre una única suscripción de **Postgres Changes** sobre inserciones de `stamp_transactions`, filtrada por `customer_card_id`. Se eligió esta opción porque la escucha dura como máximo 60 segundos, tiene una sola fila lógica por cliente y conserva la autorización RLS de la tabla. Sólo `stamp_transactions` se añade a `supabase_realtime`; no existen suscripciones globales.
+
+Al recibir el evento, el cliente consulta de nuevo `customer_cards` y el historial, cierra la solicitud visual, elimina QR y código de memoria y muestra el nuevo progreso o la recompensa. La suscripción se elimina al confirmar, caducar, cerrar el modal, cambiar de sección, cerrar sesión o abandonar la página.
+
+Si el canal responde con error, timeout o cierre —o no se establece en ocho segundos— se activa polling cada cinco segundos. El polling se detiene con las mismas condiciones y nunca continúa fuera de una solicitud activa.
+
+## Pruebas
+
+```bash
+npm test
+npm run build
+npx supabase test db --local
+npx supabase db lint --local --schema public --level warning
+```
+
+Las pruebas JavaScript cubren detección de confirmación, cálculo de recompensa y activación del fallback. Las pruebas pgTAP cubren Auth/RLS, aislamiento entre clientes y negocios, permisos directos, publicación Realtime y permisos de la RPC. Las pruebas transaccionales remotas deben ejecutarse siempre con `ROLLBACK`; nunca necesitan `seed.sql` en producción.
+
+No se incluyen usuarios ni contraseñas de prueba en el repositorio. Para una prueba manual, crea usuarios desechables desde **Supabase Auth → Users**, configura sus filas de negocio/tarjeta desde una conexión administrativa y elimina o desactiva esos accesos al terminar.
+
+### Prueba manual con dos dispositivos
+
+1. En el dispositivo cliente, inicia sesión, abre Inicio y pulsa **Solicitar sello**.
+2. En el dispositivo de cafetería, abre `/cafeteria`, inicia sesión, escanea el QR o introduce el código y confirma.
+3. Comprueba que el cliente se actualiza sin recargar, que sólo existe una transacción, que el código deja de funcionar y que el historial del empleado muestra la operación.
+4. Si se alcanza el objetivo, comprueba que los sellos vuelven al módulo correcto y aumenta `available_rewards`.
+5. Revisa ambas consolas: no deben aparecer tokens, códigos, credenciales ni datos personales.
+
+## Vercel y entornos
+
+- **Development:** usa `.env.local` y `npm run preview`; no compartas el archivo.
+- **Preview:** configura las dos variables públicas en Vercel Preview y usa una URL de redirección Auth específica o un proyecto/branch de datos aislado.
+- **Production:** configura las variables de Production, las URLs Auth definitivas y aplica migraciones revisadas antes del despliegue. Nunca ejecutes `seed.sql`.
+
+`vercel.json` publica `dist`, conserva `/`, reescribe `/cafeteria` y `/reset-password` hacia la SPA y permite que cámara y service worker funcionen bajo HTTPS. Tras desplegar, prueba instalación PWA, navegación offline del shell, login, recuperación, cámara en iOS/Android y el flujo de dos dispositivos.
+
+## Limitaciones
+
+- El canje/anulación de recompensas todavía no está implementado como operación transaccional; las recompensas disponibles se muestran para su gestión en cafetería.
+- `BarcodeDetector` no está disponible en todos los navegadores; el código manual sigue siendo el fallback.
+- Postgres Changes es adecuado para el volumen actual. Si se esperan miles de clientes concurrentes, debe migrarse a Broadcast privado con autorización explícita.

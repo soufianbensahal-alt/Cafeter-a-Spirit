@@ -53,13 +53,61 @@ const toServiceError = (error) => {
 export async function getOwnCustomerCard() {
   const { data, error } = await requireSupabase()
     .from('customer_cards')
-    .select('id, current_stamps, available_rewards')
+    .select('id, current_stamps, available_rewards, updated_at, loyalty_programs(name, stamps_required, reward_description, active)')
     .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle();
   if (error) throw toServiceError(error);
   if (!data) throw new StampSessionError('customer_card_not_available', 'Tu tarjeta Spirit todavía no está activa.');
-  return Object.freeze(data);
+  const program = Array.isArray(data.loyalty_programs) ? data.loyalty_programs[0] : data.loyalty_programs;
+  if (!program?.active) throw new StampSessionError('customer_card_not_available', 'Tu programa Spirit todavía no está activo.');
+  return Object.freeze({
+    id: data.id,
+    currentStamps: data.current_stamps,
+    availableRewards: data.available_rewards,
+    updatedAt: data.updated_at,
+    programName: program.name,
+    stampsRequired: program.stamps_required,
+    rewardDescription: program.reward_description
+  });
+}
+
+export async function getOwnStampHistory(customerCardId, limit = 20) {
+  try {
+    const { data, error } = await requireSupabase()
+      .from('stamp_transactions')
+      .select('id, quantity, transaction_type, status, metadata, created_at')
+      .eq('customer_card_id', customerCardId)
+      .order('created_at', { ascending: false })
+      .limit(Math.min(Math.max(Number(limit) || 20, 1), 50));
+    if (error) throw error;
+    return Object.freeze((data || []).map((row) => Object.freeze({
+      id: row.id,
+      quantity: row.quantity,
+      type: row.transaction_type,
+      status: row.status,
+      rewardEarned: Number(row.metadata?.reward_earned || 0),
+      createdAt: row.created_at
+    })));
+  } catch (error) {
+    throw toServiceError(error);
+  }
+}
+
+export function subscribeToOwnStampTransactions(customerCardId, { onInsert, onStatus } = {}) {
+  const supabase = requireSupabase();
+  const channel = supabase
+    .channel(`own-card-${crypto.randomUUID()}`)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'stamp_transactions',
+      filter: `customer_card_id=eq.${customerCardId}`,
+      select: ['id', 'customer_card_id', 'created_at']
+    }, (payload) => onInsert?.(payload))
+    .subscribe((status) => onStatus?.(status));
+
+  return () => supabase.removeChannel(channel);
 }
 
 export async function createStampRequest() {
@@ -85,7 +133,10 @@ export async function createStampRequest() {
     return Object.freeze({
       qrDataUrl,
       shortCode: row.short_code,
-      expiresAt: row.expires_at
+      expiresAt: row.expires_at,
+      customerCardId: card.id,
+      baselineStamps: card.currentStamps,
+      baselineRewards: card.availableRewards
     });
   } catch (error) {
     throw toServiceError(error);

@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(29);
 
 insert into auth.users (id, email) values
   ('10000000-0000-4000-8000-000000000001', 'customer-one@spirit.test'),
@@ -88,6 +88,19 @@ select results_eq(
   array[7::bigint],
   'RLS está activa en las siete tablas públicas'
 );
+select results_eq(
+  $$select count(*) from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'stamp_transactions'$$,
+  array[1::bigint],
+  'Realtime publica únicamente el evento necesario para actualizar la tarjeta'
+);
+select ok(
+  not has_function_privilege('anon', 'public.confirm_stamp_session(uuid)', 'execute'),
+  'anon no puede confirmar sellos'
+);
+select ok(
+  has_function_privilege('authenticated', 'public.confirm_stamp_session(uuid)', 'execute'),
+  'authenticated puede invocar la confirmación protegida'
+);
 select results_eq('select count(*) from public.profiles', array[6::bigint], 'el trigger Auth crea un perfil por usuario');
 
 set local role authenticated;
@@ -95,6 +108,7 @@ set local request.jwt.claim.sub = '10000000-0000-4000-8000-000000000001';
 
 select results_eq('select count(*) from public.profiles', array[1::bigint], 'el cliente ve sólo su perfil');
 select results_eq('select count(*) from public.customer_cards', array[1::bigint], 'el cliente ve sólo su tarjeta');
+select results_eq('select count(*) from public.loyalty_programs', array[1::bigint], 'el cliente ve sólo el programa asociado a su tarjeta');
 select results_eq('select count(*) from public.stamp_transactions', array[1::bigint], 'el cliente ve sólo sus transacciones');
 select results_eq('select count(*) from public.businesses', array[0::bigint], 'el cliente no accede al negocio');
 select throws_ok(

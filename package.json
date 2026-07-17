@@ -6,6 +6,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "preview": "node scripts/preview.mjs",
+    "test": "node --test",
     "supabase": "supabase"
   },
   "dependencies": {
