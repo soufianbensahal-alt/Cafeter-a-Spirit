@@ -10,6 +10,10 @@ import {
   updateCustomerPassword,
   updateCustomerProfile
 } from './services/customer-service.js';
+import {
+  createStampRequest,
+  StampSessionError
+} from './services/stamp-session-service.js';
 
 const isBusinessMode = /^\/cafeteria\/?$/.test(window.location.pathname);
 const isPasswordRecoveryRoute = /^\/reset-password\/?$/.test(window.location.pathname)
@@ -57,6 +61,7 @@ const copy = {
     personalEyebrow: 'Tu cuenta', personalTitle: 'Datos personales', changePhoto: 'Fotografía de perfil', gallery: 'Galería', camera: 'Cámara', firstName: 'Nombre', lastName: 'Apellidos', email: 'Correo electrónico', emailReadOnly: 'Gestionado por tu cuenta', changePassword: 'Cambiar contraseña', save: 'Guardar', close: 'Cerrar',
     passwordEyebrow: 'Seguridad', passwordTitle: 'Cambiar contraseña', currentPassword: 'Contraseña actual', newPassword: 'Nueva contraseña', confirmPassword: 'Confirmar contraseña', passwordLength: 'La nueva contraseña debe tener al menos 8 caracteres.', passwordMismatch: 'Las contraseñas no coinciden.', passwordIncorrect: 'La contraseña actual no es correcta.', passwordSaved: 'Contraseña actualizada',
     languageEyebrow: 'Preferencias', languageTitle: 'Idioma de la aplicación', welcome: 'Bienvenida a casa', loginTitle: 'Tu café.<br>Tus sellos.', phone: 'Teléfono', namePlaceholder: '¿Cómo te llamas?', privacy: 'Acepto la política de privacidad y el tratamiento de mis datos según el RGPD.', createAccount: 'Crear mi cuenta', signIn: 'Iniciar sesión', password: 'Contraseña', forgotPassword: 'He olvidado mi contraseña', sendRecovery: 'Enviar enlace de recuperación', backToSignIn: 'Volver al acceso', repeatPassword: 'Confirmar nueva contraseña', checkSession: 'Comprobando tu sesión…', authConfirmation: 'Revisa tu correo para confirmar la cuenta antes de iniciar sesión.', recoverySent: 'Si existe una cuenta con ese correo, recibirás un enlace de recuperación.', recoveryEyebrow: 'Seguridad de tu cuenta', recoveryTitle: 'Crea una nueva<br>contraseña.', recoveryCopy: 'Introduce una contraseña segura y repítela para confirmar que está escrita correctamente.', recoveryChecking: 'Validando el enlace de recuperación…', recoveryInvalidTitle: 'El enlace ya no es válido.', recoveryInvalidCopy: 'El enlace ha caducado, ya se ha utilizado o no puede verificarse. Solicita uno nuevo para continuar.', requestAnotherRecovery: 'Solicitar otro enlace', recoveryCompleteTitle: 'Contraseña actualizada.', recoveryCompleteCopy: 'Tu nueva contraseña ya está activa. Puedes continuar con tu cuenta Spirit.', continueToSpirit: 'Continuar en Spirit', recoverySessionMissing: 'No se ha podido validar el enlace. Solicita uno nuevo.', completeRecovery: 'Guardar nueva contraseña',
+    requestStamp: 'Solicitar sello', stampRequestTitle: 'Tu código temporal', stampRequestCopy: 'Enséñale el QR o el código al equipo de Spirit.', stampCodeLabel: 'Código de 6 dígitos', stampExpiresIn: 'Caduca en {count} s', stampExpired: 'Esta solicitud ha caducado.', regenerateStamp: 'Generar uno nuevo', generatingStamp: 'Generando código seguro…',
     redeemReady: 'Listo para canjear', redeemCopy: 'Enseña este código al equipo de Spirit. Caduca en 10 minutos.', confirmAtCafe: 'Confirmar en caja', enjoy: '¡Disfrútalo! Nos vemos pronto en Spirit ☕', shareText: 'Descubre Cafetería Spirit · Brunch and Specialty Coffee Montcada', shareCopied: 'Enlace copiado para compartir', invalidImage: 'No se ha podido procesar la imagen.'
   },
   ca: {
@@ -69,6 +74,7 @@ const copy = {
     personalEyebrow: 'El teu compte', personalTitle: 'Dades personals', changePhoto: 'Fotografia de perfil', gallery: 'Galeria', camera: 'Càmera', firstName: 'Nom', lastName: 'Cognoms', email: 'Correu electrònic', emailReadOnly: 'Gestionat pel teu compte', changePassword: 'Canviar contrasenya', save: 'Desar', close: 'Tancar',
     passwordEyebrow: 'Seguretat', passwordTitle: 'Canviar contrasenya', currentPassword: 'Contrasenya actual', newPassword: 'Nova contrasenya', confirmPassword: 'Confirmar contrasenya', passwordLength: 'La nova contrasenya ha de tenir almenys 8 caràcters.', passwordMismatch: 'Les contrasenyes no coincideixen.', passwordIncorrect: 'La contrasenya actual no és correcta.', passwordSaved: 'Contrasenya actualitzada',
     languageEyebrow: 'Preferències', languageTitle: 'Idioma de l’aplicació', welcome: 'Benvinguda a casa', loginTitle: 'El teu cafè.<br>Els teus segells.', phone: 'Telèfon', namePlaceholder: 'Com et dius?', privacy: 'Accepto la política de privacitat i el tractament de les meves dades segons el RGPD.', createAccount: 'Crear el meu compte', signIn: 'Iniciar sessió', password: 'Contrasenya', forgotPassword: 'He oblidat la contrasenya', sendRecovery: 'Enviar enllaç de recuperació', backToSignIn: 'Tornar a l’accés', repeatPassword: 'Confirmar la nova contrasenya', checkSession: 'Comprovant la sessió…', authConfirmation: 'Revisa el correu per confirmar el compte abans d’iniciar sessió.', recoverySent: 'Si existeix un compte amb aquest correu, rebràs un enllaç de recuperació.', recoveryEyebrow: 'Seguretat del teu compte', recoveryTitle: 'Crea una nova<br>contrasenya.', recoveryCopy: 'Introdueix una contrasenya segura i repeteix-la per confirmar que està escrita correctament.', recoveryChecking: 'Validant l’enllaç de recuperació…', recoveryInvalidTitle: 'L’enllaç ja no és vàlid.', recoveryInvalidCopy: 'L’enllaç ha caducat, ja s’ha utilitzat o no es pot verificar. Sol·licita’n un de nou per continuar.', requestAnotherRecovery: 'Sol·licitar un altre enllaç', recoveryCompleteTitle: 'Contrasenya actualitzada.', recoveryCompleteCopy: 'La teva nova contrasenya ja està activa. Pots continuar amb el teu compte Spirit.', continueToSpirit: 'Continuar a Spirit', recoverySessionMissing: 'No s’ha pogut validar l’enllaç. Sol·licita’n un de nou.', completeRecovery: 'Desar la nova contrasenya',
+    requestStamp: 'Sol·licitar segell', stampRequestTitle: 'El teu codi temporal', stampRequestCopy: 'Ensenya el QR o el codi a l’equip de Spirit.', stampCodeLabel: 'Codi de 6 dígits', stampExpiresIn: 'Caduca en {count} s', stampExpired: 'Aquesta sol·licitud ha caducat.', regenerateStamp: 'Generar-ne un de nou', generatingStamp: 'Generant un codi segur…',
     redeemReady: 'A punt per bescanviar', redeemCopy: 'Ensenya aquest codi a l’equip de Spirit. Caduca en 10 minuts.', confirmAtCafe: 'Confirmar a caixa', enjoy: 'Gaudeix-ne! Ens veiem aviat a Spirit ☕', shareText: 'Descobreix Cafeteria Spirit · Brunch and Specialty Coffee Montcada', shareCopied: 'Enllaç copiat per compartir', invalidImage: 'No s’ha pogut processar la imatge.'
   }
 };
@@ -84,7 +90,10 @@ const state = {
   authMode: isPasswordRecoveryRoute ? (recoveryLinkError ? 'recoveryError' : 'recoveryChecking') : 'signin',
   authLoading: false,
   authError: '',
-  authNotice: ''
+  authNotice: '',
+  stampRequest: null,
+  stampRequestLoading: false,
+  stampRequestError: ''
 };
 const app = document.querySelector('#app');
 const t = (key, values = {}) => Object.entries(values).reduce((value, [name, replacement]) => value.replaceAll(`{${name}}`, replacement), copy[state.lang][key] || key);
@@ -138,7 +147,7 @@ function onboarding() {
 
 function home() {
   const stamps = Array.from({length:8},(_,i)=>`<span class="stamp ${i<state.stamps?'stamp--earned':''}">${icons.cup}</span>`).join('');
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${state.stamps}/8</div></div><span class="reward-chip">${t('freeCoffee')}</span></div><div class="stamps">${stamps}</div><div class="progress-copy">${t('stampsLeft',{count:8-state.stamps})}</div></article><div class="section-head"><h2>${t('quickAccess')}</h2></div>${quickAccess()}</section>${nav('home')}</main>`;
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${state.stamps}/8</div></div><span class="reward-chip">${t('freeCoffee')}</span></div><div class="stamps">${stamps}</div><div class="loyalty-card__footer"><div class="progress-copy">${t('stampsLeft',{count:8-state.stamps})}</div><button class="loyalty-card__request" type="button" data-action="request-stamp" ${state.stampRequestLoading ? 'disabled' : ''}>${state.stampRequestLoading ? t('generatingStamp') : t('requestStamp')}</button></div></article><div class="section-head"><h2>${t('quickAccess')}</h2></div>${quickAccess()}</section>${nav('home')}</main>`;
 }
 
 function rewards() {
@@ -182,6 +191,69 @@ function authLoading() {
 
 const sheet = (content, className = '') => `<div class="modal-backdrop" data-sheet-backdrop><div class="modal ${className}" role="dialog" aria-modal="true">${content}</div></div>`;
 function modal(name) { return sheet(`<p class="eyebrow">${t('redeemReady')}</p><h2>${escapeHTML(name)}</h2><p class="subtitle">${t('redeemCopy')}</p><div class="code">482 916</div><button class="primary-button" data-action="confirm-redeem">${t('confirmAtCafe')}</button>`); }
+
+function stampRequestSheet() {
+  const request = state.stampRequest;
+  if (request?.expired) {
+    return sheet(`<div data-stamp-request-sheet><div class="sheet-head"><div><p class="eyebrow">Spirit Coffee Club</p><h2>${t('stampRequestTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-stamp-request" aria-label="${t('close')}">×</button></div><div class="stamp-request stamp-request--expired"><span class="stamp-request__expired-icon" aria-hidden="true">⌛</span><p>${t('stampExpired')}</p><button class="primary-button" type="button" data-action="regenerate-stamp">${t('regenerateStamp')}</button></div></div>`, 'modal--form modal--stamp-request');
+  }
+  return sheet(`<div data-stamp-request-sheet><div class="sheet-head"><div><p class="eyebrow">Spirit Coffee Club</p><h2>${t('stampRequestTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-stamp-request" aria-label="${t('close')}">×</button></div><div class="stamp-request"><p class="subtitle">${t('stampRequestCopy')}</p><div class="stamp-request__qr"><img src="${request.qrDataUrl}" alt="QR temporal para solicitar un sello"></div><span class="stamp-request__label">${t('stampCodeLabel')}</span><strong class="stamp-request__code">${escapeHTML(request.shortCode)}</strong><p class="stamp-request__countdown" role="timer" aria-live="polite">${t('stampExpiresIn',{count:'<span data-stamp-countdown>60</span>'})}</p><p class="stamp-request__security">El código se valida de forma segura y no contiene datos personales.</p></div></div>`, 'modal--form modal--stamp-request');
+}
+
+let stampCountdownTimer = 0;
+
+function clearStampRequest(removeSheet = true) {
+  clearInterval(stampCountdownTimer);
+  stampCountdownTimer = 0;
+  state.stampRequest = null;
+  state.stampRequestError = '';
+  if (removeSheet) document.querySelector('[data-sheet-backdrop]')?.remove();
+}
+
+function expireStampRequest() {
+  clearInterval(stampCountdownTimer);
+  stampCountdownTimer = 0;
+  state.stampRequest = { expired: true };
+  document.querySelector('[data-sheet-backdrop]')?.remove();
+  openSheet(stampRequestSheet());
+}
+
+function startStampCountdown() {
+  clearInterval(stampCountdownTimer);
+  const update = () => {
+    if (!state.stampRequest?.expiresAt) return;
+    const remaining = Math.max(0, Math.ceil((new Date(state.stampRequest.expiresAt).getTime() - Date.now()) / 1000));
+    const counter = document.querySelector('[data-stamp-countdown]');
+    if (counter) counter.textContent = String(remaining);
+    if (remaining <= 0) expireStampRequest();
+  };
+  update();
+  stampCountdownTimer = setInterval(update, 250);
+}
+
+async function openStampRequest() {
+  if (state.stampRequestLoading) return;
+  clearStampRequest();
+  state.stampRequestLoading = true;
+  render();
+  try {
+    const request = await createStampRequest();
+    state.stampRequest = request;
+    state.stampRequestLoading = false;
+    render();
+    if (state.screen === 'home') {
+      openSheet(stampRequestSheet());
+      startStampCountdown();
+    } else {
+      clearStampRequest(false);
+    }
+  } catch (error) {
+    state.stampRequestLoading = false;
+    state.stampRequestError = error instanceof StampSessionError ? error.message : readableAuthError(error);
+    render();
+    showToast(state.stampRequestError);
+  }
+}
 
 function personalSheet() {
   return sheet(`<div class="sheet-head"><div><p class="eyebrow">${t('personalEyebrow')}</p><h2>${t('personalTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-sheet" aria-label="${t('close')}">×</button></div><form class="sheet-form" data-form="profile"><div class="photo-editor">${avatar('avatar avatar--editor')}<strong>${t('changePhoto')}</strong><div class="photo-actions"><label class="photo-action">${t('gallery')}<input type="file" accept="image/*" data-photo-input hidden></label><label class="photo-action">${t('camera')}<input type="file" accept="image/*" capture="environment" data-photo-input hidden></label></div></div><div class="field"><label for="profile-first">${t('firstName')}</label><input id="profile-first" name="firstName" value="${escapeHTML(state.profile.firstName)}" maxlength="28" autocomplete="given-name" required></div><div class="field"><label for="profile-last">${t('lastName')}</label><input id="profile-last" name="lastName" value="${escapeHTML(state.profile.lastName)}" maxlength="42" autocomplete="family-name" required></div><div class="field"><label for="profile-email">${t('email')}</label><input id="profile-email" value="${escapeHTML(state.profile.email)}" type="email" readonly aria-describedby="email-note"><small id="email-note" class="field-note">${t('emailReadOnly')}</small></div><button class="sheet-link" type="button" data-action="open-password"><span>${t('changePassword')}</span><span>›</span></button><button class="primary-button" type="submit">${t('save')}</button></form>`, 'modal--form');
@@ -305,6 +377,7 @@ async function enterSpirit() {
 }
 
 async function logout() {
+  clearStampRequest();
   try { await signOut(); }
   catch (error) { showToast(readableAuthError(error)); }
   clearCustomerIdentity();
@@ -381,7 +454,7 @@ async function shareSpirit() {
 }
 
 function bind() {
-  document.querySelectorAll('[data-nav]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{state.screen=el.dataset.nav; render(); scrollTo(0,0);})});
+  document.querySelectorAll('[data-nav]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{clearStampRequest();state.screen=el.dataset.nav; render(); scrollTo(0,0);})});
   document.querySelectorAll('[data-redeem]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{if(!el.disabled){app.insertAdjacentHTML('beforeend',modal(el.dataset.redeem)); bind();}})});
   document.querySelectorAll('[data-action]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',async()=>{
     const action=el.dataset.action;
@@ -389,6 +462,9 @@ function bind() {
     if(action==='next-onboarding'){ if(state.onboarding<2) moveOnboarding(1); else enterSpirit(); }
     if(action==='finish-onboarding' && !onboardingTransitioning){ localStorage.setItem('spirit-onboarded','1'); state.screen='login'; render(); }
     if(action==='close-sheet'){ document.querySelector('[data-sheet-backdrop]')?.remove(); }
+    if(action==='request-stamp'){ openStampRequest(); }
+    if(action==='close-stamp-request'){ clearStampRequest(); }
+    if(action==='regenerate-stamp'){ clearStampRequest(); openStampRequest(); }
     if(action==='open-personal'){ openSheet(personalSheet()); }
     if(action==='open-language'){ openSheet(languageSheet()); }
     if(action==='open-password'){ openSheet(passwordSheet()); }
@@ -402,7 +478,7 @@ function bind() {
     if(action==='recovery-continue'){ window.history.replaceState({},'', '/'); state.authMode='signin'; state.screen='home'; render(); scrollTo(0,0); }
     if(action==='logout'){ await logout(); }
   })});
-  document.querySelectorAll('[data-sheet-backdrop]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',(event)=>{if(event.target===el)el.remove();})});
+  document.querySelectorAll('[data-sheet-backdrop]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',(event)=>{if(event.target===el){if(el.querySelector('[data-stamp-request-sheet]'))clearStampRequest();else el.remove();}})});
   document.querySelectorAll('[data-onboarding-swipe]:not([data-bound])').forEach(el=>{el.dataset.bound='1';let startX=0;let startY=0;el.addEventListener('touchstart',(event)=>{startX=event.changedTouches[0].clientX;startY=event.changedTouches[0].clientY;},{passive:true});el.addEventListener('touchend',(event)=>{const deltaX=event.changedTouches[0].clientX-startX;const deltaY=event.changedTouches[0].clientY-startY;if(Math.abs(deltaX)>52&&Math.abs(deltaX)>Math.abs(deltaY)*1.2)moveOnboarding(deltaX<0?1:-1);},{passive:true})});
   document.querySelectorAll('[data-language]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{state.lang=el.dataset.language;localStorage.setItem('spirit-language',state.lang);document.querySelector('[data-sheet-backdrop]')?.remove();render();})});
   document.querySelectorAll('[data-notifications]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',(event)=>{state.notifications=event.currentTarget.checked;localStorage.setItem('spirit-notifications',String(state.notifications));})});
@@ -429,6 +505,7 @@ if (!isBusinessMode) {
         return;
       }
       if (event === 'SIGNED_OUT') {
+        clearStampRequest();
         clearCustomerIdentity();
         if (!['intro', 'onboarding'].includes(state.screen)) state.screen = 'login';
         render();
@@ -465,3 +542,5 @@ if (!localStorage.getItem('spirit-theme')) {
 if ('serviceWorker' in navigator) {
   addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
 }
+
+addEventListener('pagehide', () => clearStampRequest(false));

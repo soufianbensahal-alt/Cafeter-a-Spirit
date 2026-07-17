@@ -183,3 +183,15 @@ http://localhost:4173/reset-password
 En producción añade `https://<dominio-publico>/reset-password`. Si la URL solicitada no está en la lista permitida, Supabase utiliza el Site URL como destino alternativo; por eso un Site URL antiguo como `http://localhost:3000` provoca que el enlace del correo abra una página inexistente.
 
 La pantalla valida la sesión temporal emitida por `PASSWORD_RECOVERY`, solicita la nueva contraseña dos veces, exige un mínimo de ocho caracteres y sólo entonces llama a `supabase.auth.updateUser()`. También ofrece un estado específico para enlaces caducados, inválidos o ya utilizados.
+
+### Solicitudes temporales de sello
+
+La fase 3 sustituye la generación y validación simuladas por tres RPC autenticadas:
+
+- `create_stamp_request(customer_card_id)` comprueba la propiedad mediante `auth.uid()`, genera un token criptográfico de 256 bits, guarda únicamente su SHA-256 y devuelve una sola vez el token, el código de seis dígitos y una caducidad de 60 segundos.
+- `validate_stamp_qr(business_id, qr)` acepta exclusivamente `SPIRIT:STAMP:V1:<token>` y comprueba empleado, membresía activa, negocio, caducidad y uso.
+- `validate_stamp_code(business_id, code)` realiza las mismas comprobaciones, limita a diez validaciones por empleado, negocio y minuto y nunca devuelve datos del cliente para intentos fallidos.
+
+Las funciones son `SECURITY DEFINER` de forma intencionada porque `stamp_sessions` y el registro privado de intentos no tienen permisos web directos. Todas fijan `search_path = ''`, validan `auth.uid()` y sólo conceden `EXECUTE` a `authenticated`. La validación devuelve un nombre enmascarado y el progreso previsto, pero no incrementa sellos ni modifica `used_at`; la confirmación permanece simulada hasta la siguiente fase.
+
+El token y el QR sólo viven en memoria y en el DOM mientras el panel está abierto. No se guardan en `localStorage`, URL, analytics ni logs y se eliminan al cerrar, caducar, navegar o terminar la sesión.

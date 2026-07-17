@@ -10,21 +10,16 @@ const files = ['index.html', 'app.js', 'styles.css', 'sw.js', 'manifest.webmanif
 
 await rm(outputDirectory, { recursive: true, force: true });
 await mkdir(`${outputDirectory}/business`, { recursive: true });
-await mkdir(`${outputDirectory}/services`, { recursive: true });
 await cp('assets', `${outputDirectory}/assets`, { recursive: true });
 await copyFile('business/business.css', `${outputDirectory}/business/business.css`);
-await copyFile('business/business-view.js', `${outputDirectory}/business/business-view.js`);
-await Promise.all([
-  'auth-service.js',
-  'customer-service.js',
-  'employee-service.js',
-  'mock-loyalty-service.js'
-].map((file) => copyFile(`services/${file}`, `${outputDirectory}/services/${file}`)));
-await Promise.all(files.map((file) => copyFile(file, `${outputDirectory}/${file}`)));
+await Promise.all(files.filter((file) => file !== 'app.js').map((file) => copyFile(file, `${outputDirectory}/${file}`)));
 
 await build({
-  entryPoints: ['services/supabase-client.js'],
-  outfile: `${outputDirectory}/services/supabase-client.js`,
+  entryPoints: {
+    app: 'app.js',
+    'business/business-view': 'business/business-view.js'
+  },
+  outdir: outputDirectory,
   bundle: true,
   format: 'esm',
   platform: 'browser',
@@ -39,4 +34,4 @@ await build({
 console.log(`PWA compilada en ${outputDirectory}/`);
 console.log(process.env.SUPABASE_URL && process.env.SUPABASE_PUBLISHABLE_KEY
   ? 'Cliente Supabase configurado con variables públicas.'
-  : 'Cliente Supabase compilado sin configurar; los mocks continúan activos.');
+  : 'Cliente Supabase compilado sin configurar.');

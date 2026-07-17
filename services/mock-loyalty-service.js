@@ -26,23 +26,6 @@ const requireEmployeeSession = () => {
   return employeeContext;
 };
 
-const createStampSession = (source) => {
-  const session = {
-    id: `stamp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    source,
-    customer: 'Cliente Spirit',
-    customerMasked: 'Cliente S•••••',
-    program: 'Tarjeta Café Spirit',
-    currentProgress: 4,
-    nextProgress: 5,
-    goal: 10,
-    reward: 'Café gratuito al completar 10 sellos',
-    status: 'pending'
-  };
-  stampSessions.set(session.id, session);
-  return { ...session };
-};
-
 const readTransactions = () => {
   try {
     const parsed = JSON.parse(storage.getItem(TRANSACTIONS_KEY) || '[]');
@@ -56,26 +39,12 @@ export function mockBeginLoyaltySimulation(context) {
   employeeContext = context ? { ...context } : null;
 }
 
-export async function mockValidateCode(rawCode) {
+export function mockPrepareConfirmation(validatedSession) {
   requireEmployeeSession();
-  await delay();
-  const code = String(rawCode ?? '').replace(/\s/g, '');
-  if (!/^\d{6}$/.test(code)) throw new MockLoyaltyError('incomplete_code', 'Introduce un código de 6 dígitos.');
-  if (code === '111111') throw new MockLoyaltyError('expired_code', 'Este código ha caducado. Pide al cliente que genere uno nuevo.');
-  if (code === '222222') throw new MockLoyaltyError('used_code', 'Este código ya se ha utilizado.');
-  if (code === '333333') throw new MockLoyaltyError('wrong_business', 'Este código no pertenece a Cafetería Spirit.');
-  if (code !== '123456') throw new MockLoyaltyError('incorrect_code', 'El código no es correcto. Revísalo e inténtalo de nuevo.');
-  return createStampSession('manual');
-}
-
-export async function mockValidateQr(rawContent) {
-  requireEmployeeSession();
-  await delay(300);
-  const content = String(rawContent ?? '').trim();
-  if (!/^SPIRIT:STAMP:[A-Z0-9_-]+$/i.test(content)) {
-    throw new MockLoyaltyError('invalid_qr', 'QR no válido. Utiliza un QR de fidelización de Spirit.');
-  }
-  return createStampSession('qr');
+  if (!validatedSession?.id) throw new MockLoyaltyError('unexpected', 'No se ha encontrado la operación validada.');
+  const session = { ...validatedSession, status: 'pending' };
+  stampSessions.set(session.id, session);
+  return { ...session };
 }
 
 export async function mockConfirmStamp(publicSession) {

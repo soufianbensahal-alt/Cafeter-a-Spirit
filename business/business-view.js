@@ -4,9 +4,13 @@ import {
   mockConfirmStamp,
   mockEndLoyaltySimulation,
   mockGetRecentTransactions,
-  mockValidateCode,
-  mockValidateQr
+  mockPrepareConfirmation
 } from '../services/mock-loyalty-service.js';
+import {
+  StampSessionError,
+  validateStampCode,
+  validateStampQr
+} from '../services/stamp-session-service.js';
 import {
   EmployeeAuthorizationError,
   restoreEmployeeSession,
@@ -42,6 +46,8 @@ if (isBusinessRoute) {
   let scannerBusy = false;
   let detector = null;
   let manualSignOut = false;
+  let lastScannedContent = '';
+  let lastScannedAt = 0;
 
   const icons = {
     scan: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/><path d="M7 12h10"/></svg>',
@@ -58,7 +64,7 @@ if (isBusinessRoute) {
 
   const transactionList = () => `<section class="business-history" aria-labelledby="recent-title"><div class="business-section-head"><div><span class="business-kicker">Actividad</span><h2 id="recent-title">Últimas operaciones</h2></div>${icons.clock}</div>${state.transactions.length ? `<ol>${state.transactions.map((item) => `<li><time datetime="${escapeHTML(item.timestamp)}">${formatTime(item.timestamp)}</time><div><strong>${escapeHTML(item.customerMasked)}</strong><span>${escapeHTML(item.result)}</span></div><b>${escapeHTML(item.progress)}</b></li>`).join('')}</ol>` : '<p class="business-empty">Todavía no hay operaciones en esta sesión.</p>'}</section>`;
 
-  const homeView = () => `<main class="business-app">${brandHeader()}<section class="employee-strip"><div class="employee-avatar" aria-hidden="true">${escapeHTML(employeeInitials())}</div><div><span>${escapeHTML(roleLabel(state.employee?.role))}</span><strong>${escapeHTML(state.employee?.employeeName || '')}</strong></div><span class="employee-status">Activa</span></section><section class="business-action-card"><p class="business-kicker">Añadir un sello</p><h1>Procesa al cliente en segundos.</h1><p>Escanea su QR o introduce el código de seis dígitos.</p><button class="business-primary business-primary--scan" type="button" data-business-action="open-scanner">${icons.scan}<span>Escanear QR</span></button><div class="business-divider"><span>o</span></div><form class="business-code-form" data-business-form="code" novalidate><label for="business-code">Código del cliente</label><input id="business-code" name="code" type="text" value="${escapeHTML(state.code)}" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" enterkeyhint="done" placeholder="000000" aria-describedby="business-code-help business-error" ${state.loading ? 'disabled' : ''}><small id="business-code-help">Exactamente 6 dígitos</small><p class="business-message business-message--error" id="business-error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.code.length !== 6 || state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Validando…' : 'Validar código'}</button></form></section>${transactionList()}<button class="business-logout" type="button" data-business-action="logout">Cerrar sesión</button><p class="business-security-note">Acceso protegido con Supabase Auth · QR, códigos y sellos continúan en modo demostración.</p></main>`;
+  const homeView = () => `<main class="business-app">${brandHeader()}<section class="employee-strip"><div class="employee-avatar" aria-hidden="true">${escapeHTML(employeeInitials())}</div><div><span>${escapeHTML(roleLabel(state.employee?.role))}</span><strong>${escapeHTML(state.employee?.employeeName || '')}</strong></div><span class="employee-status">Activa</span></section><section class="business-action-card"><p class="business-kicker">Añadir un sello</p><h1>Procesa al cliente en segundos.</h1><p>Escanea su QR temporal o introduce el código de seis dígitos.</p><button class="business-primary business-primary--scan" type="button" data-business-action="open-scanner">${icons.scan}<span>Escanear QR</span></button><div class="business-divider"><span>o</span></div><form class="business-code-form" data-business-form="code" novalidate><label for="business-code">Código del cliente</label><input id="business-code" name="code" type="text" value="${escapeHTML(state.code)}" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" enterkeyhint="done" placeholder="000000" aria-describedby="business-code-help business-error" ${state.loading ? 'disabled' : ''}><small id="business-code-help">Exactamente 6 dígitos · válido durante 60 segundos</small><p class="business-message business-message--error" id="business-error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.code.length !== 6 || state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Validando…' : 'Validar código'}</button></form></section>${transactionList()}<button class="business-logout" type="button" data-business-action="logout">Cerrar sesión</button><p class="business-security-note">Acceso protegido con Supabase Auth · QR y códigos se validan en el servidor. La confirmación del sello sigue en modo demostración.</p></main>`;
 
   const progress = (value, goal) => `<div class="business-progress" role="img" aria-label="${value} de ${goal} sellos"><div><strong>${value}</strong><span>/ ${goal}</span></div><div class="business-progress__track"><span style="width:${(value / goal) * 100}%"></span></div></div>`;
 
@@ -88,6 +94,7 @@ if (isBusinessRoute) {
   }
 
   function readableError(error) {
+    if (error instanceof StampSessionError) return error.message;
     if (error instanceof MockLoyaltyError) return error.message;
     if (error?.code === 'invalid_credentials') return 'El correo o la contraseña no son correctos.';
     if (error?.code === 'email_not_confirmed') return 'Confirma tu correo antes de iniciar sesión.';
@@ -167,7 +174,8 @@ if (isBusinessRoute) {
     state.error = '';
     render();
     try {
-      state.stampSession = await mockValidateCode(state.code);
+      const validated = await validateStampCode(state.employee.businessId, state.code);
+      state.stampSession = mockPrepareConfirmation(validated);
       state.code = '';
       state.view = 'preview';
     } catch (error) {
@@ -219,6 +227,8 @@ if (isBusinessRoute) {
     scannerBusy = false;
     cameraStream?.getTracks().forEach((track) => track.stop());
     cameraStream = null;
+    lastScannedContent = '';
+    lastScannedAt = 0;
     const video = document.querySelector('[data-scanner-video]');
     if (video) video.srcObject = null;
   }
@@ -234,12 +244,20 @@ if (isBusinessRoute) {
         const codes = await detector.detect(video);
         const content = codes[0]?.rawValue;
         if (content) {
+          const now = Date.now();
+          if (content === lastScannedContent && now - lastScannedAt < 3000) {
+            scanFrame = requestAnimationFrame(() => detectFrames(video));
+            return;
+          }
+          lastScannedContent = content;
+          lastScannedAt = now;
           scannerBusy = true;
           state.scannerMessage = 'QR detectado. Validando…';
           state.error = '';
           renderScannerMessages();
           try {
-            state.stampSession = await mockValidateQr(content);
+            const validated = await validateStampQr(state.employee.businessId, content);
+            state.stampSession = mockPrepareConfirmation(validated);
             stopScanner();
             state.view = 'preview';
             render();
