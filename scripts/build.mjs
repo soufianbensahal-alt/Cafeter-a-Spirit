@@ -6,7 +6,7 @@ if (existsSync('.env.local')) process.loadEnvFile('.env.local');
 else if (existsSync('.env')) process.loadEnvFile('.env');
 
 const outputDirectory = 'dist';
-const files = ['index.html', 'app.js', 'styles.css', 'sw.js', 'manifest.webmanifest'];
+const files = ['index.html', 'app.js', 'bootstrap.js', 'styles.css', 'sw.js', 'manifest.webmanifest'];
 
 await rm(outputDirectory, { recursive: true, force: true });
 await mkdir(`${outputDirectory}/business`, { recursive: true });

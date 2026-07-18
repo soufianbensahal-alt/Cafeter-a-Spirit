@@ -1,7 +1,8 @@
-const CACHE_NAME = 'spirit-shell-v13';
+const CACHE_NAME = 'spirit-shell-v14';
 const APP_SHELL = [
   '/',
   '/index.html',
+  '/bootstrap.js',
   '/styles.css',
   '/app.js',
   '/business/business.css',
@@ -40,8 +41,11 @@ self.addEventListener('fetch', (event) => {
 
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => response)
+      fetch(event.request, { cache: 'no-store' })
+        .then((response) => {
+          if (!response.ok) throw new Error('Navigation response failed');
+          return response;
+        })
         .catch(() => caches.match('/index.html'))
     );
     return;
@@ -52,9 +56,11 @@ self.addEventListener('fetch', (event) => {
   if (!isStaticResource) return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
-      if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
-      return response;
-    }))
+    fetch(event.request, { cache: 'no-store' })
+      .then((response) => {
+        if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });

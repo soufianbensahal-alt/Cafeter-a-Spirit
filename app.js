@@ -720,8 +720,4 @@ if (!localStorage.getItem('spirit-theme')) {
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) => applyTheme(event.matches ? 'dark' : 'light'));
 }
 
-if ('serviceWorker' in navigator) {
-  addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
-}
-
 addEventListener('pagehide', () => clearStampRequest(false));
