@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spirit-shell-v14';
+const CACHE_NAME = 'spirit-shell-v15';
 const APP_SHELL = [
   '/',
   '/index.html',

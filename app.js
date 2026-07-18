@@ -133,7 +133,7 @@ const applyTheme = (theme, persist = false) => {
 };
 const initials = () => `${state.profile.firstName[0] || ''}${state.profile.lastName[0] || ''}`.toUpperCase();
 const avatar = (className = 'avatar') => state.profile.photo ? `<span class="${className}"><img src="${state.profile.photo}" alt="${escapeHTML(state.profile.firstName)}"></span>` : `<span class="${className}">${escapeHTML(initials())}</span>`;
-const brandLogo = (variant = 'header') => `<img class="brand-logo brand-logo--${variant}" src="assets/spirit-logo-header.png" alt="Spirit">`;
+const brandLogo = (variant = 'header') => `<img class="brand-logo brand-logo--${variant}" src="/assets/spirit-logo-header.png" alt="Spirit">`;
 
 const nav = (active) => `<nav class="bottom-nav" aria-label="${t('navLabel')}">
   ${[['home','home','home'],['rewards','rewards','gift'],['history','history','clock'],['profile','profile','user']].map(([id,label,icon]) => `<button class="nav-item ${active===id?'nav-item--active':''}" data-nav="${id}" aria-label="${t(label)}"><span class="nav-icon">${icons[icon]}</span><span>${t(label)}</span></button>`).join('')}
@@ -147,8 +147,8 @@ const quickLinks = [
   {name: 'Instagram', subtitle: 'followUs', icon: 'camera', href: 'https://www.instagram.com/cafeteriaspirit?igsh=MXBwZ3Y0NnhlNDYxag%3D%3D'},
   {name: 'TikTok', subtitle: 'videos', icon: 'tiktok', href: 'https://www.tiktok.com/@spiritcoffee?_t=8mkgPy4coZF&_r=1'},
   {name: 'Google', subtitle: 'leaveReview', icon: 'star', href: 'https://google.com/maps/place//data=!4m3!3m2!1s0x12a4bdafe69b5aed:0x4b27331104bb0ad2!12e1?source=g.page.m.dd._&laa=lu-desktop-reviews-dialog-review-solicitation'},
-  {name: 'Just Eat', subtitle: 'delivery', image: 'assets/just-eat-logo.avif', href: 'https://www.just-eat.es/restaurants-spirit-and-coffee-montcada-i-reixac'},
-  {name: 'Uber Eats', subtitle: 'delivery', image: 'assets/uber-eats-logo.png', useAsMask: true, href: 'https://www.ubereats.com/es/store/spirit-%26-coffee/S3m66DcHSLCtmmwzHhlp7A?diningMode=DELIVERY'},
+  {name: 'Just Eat', subtitle: 'delivery', image: '/assets/just-eat-logo.avif', href: 'https://www.just-eat.es/restaurants-spirit-and-coffee-montcada-i-reixac'},
+  {name: 'Uber Eats', subtitle: 'delivery', image: '/assets/uber-eats-logo.png', useAsMask: true, href: 'https://www.ubereats.com/es/store/spirit-%26-coffee/S3m66DcHSLCtmmwzHhlp7A?diningMode=DELIVERY'},
 ];
 
 const quickAccess = () => `<div class="quick-grid">${quickLinks.map((item) => `<a class="quick-card" href="${item.href}" target="_blank" rel="noopener noreferrer" aria-label="${item.name}: ${t(item.subtitle)}"><span class="quick-card__icon ${item.transparentIcon ? 'quick-card__icon--transparent' : ''}">${item.useAsMask ? '<span class="quick-card__uber-mark" aria-hidden="true"></span>' : item.image ? `<img src="${item.image}" alt="" loading="lazy">` : icons[item.icon]}</span><span class="quick-card__copy"><strong>${item.name}</strong><small>${t(item.subtitle)}</small></span></a>`).join('')}</div>`;
@@ -156,16 +156,16 @@ const quickAccess = () => `<div class="quick-grid">${quickLinks.map((item) => `<
 function intro() {
   return `<main class="intro-screen" aria-label="${t('introLabel')}">
     <div class="intro-ambient" aria-hidden="true"><span></span><span></span><span></span></div>
-    <div class="intro-brand"><img class="intro-logo" src="assets/spirit-logo-header.png" alt="Spirit" data-intro-logo><p>Brunch & Specialty Coffee</p></div>
+    <div class="intro-brand"><img class="intro-logo" src="/assets/spirit-logo-header.png" alt="Spirit" data-intro-logo><p>Brunch & Specialty Coffee</p></div>
     <button class="intro-skip" type="button" data-action="skip-intro">${t('skip')}</button>
   </main>`;
 }
 
 function onboarding() {
   const slides = [
-    {title:t('onboarding1Title'), copy:t('onboarding1Copy'), image:'assets/onboarding-coffee.jpg', alt:t('onboarding1Photo')},
-    {title:t('onboarding2Title'), copy:t('onboarding2Copy'), image:'assets/onboarding-order.jpg', alt:t('onboarding2Photo')},
-    {title:t('onboarding3Title'), copy:t('onboarding3Copy'), image:'assets/onboarding-spirit.jpg', alt:t('onboarding3Photo')}
+    {title:t('onboarding1Title'), copy:t('onboarding1Copy'), image:'/assets/onboarding-coffee.jpg', alt:t('onboarding1Photo')},
+    {title:t('onboarding2Title'), copy:t('onboarding2Copy'), image:'/assets/onboarding-order.jpg', alt:t('onboarding2Photo')},
+    {title:t('onboarding3Title'), copy:t('onboarding3Copy'), image:'/assets/onboarding-spirit.jpg', alt:t('onboarding3Photo')}
   ];
   const slide = slides[state.onboarding];
   return `<main class="app-shell onboarding-shell onboarding-shell--${state.onboarding + 1}"><section class="screen screen--onboarding"><header class="onboarding-header">${brandLogo('onboarding')}${state.onboarding < slides.length - 1 ? `<button class="skip" data-action="finish-onboarding">${t('skip')}</button>` : ''}</header><div class="onboarding-stage" data-onboarding-swipe><figure class="onboarding-photo"><img src="${slide.image}" alt="${slide.alt}"><span class="onboarding-photo__shade" aria-hidden="true"></span></figure><article class="onboarding-panel"><p class="eyebrow">Spirit Coffee Club</p><h1>${slide.title}</h1><p class="onboarding-copy">${slide.copy}</p><div class="dots" aria-label="${state.onboarding + 1} de ${slides.length}">${slides.map((_,i)=>`<span class="dot ${i===state.onboarding?'dot--active':''}" ${i===state.onboarding?'aria-current="step"':''}></span>`).join('')}</div><button class="primary-button onboarding-cta" data-action="next-onboarding">${state.onboarding===slides.length-1?t('enter'):t('continue')}</button></article></div></section></main>`;

@@ -23,6 +23,20 @@ test('el bootstrap separa cliente y cafetería', async () => {
 test('la caché PWA prioriza la versión de red', async () => {
   const worker = await readFile(projectFile('sw.js'), 'utf8');
 
-  assert.match(worker, /spirit-shell-v14/);
+  assert.match(worker, /spirit-shell-v15/);
   assert.match(worker, /fetch\(event\.request, \{ cache: 'no-store' \}\)/);
+});
+
+test('el callback OAuth conserva estilos y recursos desde cualquier ruta', async () => {
+  const [html, app, styles] = await Promise.all([
+    readFile(projectFile('index.html'), 'utf8'),
+    readFile(projectFile('app.js'), 'utf8'),
+    readFile(projectFile('styles.css'), 'utf8')
+  ]);
+
+  assert.match(html, /href="\/styles\.css"/);
+  assert.match(html, /href="\/manifest\.webmanifest"/);
+  assert.doesNotMatch(html, /(?:src|href)="assets\//);
+  assert.doesNotMatch(app, /(?:src=|image:)['"]assets\//);
+  assert.doesNotMatch(styles, /url\(['"]?assets\//);
 });
