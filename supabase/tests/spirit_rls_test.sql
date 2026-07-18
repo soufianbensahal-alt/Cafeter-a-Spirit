@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(33);
+select plan(40);
 
 insert into auth.users (id, email) values
   ('10000000-0000-4000-8000-000000000001', 'customer-one@spirit.test'),
@@ -107,7 +107,15 @@ select ok(
 );
 select ok(
   has_function_privilege('authenticated', 'public.ensure_own_customer_card()', 'execute'),
-  'authenticated puede inicializar exclusivamente su propia tarjeta'
+  'authenticated puede leer exclusivamente su propia tarjeta'
+);
+select ok(
+  not has_function_privilege('anon', 'public.create_own_customer_membership()', 'execute'),
+  'anon no puede crear una membresía cliente'
+);
+select ok(
+  has_function_privilege('authenticated', 'public.create_own_customer_membership()', 'execute'),
+  'authenticated puede solicitar explícitamente su propia membresía cliente'
 );
 select results_eq('select count(*) from public.profiles', array[6::bigint], 'el trigger Auth crea un perfil por usuario');
 
@@ -118,7 +126,7 @@ select results_eq('select count(*) from public.profiles', array[1::bigint], 'el 
 select results_eq('select count(*) from public.customer_cards', array[1::bigint], 'el cliente ve sólo su tarjeta');
 select results_eq('select count(*) from public.loyalty_programs', array[1::bigint], 'el cliente ve sólo el programa asociado a su tarjeta');
 select results_eq('select count(*) from public.stamp_transactions', array[1::bigint], 'el cliente ve sólo sus transacciones');
-select results_eq('select count(*) from public.businesses', array[0::bigint], 'el cliente no accede al negocio');
+select results_eq('select count(*) from public.businesses', array[1::bigint], 'el cliente sólo ve el negocio asociado a su tarjeta para contextualizar su historial');
 select throws_ok(
   $$update public.customer_cards set current_stamps = 99$$,
   '42501',
@@ -140,12 +148,12 @@ select throws_ok(
 select results_eq(
   $$select count(*) from public.ensure_own_customer_card()$$,
   array[1::bigint],
-  'la inicialización devuelve la tarjeta del usuario autenticado'
+  'la lectura compatible devuelve la tarjeta del usuario autenticado'
 );
 select results_eq(
   $$select count(distinct card.id) from public.ensure_own_customer_card() as ensured join public.customer_cards as card on card.id = ensured.id where card.customer_id = '10000000-0000-4000-8000-000000000001'$$,
   array[1::bigint],
-  'repetir la inicialización no duplica la tarjeta del cliente'
+  'repetir la lectura no duplica la tarjeta del cliente'
 );
 
 set local request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
@@ -156,6 +164,31 @@ select results_eq('select count(*) from public.loyalty_programs', array[1::bigin
 select results_eq('select count(*) from public.stamp_transactions', array[1::bigint], 'el empleado ve las transacciones de su negocio');
 select results_eq('select count(*) from public.profiles', array[0::bigint], 'el empleado no puede consultar perfiles ajenos');
 select results_eq('select count(*) from public.customer_cards', array[0::bigint], 'el empleado no consulta tarjetas directamente');
+select results_eq(
+  $$select count(*) from public.ensure_own_customer_card()$$,
+  array[0::bigint],
+  'abrir el contexto cliente no crea una tarjeta para el empleado'
+);
+select results_eq(
+  $$select count(*) from public.create_own_customer_membership()$$,
+  array[1::bigint],
+  'el empleado puede adherirse explícitamente como cliente para su propio auth.uid'
+);
+select results_eq(
+  $$select count(*) from public.create_own_customer_membership()$$,
+  array[1::bigint],
+  'repetir la adhesión explícita es idempotente'
+);
+select results_eq(
+  $$select count(*) from public.customer_cards where customer_id = '20000000-0000-4000-8000-000000000001'$$,
+  array[1::bigint],
+  'la adhesión crea exactamente una tarjeta para el usuario autenticado'
+);
+select results_eq(
+  $$select count(*) from public.get_business_stamp_history_filtered('00000000-0000-4000-8000-000000000001', 20, null, null, null, null, null, 'stamp')$$,
+  array[1::bigint],
+  'el historial filtrado devuelve únicamente actividad del negocio autorizado'
+);
 select throws_ok(
   $$update public.customer_cards set current_stamps = current_stamps + 1$$,
   '42501',

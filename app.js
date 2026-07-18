@@ -3,6 +3,7 @@ import {
   getCurrentUser,
   getCustomerContext,
   requestCustomerPasswordReset,
+  signInCustomerWithOAuth,
   signInCustomer,
   signOut,
   signUpCustomer,
@@ -12,6 +13,7 @@ import {
 } from './services/customer-service.js';
 import {
   createStampRequest,
+  createOwnCustomerMembership,
   getOwnCustomerCard,
   getOwnStampHistory,
   subscribeToOwnStampTransactions,
@@ -26,6 +28,7 @@ import {
 const isBusinessMode = /^\/cafeteria\/?$/.test(window.location.pathname);
 const isPasswordRecoveryRoute = /^\/reset-password\/?$/.test(window.location.pathname)
   || new URLSearchParams(window.location.search).get('auth') === 'recovery';
+const isOAuthCallbackRoute = /^\/auth\/callback\/?$/.test(window.location.pathname);
 
 const recoveryLinkError = (() => {
   if (!isPasswordRecoveryRoute) return null;
@@ -53,11 +56,6 @@ const icons = {
   bag: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 8h14l1 13H4zM9 9V6a3 3 0 0 1 6 0v3"/></svg>`,
 };
 
-const savedProfile = (() => {
-  try { return JSON.parse(localStorage.getItem('spirit-profile')) || {}; }
-  catch { return {}; }
-})();
-
 const copy = {
   es: {
     navLabel: 'Navegación principal', home: 'Inicio', rewards: 'Premios', history: 'Historial', profile: 'Perfil', skip: 'Omitir', continue: 'Continuar', enter: 'Entrar en Spirit',
@@ -70,6 +68,7 @@ const copy = {
     passwordEyebrow: 'Seguridad', passwordTitle: 'Cambiar contraseña', currentPassword: 'Contraseña actual', newPassword: 'Nueva contraseña', confirmPassword: 'Confirmar contraseña', passwordLength: 'La nueva contraseña debe tener al menos 8 caracteres.', passwordMismatch: 'Las contraseñas no coinciden.', passwordIncorrect: 'La contraseña actual no es correcta.', passwordSaved: 'Contraseña actualizada',
     languageEyebrow: 'Preferencias', languageTitle: 'Idioma de la aplicación', welcome: 'Bienvenida a casa', loginTitle: 'Tu café.<br>Tus sellos.', phone: 'Teléfono', namePlaceholder: '¿Cómo te llamas?', privacy: 'Acepto la política de privacidad y el tratamiento de mis datos según el RGPD.', createAccount: 'Crear mi cuenta', signIn: 'Iniciar sesión', password: 'Contraseña', forgotPassword: 'He olvidado mi contraseña', sendRecovery: 'Enviar enlace de recuperación', backToSignIn: 'Volver al acceso', repeatPassword: 'Confirmar nueva contraseña', checkSession: 'Comprobando tu sesión…', authConfirmation: 'Revisa tu correo para confirmar la cuenta antes de iniciar sesión.', recoverySent: 'Si existe una cuenta con ese correo, recibirás un enlace de recuperación.', recoveryEyebrow: 'Seguridad de tu cuenta', recoveryTitle: 'Crea una nueva<br>contraseña.', recoveryCopy: 'Introduce una contraseña segura y repítela para confirmar que está escrita correctamente.', recoveryChecking: 'Validando el enlace de recuperación…', recoveryInvalidTitle: 'El enlace ya no es válido.', recoveryInvalidCopy: 'El enlace ha caducado, ya se ha utilizado o no puede verificarse. Solicita uno nuevo para continuar.', requestAnotherRecovery: 'Solicitar otro enlace', recoveryCompleteTitle: 'Contraseña actualizada.', recoveryCompleteCopy: 'Tu nueva contraseña ya está activa. Puedes continuar con tu cuenta Spirit.', continueToSpirit: 'Continuar en Spirit', recoverySessionMissing: 'No se ha podido validar el enlace. Solicita uno nuevo.', completeRecovery: 'Guardar nueva contraseña',
     requestStamp: 'Solicitar sello', stampRequestTitle: 'Tu código temporal', stampRequestCopy: 'Enséñale el QR o el código al equipo de Spirit.', stampCodeLabel: 'Código de 6 dígitos', stampExpiresIn: 'Caduca en {count} s', stampExpired: 'Esta solicitud ha caducado.', regenerateStamp: 'Generar uno nuevo', generatingStamp: 'Generando código seguro…', stampConfirmed: 'Sello añadido. Tu tarjeta ya está actualizada.', rewardWon: '¡Has conseguido {count} recompensa!', availableAtCafe: 'Disponible en cafetería', unavailableReward: 'Aún no disponible', cardUnavailable: 'Tarjeta todavía no disponible',
+    joinClub: 'Activar mi tarjeta', joiningClub: 'Activando tarjeta…', businessMode: 'Ir al modo cafetería', oauthGoogle: 'Continuar con Google', oauthApple: 'Continuar con Apple',
     shareText: 'Descubre Cafetería Spirit · Brunch and Specialty Coffee Montcada', shareCopied: 'Enlace copiado para compartir', invalidImage: 'No se ha podido procesar la imagen.'
   },
   ca: {
@@ -83,6 +82,7 @@ const copy = {
     passwordEyebrow: 'Seguretat', passwordTitle: 'Canviar contrasenya', currentPassword: 'Contrasenya actual', newPassword: 'Nova contrasenya', confirmPassword: 'Confirmar contrasenya', passwordLength: 'La nova contrasenya ha de tenir almenys 8 caràcters.', passwordMismatch: 'Les contrasenyes no coincideixen.', passwordIncorrect: 'La contrasenya actual no és correcta.', passwordSaved: 'Contrasenya actualitzada',
     languageEyebrow: 'Preferències', languageTitle: 'Idioma de l’aplicació', welcome: 'Benvinguda a casa', loginTitle: 'El teu cafè.<br>Els teus segells.', phone: 'Telèfon', namePlaceholder: 'Com et dius?', privacy: 'Accepto la política de privacitat i el tractament de les meves dades segons el RGPD.', createAccount: 'Crear el meu compte', signIn: 'Iniciar sessió', password: 'Contrasenya', forgotPassword: 'He oblidat la contrasenya', sendRecovery: 'Enviar enllaç de recuperació', backToSignIn: 'Tornar a l’accés', repeatPassword: 'Confirmar la nova contrasenya', checkSession: 'Comprovant la sessió…', authConfirmation: 'Revisa el correu per confirmar el compte abans d’iniciar sessió.', recoverySent: 'Si existeix un compte amb aquest correu, rebràs un enllaç de recuperació.', recoveryEyebrow: 'Seguretat del teu compte', recoveryTitle: 'Crea una nova<br>contrasenya.', recoveryCopy: 'Introdueix una contrasenya segura i repeteix-la per confirmar que està escrita correctament.', recoveryChecking: 'Validant l’enllaç de recuperació…', recoveryInvalidTitle: 'L’enllaç ja no és vàlid.', recoveryInvalidCopy: 'L’enllaç ha caducat, ja s’ha utilitzat o no es pot verificar. Sol·licita’n un de nou per continuar.', requestAnotherRecovery: 'Sol·licitar un altre enllaç', recoveryCompleteTitle: 'Contrasenya actualitzada.', recoveryCompleteCopy: 'La teva nova contrasenya ja està activa. Pots continuar amb el teu compte Spirit.', continueToSpirit: 'Continuar a Spirit', recoverySessionMissing: 'No s’ha pogut validar l’enllaç. Sol·licita’n un de nou.', completeRecovery: 'Desar la nova contrasenya',
     requestStamp: 'Sol·licitar segell', stampRequestTitle: 'El teu codi temporal', stampRequestCopy: 'Ensenya el QR o el codi a l’equip de Spirit.', stampCodeLabel: 'Codi de 6 dígits', stampExpiresIn: 'Caduca en {count} s', stampExpired: 'Aquesta sol·licitud ha caducat.', regenerateStamp: 'Generar-ne un de nou', generatingStamp: 'Generant un codi segur…', stampConfirmed: 'Segell afegit. La teva targeta ja està actualitzada.', rewardWon: 'Has aconseguit {count} recompensa!', availableAtCafe: 'Disponible a la cafeteria', unavailableReward: 'Encara no disponible', cardUnavailable: 'Targeta encara no disponible',
+    joinClub: 'Activar la meva targeta', joiningClub: 'Activant targeta…', businessMode: 'Anar al mode cafeteria', oauthGoogle: 'Continuar amb Google', oauthApple: 'Continuar amb Apple',
     shareText: 'Descobreix Cafeteria Spirit · Brunch and Specialty Coffee Montcada', shareCopied: 'Enllaç copiat per compartir', invalidImage: 'No s’ha pogut processar la imatge.'
   }
 };
@@ -96,10 +96,13 @@ const state = {
   loyaltyReady: false,
   customerCardId: null,
   loyaltyHistory: [],
+  loyaltyHistoryHasMore: false,
   lang: localStorage.getItem('spirit-language') === 'ca' ? 'ca' : 'es',
   theme: document.documentElement.dataset.theme || 'light',
   notifications: localStorage.getItem('spirit-notifications') !== 'false',
-  profile: { ...defaultProfile, ...savedProfile },
+  profile: { ...defaultProfile },
+  hasBusinessAccess: false,
+  needsProfileCompletion: false,
   authStatus: 'checking',
   authMode: isPasswordRecoveryRoute ? (recoveryLinkError ? 'recoveryError' : 'recoveryChecking') : 'signin',
   authLoading: false,
@@ -112,7 +115,6 @@ const state = {
 const app = document.querySelector('#app');
 const t = (key, values = {}) => Object.entries(values).reduce((value, [name, replacement]) => value.replaceAll(`{${name}}`, replacement), copy[state.lang][key] || key);
 const escapeHTML = (value = '') => String(value).replace(/[&<>'"]/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
-const saveProfile = () => localStorage.setItem('spirit-profile', JSON.stringify(state.profile));
 const applyTheme = (theme, persist = false) => {
   state.theme = theme;
   document.documentElement.dataset.theme = theme;
@@ -165,7 +167,9 @@ function home() {
   const rewardLabel = !state.loyaltyReady ? t('cardUnavailable') : state.availableRewards > 0 ? `${state.availableRewards} ${t('available').toLowerCase()}` : state.rewardDescription;
   const progressLabel = state.loyaltyReady ? t('stampsLeft',{count:remaining}) : t('cardUnavailable');
   const countLabel = state.loyaltyReady ? `${state.stamps}/${state.loyaltyGoal}` : '—';
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${countLabel}</div></div><span class="reward-chip">${escapeHTML(rewardLabel)}</span></div><div class="stamps">${stamps}</div><div class="loyalty-card__footer"><div class="progress-copy">${progressLabel}</div><button class="loyalty-card__request" type="button" data-action="request-stamp" ${state.stampRequestLoading || !state.customerCardId ? 'disabled' : ''}>${state.stampRequestLoading ? t('generatingStamp') : t('requestStamp')}</button></div></article><div class="section-head"><h2>${t('quickAccess')}</h2></div>${quickAccess()}</section>${nav('home')}</main>`;
+  const loyaltyAction = state.customerCardId ? 'request-stamp' : 'join-loyalty';
+  const loyaltyActionLabel = state.stampRequestLoading ? (state.customerCardId ? t('generatingStamp') : t('joiningClub')) : (state.customerCardId ? t('requestStamp') : t('joinClub'));
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${countLabel}</div></div><span class="reward-chip">${escapeHTML(rewardLabel)}</span></div><div class="stamps">${stamps}</div><div class="loyalty-card__footer"><div class="progress-copy">${progressLabel}</div><button class="loyalty-card__request" type="button" data-action="${loyaltyAction}" ${state.stampRequestLoading ? 'disabled' : ''}>${loyaltyActionLabel}</button></div></article><div class="section-head"><h2>${t('quickAccess')}</h2></div>${quickAccess()}</section>${nav('home')}</main>`;
 }
 
 function rewards() {
@@ -178,16 +182,16 @@ function history() {
   const formatDate = (value) => new Intl.DateTimeFormat(state.lang === 'ca' ? 'ca-ES' : 'es-ES', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
   const rows = state.loyaltyHistory.map((item) => ({
     title: item.type === 'stamp' ? t('visitStamp') : state.rewardDescription,
-    date: formatDate(item.createdAt),
+    date: `${formatDate(item.createdAt)} · ${item.programName || 'Spirit'} · ${item.businessName || 'Cafetería Spirit'}`,
     points: item.type === 'stamp' ? `+${item.quantity}` : `−${item.quantity}`,
     spent: item.type !== 'stamp'
   }));
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('historyEyebrow')}</p><h1>${t('historyTitle')}</h1><div class="section-head"><h2>${t('movements')}</h2></div>${rows.length===0?`<div class="empty"><div><div class="empty__icon">☕</div><h2>${t('noMovements')}</h2><p>${t('noMovementsCopy')}</p></div></div>`:`<div class="timeline">${rows.map((item)=>`<div class="history-row"><div class="history-row__icon">☕</div><div><div class="history-row__title">${escapeHTML(item.title)}</div><div class="history-row__date">${escapeHTML(item.date)}</div></div><div class="history-row__points ${item.spent?'history-row__points--spent':''}">${item.points}</div></div>`).join('')}</div>`}</section>${nav('history')}</main>`;
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('historyEyebrow')}</p><h1>${t('historyTitle')}</h1><div class="section-head"><h2>${t('movements')}</h2></div>${rows.length===0?`<div class="empty"><div><div class="empty__icon">☕</div><h2>${t('noMovements')}</h2><p>${t('noMovementsCopy')}</p></div></div>`:`<div class="timeline">${rows.map((item)=>`<div class="history-row"><div class="history-row__icon">☕</div><div><div class="history-row__title">${escapeHTML(item.title)}</div><div class="history-row__date">${escapeHTML(item.date)}</div></div><div class="history-row__points ${item.spent?'history-row__points--spent':''}">${item.points}</div></div>`).join('')}</div>${state.loyaltyHistoryHasMore ? '<button class="primary-button history-more" type="button" data-action="load-more-customer-history">Cargar más</button>' : ''}`}</section>${nav('history')}</main>`;
 }
 
 function profile() {
   const loyaltyCount = state.loyaltyReady ? `${state.stamps} ${t('stamps')}` : t('cardUnavailable');
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('profileEyebrow')}</p><h1>${t('profileTitle')}</h1><div class="section-head"><h2>${t('yourAccount')}</h2></div><article class="profile-card">${avatar()}<div><h3>${escapeHTML(state.profile.firstName)} ${escapeHTML(state.profile.lastName)}</h3><p>${escapeHTML(state.profile.email)} · ${loyaltyCount}</p></div></article><div class="section-head"><h2>${t('settings')}</h2></div><div class="settings-list"><button class="settings-row" data-action="open-personal"><span>${t('personalData')}</span><span>›</span></button><label class="settings-row settings-row--switch"><span>${t('notifications')}</span><span class="switch"><input type="checkbox" data-notifications ${state.notifications?'checked':''}><span class="switch__track" aria-hidden="true"></span></span></label><label class="settings-row settings-row--switch"><span>${t('darkMode')}</span><span class="switch"><input type="checkbox" data-theme-toggle ${state.theme==='dark'?'checked':''}><span class="switch__track" aria-hidden="true"></span></span></label><button class="settings-row" data-action="open-language"><span>${t('language')}</span><small>${state.lang==='ca'?t('catalan'):t('spanish')}</small></button><button class="settings-row" data-action="share"><span>${t('inviteFriend')}</span><span>›</span></button><button class="settings-row settings-row--danger" data-action="logout"><span>${t('logout')}</span><span>›</span></button></div><div class="section-head"><h2>Spirit Coffee</h2></div><p class="subtitle">Passeig Rocamora, 9<br>Montcada i Reixac · Barcelona</p></section>${nav('profile')}</main>`;
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('profileEyebrow')}</p><h1>${t('profileTitle')}</h1>${state.needsProfileCompletion ? '<button class="profile-completion" type="button" data-action="open-personal">Completa tu nombre para personalizar Spirit</button>' : ''}<div class="section-head"><h2>${t('yourAccount')}</h2></div><article class="profile-card">${avatar()}<div><h3>${escapeHTML(state.profile.firstName)} ${escapeHTML(state.profile.lastName)}</h3><p>${escapeHTML(state.profile.email)} · ${loyaltyCount}</p></div></article><div class="section-head"><h2>${t('settings')}</h2></div><div class="settings-list"><button class="settings-row" data-action="open-personal"><span>${t('personalData')}</span><span>›</span></button>${state.hasBusinessAccess ? `<a class="settings-row settings-row--link" href="/cafeteria"><span>${t('businessMode')}</span><span>›</span></a>` : ''}<label class="settings-row settings-row--switch"><span>${t('notifications')}</span><span class="switch"><input type="checkbox" data-notifications ${state.notifications?'checked':''}><span class="switch__track" aria-hidden="true"></span></span></label><label class="settings-row settings-row--switch"><span>${t('darkMode')}</span><span class="switch"><input type="checkbox" data-theme-toggle ${state.theme==='dark'?'checked':''}><span class="switch__track" aria-hidden="true"></span></span></label><button class="settings-row" data-action="open-language"><span>${t('language')}</span><small>${state.lang==='ca'?t('catalan'):t('spanish')}</small></button><button class="settings-row" data-action="share"><span>${t('inviteFriend')}</span><span>›</span></button><button class="settings-row settings-row--danger" data-action="logout"><span>${t('logout')}</span><span>›</span></button></div><div class="section-head"><h2>Spirit Coffee</h2></div><p class="subtitle">Passeig Rocamora, 9<br>Montcada i Reixac · Barcelona</p></section>${nav('profile')}</main>`;
 }
 
 function login() {
@@ -206,7 +210,7 @@ function login() {
     form = `<form class="form" data-form="customer-recovery"><div class="field"><label for="recovery-password">${t('newPassword')}</label><input id="recovery-password" name="password" type="password" minlength="8" autocomplete="new-password" aria-describedby="recovery-password-note" required><small id="recovery-password-note" class="field-note">${t('passwordLength')}</small></div><div class="field"><label for="recovery-confirmation">${t('repeatPassword')}</label><input id="recovery-confirmation" name="confirmation" type="password" minlength="8" autocomplete="new-password" required></div>${message}<button class="primary-button" type="submit" ${state.authLoading ? 'disabled' : ''}>${state.authLoading ? t('checkSession') : t('completeRecovery')}</button></form>`;
   } else {
     const signingUp = state.authMode === 'signup';
-    form = `<div class="auth-switch" role="group" aria-label="Autenticación"><button type="button" class="${!signingUp ? 'auth-switch--active' : ''}" data-action="auth-signin">${t('signIn')}</button><button type="button" class="${signingUp ? 'auth-switch--active' : ''}" data-action="auth-signup">${t('createAccount')}</button></div><form class="form" data-form="customer-auth" data-auth-mode="${signingUp ? 'signup' : 'signin'}">${signingUp ? `<div class="field"><label for="name">${t('firstName')}</label><input id="name" name="name" maxlength="80" autocomplete="name" placeholder="${t('namePlaceholder')}" required></div>` : ''}<div class="field"><label for="email">${t('email')}</label><input id="email" name="email" type="email" autocomplete="username" inputmode="email" placeholder="tu@email.com" required></div><div class="field"><label for="password">${t('password')}</label><input id="password" name="password" type="password" minlength="8" autocomplete="${signingUp ? 'new-password' : 'current-password'}" required></div>${signingUp ? `<label class="check"><input type="checkbox" required><span>${t('privacy')}</span></label>` : `<button class="auth-link" type="button" data-action="auth-forgot">${t('forgotPassword')}</button>`}${message}<button class="primary-button" type="submit" ${state.authLoading ? 'disabled' : ''}>${state.authLoading ? t('checkSession') : signingUp ? t('createAccount') : t('signIn')}</button></form>`;
+    form = `<div class="auth-switch" role="group" aria-label="Autenticación"><button type="button" class="${!signingUp ? 'auth-switch--active' : ''}" data-action="auth-signin">${t('signIn')}</button><button type="button" class="${signingUp ? 'auth-switch--active' : ''}" data-action="auth-signup">${t('createAccount')}</button></div><div class="oauth-actions"><button type="button" data-oauth-provider="google">G <span>${t('oauthGoogle')}</span></button><button type="button" data-oauth-provider="apple">● <span>${t('oauthApple')}</span></button></div><div class="auth-divider"><span>o</span></div><form class="form" data-form="customer-auth" data-auth-mode="${signingUp ? 'signup' : 'signin'}">${signingUp ? `<div class="field"><label for="name">${t('firstName')}</label><input id="name" name="name" maxlength="80" autocomplete="name" placeholder="${t('namePlaceholder')}" required></div>` : ''}<div class="field"><label for="email">${t('email')}</label><input id="email" name="email" type="email" autocomplete="username" inputmode="email" placeholder="tu@email.com" required></div><div class="field"><label for="password">${t('password')}</label><input id="password" name="password" type="password" minlength="8" autocomplete="${signingUp ? 'new-password' : 'current-password'}" required></div>${signingUp ? `<label class="check"><input type="checkbox" required><span>${t('privacy')}</span></label>` : `<button class="auth-link" type="button" data-action="auth-forgot">${t('forgotPassword')}</button>`}${message}<button class="primary-button" type="submit" ${state.authLoading ? 'disabled' : ''}>${state.authLoading ? t('checkSession') : signingUp ? t('createAccount') : t('signIn')}</button></form>`;
   }
   return `<main class="app-shell"><section class="screen screen--gold ${recoveryMode ? 'screen--recovery' : ''}">${topbar()}<p class="eyebrow">${t(recoveryMode ? 'recoveryEyebrow' : 'welcome')}</p><h1>${t(recoveryMode ? 'recoveryTitle' : 'loginTitle')}</h1>${recoveryMode && state.authMode === 'recovery' ? `<p class="subtitle recovery-intro">${t('recoveryCopy')}</p>` : ''}${form}</section></main>`;
 }
@@ -242,7 +246,10 @@ function applyCustomerCard(card) {
 async function refreshCustomerLoyalty({ includeHistory = true, repaint = false } = {}) {
   const card = await getOwnCustomerCard();
   applyCustomerCard(card);
-  if (includeHistory) state.loyaltyHistory = await getOwnStampHistory(card.id);
+  if (includeHistory) {
+    state.loyaltyHistory = await getOwnStampHistory(card.id);
+    state.loyaltyHistoryHasMore = state.loyaltyHistory.length === 20;
+  }
   if (repaint && ['home', 'rewards', 'history', 'profile'].includes(state.screen)) render();
   return card;
 }
@@ -277,6 +284,7 @@ async function reconcileConfirmedStamp() {
     const rewardDelta = earnedRewardDelta(request, card);
     applyCustomerCard(card);
     state.loyaltyHistory = await getOwnStampHistory(card.id);
+    state.loyaltyHistoryHasMore = state.loyaltyHistory.length === 20;
     clearStampRequest();
     render();
     showToast(rewardDelta > 0 ? t('rewardWon', { count: rewardDelta }) : t('stampConfirmed'));
@@ -395,22 +403,24 @@ const readableAuthError = (error) => {
 function applyCustomerContext(context) {
   if (!context) return;
   state.profile = {
-    ...state.profile,
+    ...defaultProfile,
     firstName: context.firstName,
     lastName: context.lastName,
     email: context.email
   };
+  state.hasBusinessAccess = Boolean(context.hasBusinessAccess);
+  state.needsProfileCompletion = Boolean(context.needsProfileCompletion);
   state.authStatus = 'authenticated';
   state.afterIntro = 'home';
   localStorage.setItem('spirit-seen', '1');
-  saveProfile();
 }
 
 function clearCustomerIdentity() {
   stopStampMonitoring();
   localStorage.removeItem('spirit-seen');
-  localStorage.removeItem('spirit-profile');
   state.profile = { ...defaultProfile };
+  state.hasBusinessAccess = false;
+  state.needsProfileCompletion = false;
   state.authStatus = 'unauthenticated';
   state.authMode = 'signin';
   state.authError = '';
@@ -422,6 +432,7 @@ function clearCustomerIdentity() {
   state.loyaltyReady = false;
   state.customerCardId = null;
   state.loyaltyHistory = [];
+  state.loyaltyHistoryHasMore = false;
 }
 
 async function initializeCustomerAuth() {
@@ -447,6 +458,7 @@ async function initializeCustomerAuth() {
     if (context) {
       applyCustomerContext(context);
       await refreshCustomerLoyaltySafely();
+      if (isOAuthCallbackRoute) window.history.replaceState({}, '', '/');
     }
     else state.authStatus = 'unauthenticated';
   } catch (error) {
@@ -582,6 +594,20 @@ function bind() {
     if(action==='finish-onboarding' && !onboardingTransitioning){ localStorage.setItem('spirit-onboarded','1'); state.screen='login'; render(); }
     if(action==='close-sheet'){ document.querySelector('[data-sheet-backdrop]')?.remove(); }
     if(action==='request-stamp'){ openStampRequest(); }
+    if(action==='join-loyalty'){
+      if(state.stampRequestLoading)return;
+      state.stampRequestLoading=true;state.stampRequestError='';render();
+      try{const card=await createOwnCustomerMembership();applyCustomerCard(card);state.loyaltyHistory=await getOwnStampHistory(card.id);state.loyaltyHistoryHasMore=state.loyaltyHistory.length===20;}
+      catch(error){state.stampRequestError=error instanceof StampSessionError?error.message:readableAuthError(error);showToast(state.stampRequestError);}
+      finally{state.stampRequestLoading=false;render();}
+    }
+    if(action==='load-more-customer-history'){
+      const before=state.loyaltyHistory.at(-1)?.createdAt;
+      if(!before||!state.customerCardId)return;
+      try{const rows=await getOwnStampHistory(state.customerCardId,20,before);state.loyaltyHistory=[...state.loyaltyHistory,...rows];state.loyaltyHistoryHasMore=rows.length===20;}
+      catch(error){showToast(readableAuthError(error));}
+      render();
+    }
     if(action==='close-stamp-request'){ clearStampRequest(); }
     if(action==='regenerate-stamp'){ clearStampRequest(); openStampRequest(); }
     if(action==='open-personal'){ openSheet(personalSheet()); }
@@ -600,7 +626,8 @@ function bind() {
   document.querySelectorAll('[data-language]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{state.lang=el.dataset.language;localStorage.setItem('spirit-language',state.lang);document.querySelector('[data-sheet-backdrop]')?.remove();render();})});
   document.querySelectorAll('[data-notifications]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',(event)=>{state.notifications=event.currentTarget.checked;localStorage.setItem('spirit-notifications',String(state.notifications));})});
   document.querySelectorAll('[data-theme-toggle]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',(event)=>applyTheme(event.currentTarget.checked?'dark':'light',true))});
-  document.querySelectorAll('[data-photo-input]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',async(event)=>{try{state.profile.photo=await imageToAvatar(event.currentTarget.files[0]);saveProfile();document.querySelectorAll('.avatar').forEach(avatarElement=>{avatarElement.innerHTML=`<img src="${state.profile.photo}" alt="${escapeHTML(state.profile.firstName)}">`;});}catch{showToast(t('invalidImage'));}event.currentTarget.value='';})});
+  document.querySelectorAll('[data-photo-input]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',async(event)=>{try{state.profile.photo=await imageToAvatar(event.currentTarget.files[0]);document.querySelectorAll('.avatar').forEach(avatarElement=>{avatarElement.innerHTML=`<img src="${state.profile.photo}" alt="${escapeHTML(state.profile.firstName)}">`;});}catch{showToast(t('invalidImage'));}event.currentTarget.value='';})});
+  document.querySelectorAll('[data-oauth-provider]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',async()=>{if(state.authLoading)return;state.authLoading=true;state.authError='';render();try{await signInCustomerWithOAuth(el.dataset.oauthProvider);}catch(error){state.authLoading=false;state.authError=readableAuthError(error);render();}})});
   document.querySelector('[data-form="customer-auth"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const form=e.currentTarget;const data=new FormData(form);state.authLoading=true;state.authError='';state.authNotice='';render();try{if(form.dataset.authMode==='signup'){const result=await signUpCustomer({email:data.get('email'),password:data.get('password'),displayName:data.get('name')});if(result.confirmationRequired){state.authMode='signin';state.authNotice=t('authConfirmation');state.screen='login';}else{applyCustomerContext(result.context);await refreshCustomerLoyaltySafely();state.screen='home';}}else{applyCustomerContext(await signInCustomer(data.get('email'),data.get('password')));await refreshCustomerLoyaltySafely();state.screen='home';}}catch(error){state.authError=readableAuthError(error);state.screen='login';}finally{state.authLoading=false;render();}});
   document.querySelector('[data-form="customer-forgot"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);state.authLoading=true;state.authError='';state.authNotice='';render();try{await requestCustomerPasswordReset(data.get('email'));state.authNotice=t('recoverySent');state.authMode='signin';}catch(error){state.authError=readableAuthError(error);}finally{state.authLoading=false;state.screen='login';render();}});
   document.querySelector('[data-form="customer-recovery"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);const password=String(data.get('password')||'');const confirmation=String(data.get('confirmation')||'');if(password.length<8){state.authError=t('passwordLength');render();return;}if(password!==confirmation){state.authError=t('passwordMismatch');render();return;}state.authLoading=true;state.authError='';render();try{await completeCustomerPasswordRecovery(password);const context=await getCustomerContext();if(!context)throw Object.assign(new Error(t('recoverySessionMissing')),{code:'session_not_found'});applyCustomerContext(context);await refreshCustomerLoyaltySafely();window.history.replaceState({},'', '/');state.authMode='recoverySuccess';state.screen='login';}catch(error){state.authError=readableAuthError(error);if(['session_not_found','otp_expired','access_denied'].includes(error?.code))state.authMode='recoveryError';}finally{state.authLoading=false;render();}});

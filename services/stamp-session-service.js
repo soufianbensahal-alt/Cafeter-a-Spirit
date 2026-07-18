@@ -68,22 +68,42 @@ export async function getOwnCustomerCard() {
   });
 }
 
-export async function getOwnStampHistory(customerCardId, limit = 20) {
+export async function createOwnCustomerMembership() {
+  const { data, error } = await requireSupabase().rpc('create_own_customer_membership');
+  if (error) throw toServiceError(error);
+  const card = firstRow(data);
+  if (!card) throw new StampSessionError('customer_card_not_available', 'No se ha podido activar tu tarjeta Spirit.');
+  return Object.freeze({
+    id: card.id,
+    currentStamps: card.current_stamps,
+    availableRewards: card.available_rewards,
+    updatedAt: card.updated_at,
+    programName: card.program_name,
+    stampsRequired: card.stamps_required,
+    rewardDescription: card.reward_description
+  });
+}
+
+export async function getOwnStampHistory(customerCardId, limit = 20, before = null) {
   try {
-    const { data, error } = await requireSupabase()
-      .from('stamp_transactions')
-      .select('id, quantity, transaction_type, status, metadata, created_at')
-      .eq('customer_card_id', customerCardId)
-      .order('created_at', { ascending: false })
-      .limit(Math.min(Math.max(Number(limit) || 20, 1), 50));
+    const { data, error } = await requireSupabase().rpc('get_own_stamp_history', {
+      p_customer_card_id: customerCardId,
+      p_limit: Math.min(Math.max(Number(limit) || 20, 1), 50),
+      p_before: before
+    });
     if (error) throw error;
     return Object.freeze((data || []).map((row) => Object.freeze({
-      id: row.id,
+      id: row.transaction_id,
       quantity: row.quantity,
       type: row.transaction_type,
       status: row.status,
-      rewardEarned: Number(row.metadata?.reward_earned || 0),
-      createdAt: row.created_at
+      programName: row.program_name,
+      businessName: row.business_name,
+      currentStamps: row.current_stamps,
+      stampsRequired: row.stamps_required,
+      rewardEarned: Number(row.reward_earned || 0),
+      availableRewards: row.available_rewards,
+      createdAt: row.occurred_at
     })));
   } catch (error) {
     throw toServiceError(error);
@@ -228,20 +248,31 @@ export async function confirmStampSession(stampSessionId) {
   }
 }
 
-export async function getBusinessStampHistory(businessId, limit = 10) {
+export async function getBusinessStampHistory(businessId, options = {}) {
   try {
-    const { data, error } = await requireSupabase().rpc('get_business_stamp_history', {
+    const limit = typeof options === 'number' ? options : options.limit;
+    const filters = typeof options === 'object' ? options : {};
+    const { data, error } = await requireSupabase().rpc('get_business_stamp_history_filtered', {
       p_business_id: businessId,
-      p_limit: Math.min(Math.max(Number(limit) || 10, 1), 50)
+      p_limit: Math.min(Math.max(Number(limit) || 20, 1), 50),
+      p_before: filters.before || null,
+      p_from: filters.from || null,
+      p_to: filters.to || null,
+      p_customer: filters.customer || null,
+      p_employee: filters.employee || null,
+      p_type: filters.type || null
     });
     if (error) throw error;
     return Object.freeze((data || []).map((row) => Object.freeze({
       id: row.transaction_id,
       timestamp: row.occurred_at,
       customerMasked: row.customer_masked,
+      programName: row.program_name,
+      type: row.transaction_type,
       result: row.result,
       progress: `${row.current_stamps} de ${row.stamps_required}`,
-      rewardEarned: row.reward_earned
+      rewardEarned: row.reward_earned,
+      employeeName: row.employee_name
     })));
   } catch (error) {
     throw toServiceError(error);

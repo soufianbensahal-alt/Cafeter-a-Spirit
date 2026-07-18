@@ -17,7 +17,7 @@ En Vercel, el modo de empleados está disponible en `/cafeteria` mediante la ree
 ## Flujos incluidos
 
 - Intro audiovisual de Spirit a pantalla completa, reproducida antes de acceder a la app y omisible con un toque.
-- Onboarding de tres pasos, registro y acceso con Supabase Auth.
+- Onboarding de tres pasos, registro y acceso por email, Google o Apple con Supabase Auth.
 - Inicio con progreso, objetivo y recompensas procedentes de la tarjeta real.
 - Recompensas disponibles según el programa activo; el canje todavía se realiza en cafetería.
 - Historial real de operaciones autorizado por RLS.
@@ -34,10 +34,11 @@ La experiencia del cliente permanece en `/`. La interfaz operativa para empleado
 - `services/auth-service.js`: sesión, acceso, registro, recuperación y cierre con Supabase Auth.
 - `services/employee-service.js`: autorización del equipo mediante `business_members` y estado del negocio.
 - `services/customer-service.js`: perfil y flujo Auth del cliente.
+- `services/user-context-service.js`: consulta centralizada de los contextos cliente y negocio de la identidad autenticada.
 - `services/stamp-session-service.js`: creación, validación y confirmación RPC de solicitudes de sello, además del historial mínimo del negocio.
 - `services/loyalty-monitor.js`: reglas puras para reconciliar Realtime y su fallback sin duplicar estado.
 
-El historial operativo procede de `stamp_transactions` y muestra únicamente cliente enmascarado, hora, resultado y progreso. No se almacena actividad de sellado en `localStorage`.
+El historial operativo procede de `stamp_transactions`, está paginado y puede filtrarse por fecha, cliente, empleado y tipo. Muestra cliente parcialmente enmascarado, programa, empleado, resultado y progreso; nunca correos, UUID, tokens o códigos. No se almacena actividad de sellado en `localStorage`.
 
 El lector usa `getUserMedia` y la API nativa `BarcodeDetector`. El QR temporal se genera localmente con la dependencia `qrcode`; si el navegador no ofrece detección QR nativa, la aplicación mantiene disponible la introducción manual.
 
@@ -49,6 +50,8 @@ La identidad se valida con Supabase Auth. La autorización del modo cafetería s
 - Empleado: correo y contraseña, restauración segura tras recarga, validación de membresía activa, rol permitido y negocio activo.
 - Estados protegidos: comprobando, sin autenticar, sin permisos, autorizado, sesión caducada y error de red.
 - El panel nunca se muestra antes de completar la autorización.
+- `getUserContexts()` deriva ambos contextos desde tablas protegidas por RLS. Un empleado no se convierte en cliente por visitar `/`, y una cuenta sólo obtiene tarjeta mediante una adhesión cliente explícita.
+- Una identidad que tenga tarjeta y membresía activa puede cambiar entre `/` y `/cafeteria` sin otra contraseña. La autorización se vuelve a consultar tras cada restauración de sesión.
 
 La validación, confirmación, generación de recompensas e historial operativo se ejecutan mediante RPC autenticadas. El frontend no puede escribir directamente en `stamp_sessions`, `customer_cards` ni `stamp_transactions`. La base de datos es siempre la fuente de verdad; el navegador vuelve a consultar la tarjeta después de recibir el evento.
 
@@ -152,13 +155,28 @@ commit;
 
 Los UUID deben sustituirse manualmente por los valores del Dashboard. No se deben incorporar al frontend permisos administrativos ni claves secretas.
 
-### Inicialización de la tarjeta de fidelización
+### Adhesión explícita a la tarjeta de fidelización
 
 La migración `initialize_spirit_loyalty_data` crea de forma idempotente el negocio `Cafetería Spirit - Montcada` y su programa activo `Tarjeta Café Spirit`. Los índices normalizados de nombre y la restricción existente `(customer_id, loyalty_program_id)` impiden duplicar el negocio, el programa o una tarjeta.
 
-La misma migración realiza un backfill para usuarios de Auth existentes que aún no tengan tarjeta. A partir de entonces, el frontend invoca `ensure_own_customer_card()` al restaurar o iniciar una sesión autenticada. Se eligió ese momento porque sirve tanto para registros nuevos como para cuentas antiguas, admite reintentos y no acopla el trigger global de Auth a un negocio concreto. La RPC no recibe un `user_id`: deriva siempre el cliente de `auth.uid()` y usa un `INSERT ... ON CONFLICT DO NOTHING`.
+El backfill histórico se conserva para no borrar tarjetas existentes. A partir de `separate_user_contexts_and_histories`, abrir `/` o restaurar una sesión sólo consulta `ensure_own_customer_card()`; esa función ya no inserta datos. Si una identidad todavía no es cliente, la interfaz muestra **Activar mi tarjeta** y sólo esa acción invoca `create_own_customer_membership()`.
+
+La adhesión es idempotente y no recibe `user_id`: deriva siempre el propietario de `auth.uid()` y usa la restricción única `(customer_id, loyalty_program_id)` con `ON CONFLICT DO NOTHING`. Por tanto, un empleado puede tener además contexto cliente si lo solicita expresamente, pero visitar `/cafeteria` nunca crea una tarjeta.
 
 `authenticated` sólo recibe `EXECUTE` sobre esa RPC y conserva acceso de lectura sobre su propia tarjeta mediante RLS. `anon` no puede ejecutarla y el navegador no obtiene permisos directos de inserción o actualización sobre `customer_cards`.
+
+### Google y Apple
+
+El frontend inicia OAuth con `supabase.auth.signInWithOAuth()` y vuelve a `/auth/callback`; la sesión persistida es la misma que usan email, cliente y modo cafetería. Los tokens del proveedor no se guardan en `localStorage`, base de datos propia, URL de aplicación ni logs.
+
+Configuración manual necesaria en **Supabase Dashboard → Authentication → Providers**:
+
+1. Activa Google y añade el Client ID/secret creados en Google Cloud. En Google autoriza el callback alojado `https://iabuhjhyvsqhtiqowarq.supabase.co/auth/v1/callback`.
+2. Activa Apple y añade Service ID, Team ID, Key ID y private key desde Apple Developer. Autoriza el mismo callback alojado.
+3. En **Authentication → URL Configuration**, mantén la URL pública como Site URL y añade `https://<dominio>/auth/callback`, además de las variantes locales necesarias.
+4. No incorpores secretos de Google/Apple al repositorio o al frontend.
+
+Supabase enlaza automáticamente identidades que entregan el mismo correo verificado. Si Apple usa **Ocultar mi correo**, el relay puede representar otra identidad; no se fusionan cuentas por texto de email ni por `user_metadata`. Para unirlas, el usuario debe iniciar sesión en la cuenta existente y realizar un enlace explícito de identidad tras verificar ambos proveedores. Si Apple no entrega un nombre útil, el perfil queda editable desde **Perfil → Datos personales**.
 
 ### URLs de Auth
 
@@ -172,7 +190,7 @@ http://localhost:3000/reset-password
 http://localhost:4173/reset-password
 ```
 
-En producción añade `https://<dominio-publico>/reset-password`. Si la URL solicitada no está en la lista permitida, Supabase utiliza el Site URL como destino alternativo; por eso un Site URL antiguo como `http://localhost:3000` provoca que el enlace del correo abra una página inexistente.
+En producción añade `https://<dominio-publico>/reset-password` y `https://<dominio-publico>/auth/callback`. Si la URL solicitada no está en la lista permitida, Supabase utiliza el Site URL como destino alternativo; por eso un Site URL antiguo como `http://localhost:3000` provoca que el enlace del correo abra una página inexistente.
 
 La pantalla valida la sesión temporal emitida por `PASSWORD_RECOVERY`, solicita la nueva contraseña dos veces, exige un mínimo de ocho caracteres y sólo entonces llama a `supabase.auth.updateUser()`. También ofrece un estado específico para enlaces caducados, inválidos o ya utilizados.
 
@@ -205,7 +223,7 @@ npx supabase test db --local
 npx supabase db lint --local --schema public --level warning
 ```
 
-Las pruebas JavaScript cubren detección de confirmación, cálculo de recompensa y activación del fallback. Las pruebas pgTAP cubren Auth/RLS, aislamiento entre clientes y negocios, permisos directos, publicación Realtime y permisos de la RPC. Las pruebas transaccionales remotas deben ejecutarse siempre con `ROLLBACK`; nunca necesitan `seed.sql` en producción.
+Las pruebas JavaScript cubren detección de confirmación, cálculo de recompensa, fallback y derivación aislada de contextos. Las pruebas pgTAP cubren Auth/RLS, aislamiento entre clientes y negocios, adhesión cliente explícita e idempotente, permisos directos, historial filtrado, publicación Realtime y permisos de las RPC. Las pruebas transaccionales remotas deben ejecutarse siempre con `ROLLBACK`; nunca necesitan `seed.sql` en producción.
 
 No se incluyen usuarios ni contraseñas de prueba en el repositorio. Para una prueba manual, crea usuarios desechables desde **Supabase Auth → Users**, configura sus filas de negocio/tarjeta desde una conexión administrativa y elimina o desactiva esos accesos al terminar.
 

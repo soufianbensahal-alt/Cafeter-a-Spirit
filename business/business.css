@@ -1,12 +1,12 @@
 body.business-mode {
-  --business-bg: #f4dc82;
+  --business-bg: #EECF62;
   --business-panel: rgba(255, 252, 241, .92);
   --business-panel-solid: #fffaf0;
   --business-ink: #24231f;
   --business-muted: #686153;
   --business-line: rgba(98, 85, 36, .18);
   min-height: 100svh;
-  background: radial-gradient(circle at 50% -10%, #fff0af 0, transparent 34%), var(--business-bg);
+  background: var(--business-bg);
   color: var(--business-ink);
 }
 
@@ -55,7 +55,7 @@ body.business-mode #toast { display: none; }
 .employee-strip > div:nth-child(2) { display: grid; gap: 2px; min-width: 0; }
 .employee-strip span { color: var(--business-muted); font-size: 11px; }
 .employee-strip strong { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
-.employee-strip .employee-status { min-height: 30px; padding: 0 11px; border-radius: 999px; background: rgba(73,99,71,.12); display: inline-flex; align-items: center; color: #496347; font-weight: 800; }
+.employee-strip .employee-status { min-height: 30px; padding: 0 11px; border-radius: 999px; background: rgba(73,99,71,.12); display: inline-flex; align-items: center; color: #496347; font-weight: 800; text-decoration: none; }
 
 .business-action-card, .business-preview, .business-success, .business-history, .signed-out-card {
   border: 1px solid rgba(255,255,255,.74);
@@ -114,8 +114,13 @@ body.business-mode #toast { display: none; }
 .business-history li div { display: grid; gap: 2px; }
 .business-history li strong { font-size: 13px; }
 .business-history li span { color: var(--business-muted); font-size: 12px; }
+.business-history li small { color: var(--business-muted); font-size: 10px; }
 .business-history li b { color: #496347; font-size: 12px; }
 .business-empty { margin: 14px 0 0; padding: 18px; border-radius: 17px; background: rgba(238,207,98,.16); color: var(--business-muted); font-size: 13px; text-align: center; }
+.business-history-filters { margin-top: 14px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.business-history-filters input, .business-history-filters select, .business-history-filters button { min-width: 0; min-height: 42px; border: 1px solid var(--business-line); border-radius: 13px; background: rgba(255,255,255,.66); padding: 0 11px; color: var(--business-ink); }
+.business-history-filters button { background: var(--business-ink); color: #fffaf0; font-weight: 800; cursor: pointer; }
+.business-history-more { width: 100%; min-height: 44px; margin-top: 10px; border: 1px solid var(--business-line); border-radius: 14px; background: transparent; color: var(--business-ink); font-weight: 800; cursor: pointer; }
 .business-logout { min-height: 44px; margin: 18px auto 0; padding: 0 15px; border: 0; background: transparent; display: block; color: #7e3c34; font-size: 12px; font-weight: 800; cursor: pointer; }
 .business-security-note { max-width: 48ch; margin: 4px auto 0; color: rgba(95,89,76,.72); font-size: 10px; line-height: 1.45; text-align: center; }
 
@@ -167,7 +172,7 @@ body.business-mode #toast { display: none; }
 .business-app--loading img { width: 120px; }
 .business-app--loading .business-spinner { color: #695c2c; }
 .signed-out-card { width: min(100%, 460px); padding: 32px 24px; border-radius: 30px; text-align: center; }
-.signed-out-card img { width: 112px; }
+.signed-out-card img { width: 128px; padding: 12px; border-radius: 24px; background: #EECF62; }
 .business-login-form { display: grid; gap: 10px; margin-top: 20px; text-align: left; }
 .business-login-form label { margin: 3px 3px 0; color: var(--business-ink); font-size: 12px; font-weight: 800; }
 .business-login-form input { width: 100%; min-height: 58px; border: 1px solid var(--business-line); border-radius: 18px; background: rgba(255,255,255,.72); padding: 0 16px; color: var(--business-ink); outline: none; transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease; }

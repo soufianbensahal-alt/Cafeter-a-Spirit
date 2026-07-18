@@ -34,6 +34,22 @@ export async function signInWithEmail(email, password) {
   }
 }
 
+export async function signInWithOAuth(provider, redirectTo) {
+  if (!['google', 'apple'].includes(provider)) {
+    throw new AuthServiceError('unsupported_provider', 'Proveedor de acceso no compatible.');
+  }
+  try {
+    const { data, error } = await requireSupabase().auth.signInWithOAuth({
+      provider,
+      options: { redirectTo, skipBrowserRedirect: false }
+    });
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    throw authError(error, 'oauth_sign_in_failed');
+  }
+}
+
 export async function signUpWithEmail({ email, password, displayName, redirectTo }) {
   try {
     const { data, error } = await requireSupabase().auth.signUp({

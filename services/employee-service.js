@@ -6,6 +6,7 @@ import {
   signOut,
   subscribeToAuthChanges
 } from './auth-service.js';
+import { getUserContexts } from './user-context-service.js';
 
 const EMPLOYEE_ROLES = new Set(['owner', 'manager', 'employee']);
 
@@ -30,13 +31,8 @@ export async function getEmployeeContext(authenticatedUser) {
     const user = authenticatedUser || await getCurrentUser();
     if (!user) throw new EmployeeAuthorizationError('not_authenticated', 'Inicia sesión para acceder al modo cafetería.');
 
-    const { data: memberships, error } = await requireSupabase()
-      .from('business_members')
-      .select('id, role, active, business:businesses(id, name, active)')
-      .eq('user_id', user.id)
-      .order('active', { ascending: false });
-
-    if (error) throw error;
+    const contexts = await getUserContexts(user);
+    const memberships = contexts.allBusinessMemberships;
     if (!memberships?.length) {
       throw new EmployeeAuthorizationError('no_membership', 'Tu cuenta no tiene acceso al modo cafetería.');
     }
@@ -57,21 +53,15 @@ export async function getEmployeeContext(authenticatedUser) {
       ? selectedMembership.business[0]
       : selectedMembership.business;
 
-    const { data: profile, error: profileError } = await requireSupabase()
-      .from('profiles')
-      .select('display_name')
-      .eq('id', user.id)
-      .maybeSingle();
-    if (profileError) throw profileError;
-
     return Object.freeze({
       userId: user.id,
       email: user.email || '',
-      employeeName: profile?.display_name || user.email || 'Equipo Spirit',
+      employeeName: contexts.displayName || user.email || 'Equipo Spirit',
       membershipId: selectedMembership.id,
       role: selectedMembership.role,
       businessId: business.id,
-      businessName: business.name
+      businessName: business.name,
+      isCustomer: contexts.isCustomer
     });
   } catch (error) {
     throw employeeError(error);

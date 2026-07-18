@@ -30,6 +30,8 @@ if (isBusinessRoute) {
     stampSession: null,
     confirmation: null,
     transactions: [],
+    historyFilters: { customer: '', employee: '', type: '', from: '', to: '' },
+    historyHasMore: false,
     cameras: [],
     selectedCamera: '',
     scannerMessage: ''
@@ -56,9 +58,9 @@ if (isBusinessRoute) {
 
   const brandHeader = () => `<header class="business-header"><img src="/assets/spirit-logo-header.png" alt="Spirit"><div><span class="business-kicker">${escapeHTML(state.employee?.businessName || 'Panel de equipo')}</span><strong>Modo cafetería</strong></div><span class="session-badge"><i></i>Sesión segura</span></header>`;
 
-  const transactionList = () => `<section class="business-history" aria-labelledby="recent-title"><div class="business-section-head"><div><span class="business-kicker">Actividad</span><h2 id="recent-title">Últimas operaciones</h2></div>${icons.clock}</div>${state.transactions.length ? `<ol>${state.transactions.map((item) => `<li><time datetime="${escapeHTML(item.timestamp)}">${formatTime(item.timestamp)}</time><div><strong>${escapeHTML(item.customerMasked)}</strong><span>${escapeHTML(item.result)}</span></div><b>${escapeHTML(item.progress)}</b></li>`).join('')}</ol>` : '<p class="business-empty">Todavía no hay operaciones en esta sesión.</p>'}</section>`;
+  const transactionList = () => `<section class="business-history" aria-labelledby="recent-title"><div class="business-section-head"><div><span class="business-kicker">Actividad</span><h2 id="recent-title">Historial del negocio</h2></div>${icons.clock}</div><form class="business-history-filters" data-business-form="history"><input name="customer" value="${escapeHTML(state.historyFilters.customer)}" placeholder="Cliente" aria-label="Filtrar por cliente"><input name="employee" value="${escapeHTML(state.historyFilters.employee)}" placeholder="Empleado" aria-label="Filtrar por empleado"><select name="type" aria-label="Tipo de operación"><option value="">Todos los tipos</option><option value="stamp" ${state.historyFilters.type === 'stamp' ? 'selected' : ''}>Sellos</option><option value="redemption" ${state.historyFilters.type === 'redemption' ? 'selected' : ''}>Canjes</option><option value="reversal" ${state.historyFilters.type === 'reversal' ? 'selected' : ''}>Reversiones</option></select><input name="from" type="date" value="${escapeHTML(state.historyFilters.from)}" aria-label="Desde"><input name="to" type="date" value="${escapeHTML(state.historyFilters.to)}" aria-label="Hasta"><button type="submit">Filtrar</button></form>${state.transactions.length ? `<ol>${state.transactions.map((item) => `<li><time datetime="${escapeHTML(item.timestamp)}">${formatTime(item.timestamp)}</time><div><strong>${escapeHTML(item.customerMasked)}</strong><span>${escapeHTML(item.result)} · ${escapeHTML(item.programName || '')}</span><small>${escapeHTML(item.employeeName || 'Equipo Spirit')}</small></div><b>${escapeHTML(item.progress)}</b></li>`).join('')}</ol>${state.historyHasMore ? '<button class="business-history-more" type="button" data-business-action="load-more-history">Cargar más</button>' : ''}` : '<p class="business-empty">No hay operaciones con estos filtros.</p>'}</section>`;
 
-  const homeView = () => `<main class="business-app">${brandHeader()}<section class="employee-strip"><div class="employee-avatar" aria-hidden="true">${escapeHTML(employeeInitials())}</div><div><span>${escapeHTML(roleLabel(state.employee?.role))}</span><strong>${escapeHTML(state.employee?.employeeName || '')}</strong></div><span class="employee-status">Activa</span></section><section class="business-action-card"><p class="business-kicker">Añadir un sello</p><h1>Procesa al cliente en segundos.</h1><p>Escanea su QR temporal o introduce el código de seis dígitos.</p><button class="business-primary business-primary--scan" type="button" data-business-action="open-scanner">${icons.scan}<span>Escanear QR</span></button><div class="business-divider"><span>o</span></div><form class="business-code-form" data-business-form="code" novalidate><label for="business-code">Código del cliente</label><input id="business-code" name="code" type="text" value="${escapeHTML(state.code)}" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" enterkeyhint="done" placeholder="000000" aria-describedby="business-code-help business-error" ${state.loading ? 'disabled' : ''}><small id="business-code-help">Exactamente 6 dígitos · válido durante 60 segundos</small><p class="business-message business-message--error" id="business-error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.code.length !== 6 || state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Validando…' : 'Validar código'}</button></form></section>${transactionList()}<button class="business-logout" type="button" data-business-action="logout">Cerrar sesión</button><p class="business-security-note">Acceso protegido con Supabase Auth · Validación, confirmación y recompensas se procesan de forma atómica en el servidor.</p></main>`;
+  const homeView = () => `<main class="business-app">${brandHeader()}<section class="employee-strip"><div class="employee-avatar" aria-hidden="true">${escapeHTML(employeeInitials())}</div><div><span>${escapeHTML(roleLabel(state.employee?.role))}</span><strong>${escapeHTML(state.employee?.employeeName || '')}</strong></div>${state.employee?.isCustomer ? '<a class="employee-status" href="/">Vista cliente</a>' : '<span class="employee-status">Activa</span>'}</section><section class="business-action-card"><p class="business-kicker">Añadir un sello</p><h1>Procesa al cliente en segundos.</h1><p>Escanea su QR temporal o introduce el código de seis dígitos.</p><button class="business-primary business-primary--scan" type="button" data-business-action="open-scanner">${icons.scan}<span>Escanear QR</span></button><div class="business-divider"><span>o</span></div><form class="business-code-form" data-business-form="code" novalidate><label for="business-code">Código del cliente</label><input id="business-code" name="code" type="text" value="${escapeHTML(state.code)}" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" enterkeyhint="done" placeholder="000000" aria-describedby="business-code-help business-error" ${state.loading ? 'disabled' : ''}><small id="business-code-help">Exactamente 6 dígitos · válido durante 60 segundos</small><p class="business-message business-message--error" id="business-error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.code.length !== 6 || state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Validando…' : 'Validar código'}</button></form></section>${transactionList()}<button class="business-logout" type="button" data-business-action="logout">Cerrar sesión</button><p class="business-security-note">Acceso protegido con Supabase Auth · Validación, confirmación y recompensas se procesan de forma atómica en el servidor.</p></main>`;
 
   const progress = (value, goal) => `<div class="business-progress" role="img" aria-label="${value} de ${goal} sellos"><div><strong>${value}</strong><span>/ ${goal}</span></div><div class="business-progress__track"><span style="width:${(value / goal) * 100}%"></span></div></div>`;
 
@@ -100,13 +102,26 @@ if (isBusinessRoute) {
     render();
     try {
       state.employee = employee;
-      state.transactions = await getBusinessStampHistory(employee.businessId);
+      await loadHistory(true);
       state.view = 'home';
     } catch (error) {
       state.error = readableError(error);
       state.view = 'signedOut';
     }
     render();
+  }
+
+  async function loadHistory(reset = false) {
+    const before = reset ? null : state.transactions.at(-1)?.timestamp;
+    const rows = await getBusinessStampHistory(state.employee.businessId, {
+      ...state.historyFilters,
+      from: state.historyFilters.from ? new Date(`${state.historyFilters.from}T00:00:00`).toISOString() : null,
+      to: state.historyFilters.to ? new Date(`${state.historyFilters.to}T23:59:59.999`).toISOString() : null,
+      before,
+      limit: 20
+    });
+    state.transactions = reset ? [...rows] : [...state.transactions, ...rows];
+    state.historyHasMore = rows.length === 20;
   }
 
   function routeAuthorizationError(error) {
@@ -186,7 +201,7 @@ if (isBusinessRoute) {
     render();
     try {
       state.confirmation = await confirmStampSession(state.stampSession?.id);
-      state.transactions = await getBusinessStampHistory(state.employee.businessId);
+      await loadHistory(true);
       state.view = 'success';
     } catch (error) {
       state.error = readableError(error);
@@ -323,6 +338,13 @@ if (isBusinessRoute) {
       event.preventDefault();
       validateCode();
     });
+    document.querySelector('[data-business-form="history"]')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const data = new FormData(event.currentTarget);
+      state.historyFilters = Object.fromEntries(['customer', 'employee', 'type', 'from', 'to'].map((key) => [key, String(data.get(key) || '').trim()]));
+      try { await loadHistory(true); state.error = ''; } catch (error) { state.error = readableError(error); }
+      render();
+    });
     document.querySelector('#business-code')?.addEventListener('input', (event) => {
       const clean = event.currentTarget.value.replace(/\D/g, '').slice(0, 6);
       event.currentTarget.value = clean;
@@ -344,6 +366,7 @@ if (isBusinessRoute) {
       if (action === 'cancel-preview' && !state.confirming) resetCustomer();
       if (action === 'confirm-stamp') confirmStamp();
       if (action === 'next-customer') resetCustomer();
+      if (action === 'load-more-history') { try { await loadHistory(false); } catch (error) { state.error = readableError(error); } render(); }
       if (action === 'logout') {
         manualSignOut = true;
         stopScanner();

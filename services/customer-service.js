@@ -4,11 +4,13 @@ import {
   reauthenticateAndUpdatePassword,
   sendPasswordReset,
   signInWithEmail,
+  signInWithOAuth,
   signOut,
   signUpWithEmail,
   subscribeToAuthChanges,
   updatePassword
 } from './auth-service.js';
+import { getUserContexts } from './user-context-service.js';
 
 const splitName = (displayName = '') => {
   const parts = String(displayName).trim().split(/\s+/).filter(Boolean);
@@ -19,21 +21,16 @@ const splitName = (displayName = '') => {
 };
 
 export async function getCustomerContext(authenticatedUser) {
-  const user = authenticatedUser || await getCurrentUser();
-  if (!user) return null;
-
-  const { data: profile, error } = await requireSupabase()
-    .from('profiles')
-    .select('display_name')
-    .eq('id', user.id)
-    .maybeSingle();
-  if (error) throw error;
-
-  const displayName = profile?.display_name || user.email?.split('@')[0] || 'Cliente Spirit';
+  const contexts = await getUserContexts(authenticatedUser);
+  if (!contexts) return null;
+  const displayName = contexts.displayName;
   return Object.freeze({
-    userId: user.id,
-    email: user.email || '',
+    userId: contexts.userId,
+    email: contexts.email,
     displayName,
+    isCustomer: contexts.isCustomer,
+    hasBusinessAccess: contexts.hasBusinessAccess,
+    needsProfileCompletion: contexts.needsProfileCompletion,
     ...splitName(displayName)
   });
 }
@@ -55,6 +52,11 @@ export async function signUpCustomer({ email, password, displayName }) {
     context: data.session ? await getCustomerContext(data.user) : null
   };
 }
+
+export const signInCustomerWithOAuth = (provider) => signInWithOAuth(
+  provider,
+  new URL('/auth/callback', window.location.origin).href
+);
 
 export async function updateCustomerProfile(displayName) {
   const user = await getCurrentUser();
