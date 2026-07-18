@@ -35,7 +35,7 @@ export async function signInWithEmail(email, password) {
 }
 
 export async function signInWithOAuth(provider, redirectTo) {
-  if (!['google', 'apple'].includes(provider)) {
+  if (provider !== 'google') {
     throw new AuthServiceError('unsupported_provider', 'Proveedor de acceso no compatible.');
   }
   try {

@@ -188,6 +188,7 @@ h3 { font-size: 21px; line-height: 1.16; margin: 0; letter-spacing: -.012em; }
 .auth-switch button { min-height: 44px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-weight: 800; cursor: pointer; }
 .auth-switch .auth-switch--active { background: var(--surface); color: var(--ink); box-shadow: 0 5px 14px rgba(75,63,26,.1); }
 .oauth-actions { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.oauth-actions--single { grid-template-columns: 1fr; }
 .oauth-actions button { min-height: 52px; border: 1px solid var(--border-soft); border-radius: 17px; background: var(--surface); color: var(--ink); display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; cursor: pointer; box-shadow: var(--shadow-subtle); }
 .oauth-actions button:active { transform: scale(.98); }
 .auth-divider { margin: 14px 0 -14px; display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; }

@@ -24,11 +24,21 @@ import {
   hasLoyaltyBalanceChanged,
   shouldStartPolling
 } from './services/loyalty-monitor.js';
+import { initialCustomerScreen } from './services/customer-route-rules.js';
 
 const isBusinessMode = /^\/cafeteria\/?$/.test(window.location.pathname);
 const isPasswordRecoveryRoute = /^\/reset-password\/?$/.test(window.location.pathname)
   || new URLSearchParams(window.location.search).get('auth') === 'recovery';
 const isOAuthCallbackRoute = /^\/auth\/callback\/?$/.test(window.location.pathname);
+
+const oauthCallbackError = (() => {
+  if (!isOAuthCallbackRoute) return null;
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const query = new URLSearchParams(window.location.search);
+  const code = hash.get('error_code') || query.get('error_code');
+  const error = hash.get('error') || query.get('error');
+  return code || error || null;
+})();
 
 const recoveryLinkError = (() => {
   if (!isPasswordRecoveryRoute) return null;
@@ -68,7 +78,7 @@ const copy = {
     passwordEyebrow: 'Seguridad', passwordTitle: 'Cambiar contraseña', currentPassword: 'Contraseña actual', newPassword: 'Nueva contraseña', confirmPassword: 'Confirmar contraseña', passwordLength: 'La nueva contraseña debe tener al menos 8 caracteres.', passwordMismatch: 'Las contraseñas no coinciden.', passwordIncorrect: 'La contraseña actual no es correcta.', passwordSaved: 'Contraseña actualizada',
     languageEyebrow: 'Preferencias', languageTitle: 'Idioma de la aplicación', welcome: 'Bienvenida a casa', loginTitle: 'Tu café.<br>Tus sellos.', phone: 'Teléfono', namePlaceholder: '¿Cómo te llamas?', privacy: 'Acepto la política de privacidad y el tratamiento de mis datos según el RGPD.', createAccount: 'Crear mi cuenta', signIn: 'Iniciar sesión', password: 'Contraseña', forgotPassword: 'He olvidado mi contraseña', sendRecovery: 'Enviar enlace de recuperación', backToSignIn: 'Volver al acceso', repeatPassword: 'Confirmar nueva contraseña', checkSession: 'Comprobando tu sesión…', authConfirmation: 'Revisa tu correo para confirmar la cuenta antes de iniciar sesión.', recoverySent: 'Si existe una cuenta con ese correo, recibirás un enlace de recuperación.', recoveryEyebrow: 'Seguridad de tu cuenta', recoveryTitle: 'Crea una nueva<br>contraseña.', recoveryCopy: 'Introduce una contraseña segura y repítela para confirmar que está escrita correctamente.', recoveryChecking: 'Validando el enlace de recuperación…', recoveryInvalidTitle: 'El enlace ya no es válido.', recoveryInvalidCopy: 'El enlace ha caducado, ya se ha utilizado o no puede verificarse. Solicita uno nuevo para continuar.', requestAnotherRecovery: 'Solicitar otro enlace', recoveryCompleteTitle: 'Contraseña actualizada.', recoveryCompleteCopy: 'Tu nueva contraseña ya está activa. Puedes continuar con tu cuenta Spirit.', continueToSpirit: 'Continuar en Spirit', recoverySessionMissing: 'No se ha podido validar el enlace. Solicita uno nuevo.', completeRecovery: 'Guardar nueva contraseña',
     requestStamp: 'Solicitar sello', stampRequestTitle: 'Tu código temporal', stampRequestCopy: 'Enséñale el QR o el código al equipo de Spirit.', stampCodeLabel: 'Código de 6 dígitos', stampExpiresIn: 'Caduca en {count} s', stampExpired: 'Esta solicitud ha caducado.', regenerateStamp: 'Generar uno nuevo', generatingStamp: 'Generando código seguro…', stampConfirmed: 'Sello añadido. Tu tarjeta ya está actualizada.', rewardWon: '¡Has conseguido {count} recompensa!', availableAtCafe: 'Disponible en cafetería', unavailableReward: 'Aún no disponible', cardUnavailable: 'Tarjeta todavía no disponible',
-    joinClub: 'Activar mi tarjeta', joiningClub: 'Activando tarjeta…', businessMode: 'Ir al modo cafetería', oauthGoogle: 'Continuar con Google', oauthApple: 'Continuar con Apple',
+    joinClub: 'Activar mi tarjeta', joiningClub: 'Activando tarjeta…', businessMode: 'Ir al modo cafetería', oauthGoogle: 'Continuar con Google',
     shareText: 'Descubre Cafetería Spirit · Brunch and Specialty Coffee Montcada', shareCopied: 'Enlace copiado para compartir', invalidImage: 'No se ha podido procesar la imagen.'
   },
   ca: {
@@ -82,14 +92,14 @@ const copy = {
     passwordEyebrow: 'Seguretat', passwordTitle: 'Canviar contrasenya', currentPassword: 'Contrasenya actual', newPassword: 'Nova contrasenya', confirmPassword: 'Confirmar contrasenya', passwordLength: 'La nova contrasenya ha de tenir almenys 8 caràcters.', passwordMismatch: 'Les contrasenyes no coincideixen.', passwordIncorrect: 'La contrasenya actual no és correcta.', passwordSaved: 'Contrasenya actualitzada',
     languageEyebrow: 'Preferències', languageTitle: 'Idioma de l’aplicació', welcome: 'Benvinguda a casa', loginTitle: 'El teu cafè.<br>Els teus segells.', phone: 'Telèfon', namePlaceholder: 'Com et dius?', privacy: 'Accepto la política de privacitat i el tractament de les meves dades segons el RGPD.', createAccount: 'Crear el meu compte', signIn: 'Iniciar sessió', password: 'Contrasenya', forgotPassword: 'He oblidat la contrasenya', sendRecovery: 'Enviar enllaç de recuperació', backToSignIn: 'Tornar a l’accés', repeatPassword: 'Confirmar la nova contrasenya', checkSession: 'Comprovant la sessió…', authConfirmation: 'Revisa el correu per confirmar el compte abans d’iniciar sessió.', recoverySent: 'Si existeix un compte amb aquest correu, rebràs un enllaç de recuperació.', recoveryEyebrow: 'Seguretat del teu compte', recoveryTitle: 'Crea una nova<br>contrasenya.', recoveryCopy: 'Introdueix una contrasenya segura i repeteix-la per confirmar que està escrita correctament.', recoveryChecking: 'Validant l’enllaç de recuperació…', recoveryInvalidTitle: 'L’enllaç ja no és vàlid.', recoveryInvalidCopy: 'L’enllaç ha caducat, ja s’ha utilitzat o no es pot verificar. Sol·licita’n un de nou per continuar.', requestAnotherRecovery: 'Sol·licitar un altre enllaç', recoveryCompleteTitle: 'Contrasenya actualitzada.', recoveryCompleteCopy: 'La teva nova contrasenya ja està activa. Pots continuar amb el teu compte Spirit.', continueToSpirit: 'Continuar a Spirit', recoverySessionMissing: 'No s’ha pogut validar l’enllaç. Sol·licita’n un de nou.', completeRecovery: 'Desar la nova contrasenya',
     requestStamp: 'Sol·licitar segell', stampRequestTitle: 'El teu codi temporal', stampRequestCopy: 'Ensenya el QR o el codi a l’equip de Spirit.', stampCodeLabel: 'Codi de 6 dígits', stampExpiresIn: 'Caduca en {count} s', stampExpired: 'Aquesta sol·licitud ha caducat.', regenerateStamp: 'Generar-ne un de nou', generatingStamp: 'Generant un codi segur…', stampConfirmed: 'Segell afegit. La teva targeta ja està actualitzada.', rewardWon: 'Has aconseguit {count} recompensa!', availableAtCafe: 'Disponible a la cafeteria', unavailableReward: 'Encara no disponible', cardUnavailable: 'Targeta encara no disponible',
-    joinClub: 'Activar la meva targeta', joiningClub: 'Activant targeta…', businessMode: 'Anar al mode cafeteria', oauthGoogle: 'Continuar amb Google', oauthApple: 'Continuar amb Apple',
+    joinClub: 'Activar la meva targeta', joiningClub: 'Activant targeta…', businessMode: 'Anar al mode cafeteria', oauthGoogle: 'Continuar amb Google',
     shareText: 'Descobreix Cafeteria Spirit · Brunch and Specialty Coffee Montcada', shareCopied: 'Enllaç copiat per compartir', invalidImage: 'No s’ha pogut processar la imatge.'
   }
 };
 
 const defaultProfile = { firstName: 'Cliente', lastName: '', email: '', photo: '' };
 const state = {
-  screen: isPasswordRecoveryRoute ? 'login' : 'intro', afterIntro: localStorage.getItem('spirit-onboarded') ? 'login' : 'onboarding', onboarding: 0, stamps: 0,
+  screen: initialCustomerScreen({ passwordRecovery: isPasswordRecoveryRoute, oauthCallback: isOAuthCallbackRoute }), afterIntro: localStorage.getItem('spirit-onboarded') ? 'login' : 'onboarding', onboarding: 0, stamps: 0,
   availableRewards: 0,
   loyaltyGoal: 0,
   rewardDescription: '',
@@ -210,7 +220,7 @@ function login() {
     form = `<form class="form" data-form="customer-recovery"><div class="field"><label for="recovery-password">${t('newPassword')}</label><input id="recovery-password" name="password" type="password" minlength="8" autocomplete="new-password" aria-describedby="recovery-password-note" required><small id="recovery-password-note" class="field-note">${t('passwordLength')}</small></div><div class="field"><label for="recovery-confirmation">${t('repeatPassword')}</label><input id="recovery-confirmation" name="confirmation" type="password" minlength="8" autocomplete="new-password" required></div>${message}<button class="primary-button" type="submit" ${state.authLoading ? 'disabled' : ''}>${state.authLoading ? t('checkSession') : t('completeRecovery')}</button></form>`;
   } else {
     const signingUp = state.authMode === 'signup';
-    form = `<div class="auth-switch" role="group" aria-label="Autenticación"><button type="button" class="${!signingUp ? 'auth-switch--active' : ''}" data-action="auth-signin">${t('signIn')}</button><button type="button" class="${signingUp ? 'auth-switch--active' : ''}" data-action="auth-signup">${t('createAccount')}</button></div><div class="oauth-actions"><button type="button" data-oauth-provider="google">G <span>${t('oauthGoogle')}</span></button><button type="button" data-oauth-provider="apple">● <span>${t('oauthApple')}</span></button></div><div class="auth-divider"><span>o</span></div><form class="form" data-form="customer-auth" data-auth-mode="${signingUp ? 'signup' : 'signin'}">${signingUp ? `<div class="field"><label for="name">${t('firstName')}</label><input id="name" name="name" maxlength="80" autocomplete="name" placeholder="${t('namePlaceholder')}" required></div>` : ''}<div class="field"><label for="email">${t('email')}</label><input id="email" name="email" type="email" autocomplete="username" inputmode="email" placeholder="tu@email.com" required></div><div class="field"><label for="password">${t('password')}</label><input id="password" name="password" type="password" minlength="8" autocomplete="${signingUp ? 'new-password' : 'current-password'}" required></div>${signingUp ? `<label class="check"><input type="checkbox" required><span>${t('privacy')}</span></label>` : `<button class="auth-link" type="button" data-action="auth-forgot">${t('forgotPassword')}</button>`}${message}<button class="primary-button" type="submit" ${state.authLoading ? 'disabled' : ''}>${state.authLoading ? t('checkSession') : signingUp ? t('createAccount') : t('signIn')}</button></form>`;
+    form = `<div class="auth-switch" role="group" aria-label="Autenticación"><button type="button" class="${!signingUp ? 'auth-switch--active' : ''}" data-action="auth-signin">${t('signIn')}</button><button type="button" class="${signingUp ? 'auth-switch--active' : ''}" data-action="auth-signup">${t('createAccount')}</button></div><div class="oauth-actions oauth-actions--single"><button type="button" data-oauth-provider="google">G <span>${t('oauthGoogle')}</span></button></div><div class="auth-divider"><span>o</span></div><form class="form" data-form="customer-auth" data-auth-mode="${signingUp ? 'signup' : 'signin'}">${signingUp ? `<div class="field"><label for="name">${t('firstName')}</label><input id="name" name="name" maxlength="80" autocomplete="name" placeholder="${t('namePlaceholder')}" required></div>` : ''}<div class="field"><label for="email">${t('email')}</label><input id="email" name="email" type="email" autocomplete="username" inputmode="email" placeholder="tu@email.com" required></div><div class="field"><label for="password">${t('password')}</label><input id="password" name="password" type="password" minlength="8" autocomplete="${signingUp ? 'new-password' : 'current-password'}" required></div>${signingUp ? `<label class="check"><input type="checkbox" required><span>${t('privacy')}</span></label>` : `<button class="auth-link" type="button" data-action="auth-forgot">${t('forgotPassword')}</button>`}${message}<button class="primary-button" type="submit" ${state.authLoading ? 'disabled' : ''}>${state.authLoading ? t('checkSession') : signingUp ? t('createAccount') : t('signIn')}</button></form>`;
   }
   return `<main class="app-shell"><section class="screen screen--gold ${recoveryMode ? 'screen--recovery' : ''}">${topbar()}<p class="eyebrow">${t(recoveryMode ? 'recoveryEyebrow' : 'welcome')}</p><h1>${t(recoveryMode ? 'recoveryTitle' : 'loginTitle')}</h1>${recoveryMode && state.authMode === 'recovery' ? `<p class="subtitle recovery-intro">${t('recoveryCopy')}</p>` : ''}${form}</section></main>`;
 }
@@ -437,7 +447,23 @@ function clearCustomerIdentity() {
 
 async function initializeCustomerAuth() {
   try {
-    const user = await getCurrentUser();
+    if (isOAuthCallbackRoute && oauthCallbackError) {
+      state.authStatus = 'unauthenticated';
+      state.authMode = 'signin';
+      state.authError = 'No se ha podido completar el acceso con Google. Inténtalo de nuevo.';
+      state.screen = 'login';
+      window.history.replaceState({}, '', '/');
+      render();
+      return;
+    }
+
+    let user = await getCurrentUser();
+    if (isOAuthCallbackRoute && !user) {
+      for (let attempt = 0; attempt < 12 && !user; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        user = await getCurrentUser();
+      }
+    }
     if (isPasswordRecoveryRoute) {
       if (recoveryLinkError) {
         state.authStatus = 'unauthenticated';
@@ -458,9 +484,18 @@ async function initializeCustomerAuth() {
     if (context) {
       applyCustomerContext(context);
       await refreshCustomerLoyaltySafely();
-      if (isOAuthCallbackRoute) window.history.replaceState({}, '', '/');
+      if (isOAuthCallbackRoute) {
+        window.history.replaceState({}, '', '/');
+        state.screen = 'home';
+      }
     }
-    else state.authStatus = 'unauthenticated';
+    else {
+      state.authStatus = 'unauthenticated';
+      if (isOAuthCallbackRoute) {
+        state.authError = 'No se ha podido recuperar la sesión de Google. Inténtalo de nuevo.';
+        window.history.replaceState({}, '', '/');
+      }
+    }
   } catch (error) {
     state.authStatus = 'error';
     state.authError = readableAuthError(error);
@@ -666,7 +701,8 @@ if (!isBusinessMode) {
         try {
           applyCustomerContext(await getCustomerContext(user));
           await refreshCustomerLoyaltySafely();
-          if (state.screen === 'login') state.screen = 'home';
+          if (isOAuthCallbackRoute || state.screen === 'authLoading') window.history.replaceState({}, '', '/');
+          if (state.screen === 'login' || state.screen === 'authLoading') state.screen = 'home';
           render();
         } catch (error) {
           state.authError = readableAuthError(error);
