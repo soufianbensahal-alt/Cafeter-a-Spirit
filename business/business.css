@@ -124,17 +124,21 @@ body.business-mode #toast { display: none; }
 .business-logout { min-height: 44px; margin: 18px auto 0; padding: 0 15px; border: 0; background: transparent; display: block; color: #7e3c34; font-size: 12px; font-weight: 800; cursor: pointer; }
 .business-security-note { max-width: 48ch; margin: 4px auto 0; color: rgba(95,89,76,.72); font-size: 10px; line-height: 1.45; text-align: center; }
 
-.business-preview { padding: 24px; border-radius: 30px; }
-.business-back { min-height: 44px; margin: -9px 0 10px -10px; padding: 0 10px; border: 0; background: transparent; color: #695c2c; font-weight: 800; cursor: pointer; }
-.customer-card { margin: 22px 0 16px; padding: 18px; border-radius: 24px; background: var(--business-ink); color: #fffaf0; box-shadow: 0 16px 34px rgba(46,45,41,.18); }
+.business-preview { width: 100%; padding: 24px; border-radius: 30px; display: grid; gap: 16px; }
+.business-preview > * { min-width: 0; max-width: 100%; }
+.business-preview > .business-kicker, .business-preview > h1, .business-preview > .business-message { width: 100%; margin: 0; }
+.business-preview > h1 { margin-top: -8px; }
+.business-preview > .business-primary, .business-preview > .business-secondary { width: 100%; margin: 0; }
+.business-back { width: max-content; min-height: 44px; margin: -9px 0 -2px -10px; padding: 0 10px; border: 0; background: transparent; color: #695c2c; font-weight: 800; cursor: pointer; }
+.customer-card { width: 100%; margin: 0; padding: 18px; border-radius: 24px; background: var(--business-ink); color: #fffaf0; box-shadow: 0 16px 34px rgba(46,45,41,.18); }
 .customer-card__heading { padding-bottom: 16px; display: flex; align-items: center; gap: 12px; }
 .customer-avatar { width: 48px; height: 48px; background: var(--mustard); color: var(--business-ink); font-family: "DM Serif Display", serif; font-size: 22px; }
-.customer-card__heading div { display: grid; gap: 2px; }
+.customer-card__heading div { min-width: 0; display: grid; gap: 2px; }
 .customer-card__heading small, .customer-card dt { color: rgba(255,250,240,.62); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.customer-card__heading strong { font-size: 17px; }
+.customer-card__heading strong { overflow-wrap: anywhere; font-size: 17px; }
 .customer-card dl { margin: 0; }
 .customer-card dl div { padding: 12px 0; border-top: 1px solid rgba(255,255,255,.1); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 12px; }
-.customer-card dd { margin: 0; font-size: 12px; font-weight: 700; line-height: 1.4; text-align: right; }
+.customer-card dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: 12px; font-weight: 700; line-height: 1.4; text-align: right; }
 .business-progress { margin-top: 13px; padding: 13px; border-radius: 17px; background: rgba(255,255,255,.075); }
 .business-progress > div:first-child { display: flex; align-items: baseline; gap: 4px; }
 .business-progress strong { color: var(--mustard); font-family: "DM Serif Display", serif; font-size: 31px; }
@@ -156,6 +160,8 @@ body.business-mode #toast { display: none; }
 .scanner-card { width: min(100%, 720px); margin: auto; }
 .scanner-viewport { aspect-ratio: 3 / 4; max-height: 68svh; position: relative; overflow: hidden; border: 1px solid rgba(238,207,98,.3); border-radius: 30px; background: #24221d; box-shadow: 0 22px 54px rgba(0,0,0,.42); }
 .scanner-viewport video { width: 100%; height: 100%; display: block; object-fit: cover; }
+.scanner-viewport[data-camera-permission="pending"]::before { content: "Solicitando permiso de cámara…"; position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; padding: 24px; background: #24221d; color: rgba(255,250,240,.72); font-size: 13px; font-weight: 700; text-align: center; }
+.scanner-viewport[data-camera-permission="denied"]::before, .scanner-viewport[data-camera-permission="error"]::before { content: "Cámara no disponible"; position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; padding: 24px; background: #24221d; color: rgba(255,250,240,.72); font-size: 13px; font-weight: 700; text-align: center; }
 .scanner-guide { position: absolute; width: min(68%, 310px); aspect-ratio: 1; inset: 50% auto auto 50%; transform: translate(-50%, -50%); }
 .scanner-guide::after { content: ""; position: absolute; inset: 12px; border-radius: 20px; box-shadow: 0 0 0 999px rgba(0,0,0,.36); }
 .scanner-guide span { width: 54px; height: 54px; position: absolute; z-index: 1; border-color: var(--mustard); border-style: solid; }
@@ -166,6 +172,7 @@ body.business-mode #toast { display: none; }
 .scanner-instruction { margin: 16px 0 10px; color: rgba(255,250,240,.75); font-size: 13px; text-align: center; }
 .camera-select { display: grid; gap: 7px; color: rgba(255,250,240,.7); font-size: 12px; }
 .camera-select select { min-height: 50px; border: 1px solid rgba(255,255,255,.16); border-radius: 15px; background: #292720; padding: 0 14px; color: white; }
+.business-camera-retry[hidden], .camera-select[hidden] { display: none; }
 
 .business-app--loading, .business-app--signed-out { display: grid; place-items: center; }
 .business-app--loading { align-content: center; gap: 15px; color: var(--business-muted); font-weight: 700; }
@@ -193,6 +200,7 @@ body.business-mode #toast { display: none; }
   .business-action-card h1, .business-preview h1 { font-size: 37px; }
   .customer-card dl div { grid-template-columns: 1fr; gap: 5px; }
   .customer-card dd { text-align: left; }
+  .business-preview { gap: 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

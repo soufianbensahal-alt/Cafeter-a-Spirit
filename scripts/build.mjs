@@ -12,6 +12,7 @@ await rm(outputDirectory, { recursive: true, force: true });
 await mkdir(`${outputDirectory}/business`, { recursive: true });
 await cp('assets', `${outputDirectory}/assets`, { recursive: true });
 await copyFile('business/business.css', `${outputDirectory}/business/business.css`);
+await copyFile('business/manifest.webmanifest', `${outputDirectory}/business/manifest.webmanifest`);
 await Promise.all(files.filter((file) => file !== 'app.js').map((file) => copyFile(file, `${outputDirectory}/${file}`)));
 
 await build({

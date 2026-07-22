@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spirit-shell-v15';
+const CACHE_NAME = 'spirit-shell-v17';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -7,6 +7,7 @@ const APP_SHELL = [
   '/app.js',
   '/business/business.css',
   '/business/business-view.js',
+  '/business/manifest.webmanifest',
   '/manifest.webmanifest',
   '/assets/spirit-logo-header.png',
   '/assets/onboarding-coffee.jpg',

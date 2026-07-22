@@ -23,8 +23,24 @@ test('el bootstrap separa cliente y cafetería', async () => {
 test('la caché PWA prioriza la versión de red', async () => {
   const worker = await readFile(projectFile('sw.js'), 'utf8');
 
-  assert.match(worker, /spirit-shell-v15/);
+  assert.match(worker, /spirit-shell-v17/);
   assert.match(worker, /fetch\(event\.request, \{ cache: 'no-store' \}\)/);
+});
+
+test('cliente y empleados se instalan como PWAs independientes', async () => {
+  const [html, customerManifest, businessManifest] = await Promise.all([
+    readFile(projectFile('index.html'), 'utf8'),
+    readFile(projectFile('manifest.webmanifest'), 'utf8').then(JSON.parse),
+    readFile(projectFile('business/manifest.webmanifest'), 'utf8').then(JSON.parse)
+  ]);
+
+  assert.equal(customerManifest.id, '/');
+  assert.equal(customerManifest.start_url, '/');
+  assert.equal(businessManifest.id, '/cafeteria');
+  assert.equal(businessManifest.start_url, '/cafeteria');
+  assert.equal(businessManifest.scope, '/cafeteria');
+  assert.notEqual(customerManifest.id, businessManifest.id);
+  assert.match(html, /isBusinessRoute \? '\/business\/manifest\.webmanifest' : '\/manifest\.webmanifest'/);
 });
 
 test('el callback OAuth conserva estilos y recursos desde cualquier ruta', async () => {
@@ -35,7 +51,7 @@ test('el callback OAuth conserva estilos y recursos desde cualquier ruta', async
   ]);
 
   assert.match(html, /href="\/styles\.css"/);
-  assert.match(html, /href="\/manifest\.webmanifest"/);
+  assert.match(html, /'\/manifest\.webmanifest'/);
   assert.doesNotMatch(html, /(?:src|href)="assets\//);
   assert.doesNotMatch(app, /(?:src=|image:)['"]assets\//);
   assert.doesNotMatch(styles, /url\(['"]?assets\//);

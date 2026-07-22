@@ -12,6 +12,8 @@ import {
   signOut,
   subscribeToAuthChanges
 } from '../services/employee-service.js';
+import { cameraConstraints, cameraPermissionFromError } from '../services/camera-rules.js';
+import jsQR from 'jsqr';
 
 const isBusinessRoute = /^\/cafeteria\/?$/.test(window.location.pathname);
 
@@ -34,13 +36,18 @@ if (isBusinessRoute) {
     historyHasMore: false,
     cameras: [],
     selectedCamera: '',
-    scannerMessage: ''
+    scannerMessage: '',
+    cameraPermission: 'idle'
   };
 
   let cameraStream = null;
   let scanFrame = 0;
+  let lastFrameScanAt = 0;
   let scannerBusy = false;
-  let detector = null;
+  let scannerStarting = false;
+  let cameraPermissionStatus = null;
+  const scanCanvas = document.createElement('canvas');
+  const scanContext = scanCanvas.getContext('2d', { willReadFrequently: true });
   let manualSignOut = false;
   let lastScannedContent = '';
   let lastScannedAt = 0;
@@ -71,7 +78,7 @@ if (isBusinessRoute) {
 
   const successView = () => `<main class="business-app business-app--success">${brandHeader()}<section class="business-success"><span class="business-success__icon">${icons.check}</span><p class="business-kicker">${state.confirmation.status === 'already_processed' ? 'Operación recuperada' : 'Operación completada'}</p><h1>${state.confirmation.status === 'already_processed' ? 'Sello ya procesado.' : 'Sello añadido.'}</h1><p>La tarjeta queda en <strong>${state.confirmation.progress} de ${state.confirmation.goal} sellos</strong>${state.confirmation.rewardEarned > 0 ? ` y ha conseguido <strong>${state.confirmation.rewardEarned} recompensa${state.confirmation.rewardEarned > 1 ? 's' : ''}</strong>` : ''}.</p><button class="business-primary" type="button" data-business-action="next-customer">Procesar siguiente cliente</button><button class="business-secondary" type="button" data-business-action="next-customer">Volver al inicio</button></section>${transactionList()}</main>`;
 
-  const scannerView = () => `<main class="business-app business-app--scanner"><header class="scanner-header"><div><span class="business-kicker">Modo cafetería</span><strong>Escanear QR</strong></div><button type="button" data-business-action="close-scanner" aria-label="Cerrar escáner">×</button></header><section class="scanner-card"><div class="scanner-viewport"><video data-scanner-video playsinline muted aria-label="Vista de la cámara"></video><div class="scanner-guide" aria-hidden="true"><span></span><span></span><span></span><span></span></div></div><p class="scanner-instruction">Coloca el QR del cliente dentro del recuadro.</p>${state.cameras.length > 1 ? `<label class="camera-select">Cámara<select data-camera-select>${state.cameras.map((camera, index) => `<option value="${escapeHTML(camera.deviceId)}" ${camera.deviceId === state.selectedCamera ? 'selected' : ''}>${escapeHTML(camera.label || `Cámara ${index + 1}`)}</option>`).join('')}</select></label>` : ''}<p class="business-message business-message--scanner" role="status">${escapeHTML(state.scannerMessage)}</p><p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-secondary business-secondary--light" type="button" data-business-action="close-scanner">Introducir código manualmente</button></section></main>`;
+  const scannerView = () => `<main class="business-app business-app--scanner"><header class="scanner-header"><div><span class="business-kicker">Modo cafetería</span><strong>Escanear QR</strong></div><button type="button" data-business-action="close-scanner" aria-label="Cerrar escáner">×</button></header><section class="scanner-card"><div class="scanner-viewport" data-camera-permission="${state.cameraPermission}"><video data-scanner-video playsinline muted aria-label="Vista de la cámara"></video><div class="scanner-guide" aria-hidden="true"><span></span><span></span><span></span><span></span></div></div><p class="scanner-instruction">Coloca el QR del cliente dentro del recuadro.</p><label class="camera-select" data-camera-controls ${state.cameras.length > 1 ? '' : 'hidden'}>Cámara<select data-camera-select aria-label="Seleccionar cámara">${state.cameras.map((camera, index) => `<option value="${escapeHTML(camera.deviceId)}" ${camera.deviceId === state.selectedCamera ? 'selected' : ''}>${escapeHTML(camera.label || `Cámara ${index + 1}`)}</option>`).join('')}</select></label><p class="business-message business-message--scanner" role="status">${escapeHTML(state.scannerMessage)}</p><p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-secondary business-secondary--light business-camera-retry" type="button" data-business-action="retry-camera" ${['denied', 'error'].includes(state.cameraPermission) ? '' : 'hidden'}>Reintentar cámara</button><button class="business-secondary business-secondary--light" type="button" data-business-action="close-scanner">Introducir código manualmente</button></section></main>`;
 
   const signedOutView = () => `<main class="business-app business-app--signed-out"><section class="signed-out-card"><img src="/assets/spirit-logo-header.png" alt="Spirit"><p class="business-kicker">Modo cafetería</p><h1>Acceso de equipo.</h1><p>Inicia sesión con la cuenta autorizada de Cafetería Spirit.</p><form class="business-login-form" data-business-form="login" novalidate><label for="employee-email">Correo electrónico</label><input id="employee-email" name="email" type="email" autocomplete="username" inputmode="email" required><label for="employee-password">Contraseña</label><input id="employee-password" name="password" type="password" minlength="8" autocomplete="current-password" required><p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Comprobando…' : 'Acceder'}</button></form></section></main>`;
 
@@ -222,10 +229,36 @@ if (isBusinessRoute) {
   }
 
   function cameraError(error) {
-    if (error?.name === 'NotAllowedError' || error?.name === 'SecurityError') return 'Permiso de cámara rechazado. Actívalo en los ajustes o utiliza el código manual.';
+    if (!isSecureContext && !['localhost', '127.0.0.1'].includes(location.hostname)) return 'La cámara requiere una conexión HTTPS segura.';
+    if (error?.name === 'NotAllowedError' || error?.name === 'SecurityError') {
+      const agent = navigator.userAgent;
+      if (/iPad|iPhone|iPod/.test(agent)) return 'Permiso de cámara bloqueado. Actívalo en Ajustes > tu navegador > Cámara y pulsa Reintentar.';
+      if (/Android/.test(agent)) return 'Permiso de cámara bloqueado. Actívalo en Ajustes > Aplicaciones > tu navegador > Permisos y pulsa Reintentar.';
+      return 'Permiso de cámara bloqueado. Actívalo desde el candado de la barra de direcciones y pulsa Reintentar.';
+    }
     if (error?.name === 'NotFoundError' || error?.name === 'OverconstrainedError') return 'No se ha encontrado una cámara disponible en este dispositivo.';
+    if (error?.name === 'NotReadableError' || error?.name === 'AbortError') return 'La cámara está siendo utilizada por otra aplicación. Ciérrala y pulsa Reintentar.';
     if (!navigator.mediaDevices?.getUserMedia) return 'La cámara no está disponible en este navegador.';
-    return 'No se ha podido iniciar el escáner. Utiliza el código manual.';
+    return 'No se ha podido iniciar la cámara. Pulsa Reintentar o utiliza el código manual.';
+  }
+
+  const isMobileCameraDevice = () => navigator.maxTouchPoints > 0
+    && Boolean(matchMedia?.('(pointer: coarse)').matches);
+
+  async function observeCameraPermission() {
+    if (!navigator.permissions?.query) return;
+    try {
+      cameraPermissionStatus = await navigator.permissions.query({ name: 'camera' });
+      if (cameraPermissionStatus.state !== 'prompt') state.cameraPermission = cameraPermissionStatus.state;
+      cameraPermissionStatus.onchange = () => {
+        state.cameraPermission = cameraPermissionStatus.state;
+        if (state.view !== 'scanner') return;
+        if (cameraPermissionStatus.state === 'granted' && !cameraStream && !scannerStarting) startScanner();
+        else renderScannerMessages();
+      };
+    } catch {
+      cameraPermissionStatus = null;
+    }
   }
 
   function stopScanner() {
@@ -234,6 +267,7 @@ if (isBusinessRoute) {
     scannerBusy = false;
     cameraStream?.getTracks().forEach((track) => track.stop());
     cameraStream = null;
+    lastFrameScanAt = 0;
     lastScannedContent = '';
     lastScannedAt = 0;
     const video = document.querySelector('[data-scanner-video]');
@@ -244,16 +278,32 @@ if (isBusinessRoute) {
     if (state.view !== 'scanner' && cameraStream) stopScanner();
   }
 
-  async function detectFrames(video) {
-    if (!detector || !cameraStream || state.view !== 'scanner') return;
+  function readQrFromVideo(video) {
+    if (!scanContext || !video.videoWidth || !video.videoHeight) return '';
+    const scale = Math.min(1, 960 / Math.max(video.videoWidth, video.videoHeight));
+    const width = Math.max(1, Math.round(video.videoWidth * scale));
+    const height = Math.max(1, Math.round(video.videoHeight * scale));
+    if (scanCanvas.width !== width) scanCanvas.width = width;
+    if (scanCanvas.height !== height) scanCanvas.height = height;
+    scanContext.drawImage(video, 0, 0, width, height);
+    const frame = scanContext.getImageData(0, 0, width, height);
+    return jsQR(frame.data, width, height, { inversionAttempts: 'attemptBoth' })?.data || '';
+  }
+
+  async function detectFrames(video, timestamp = performance.now()) {
+    if (!cameraStream || state.view !== 'scanner') return;
+    if (timestamp - lastFrameScanAt < 120) {
+      scanFrame = requestAnimationFrame((nextTimestamp) => detectFrames(video, nextTimestamp));
+      return;
+    }
+    lastFrameScanAt = timestamp;
     if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && !scannerBusy) {
       try {
-        const codes = await detector.detect(video);
-        const content = codes[0]?.rawValue;
+        const content = readQrFromVideo(video);
         if (content) {
           const now = Date.now();
           if (content === lastScannedContent && now - lastScannedAt < 3000) {
-            scanFrame = requestAnimationFrame(() => detectFrames(video));
+            scanFrame = requestAnimationFrame((nextTimestamp) => detectFrames(video, nextTimestamp));
             return;
           }
           lastScannedContent = content;
@@ -281,51 +331,64 @@ if (isBusinessRoute) {
         renderScannerMessages();
       }
     }
-    scanFrame = requestAnimationFrame(() => detectFrames(video));
+    scanFrame = requestAnimationFrame((nextTimestamp) => detectFrames(video, nextTimestamp));
   }
 
   function renderScannerMessages() {
     const status = document.querySelector('.business-message--scanner');
     const error = document.querySelector('.business-message--error');
+    const retry = document.querySelector('.business-camera-retry');
+    const viewport = document.querySelector('.scanner-viewport');
     if (status) status.textContent = state.scannerMessage;
     if (error) error.textContent = state.error;
+    if (retry) retry.hidden = !['denied', 'error'].includes(state.cameraPermission);
+    if (viewport) viewport.dataset.cameraPermission = state.cameraPermission;
+  }
+
+  function updateCameraControls() {
+    const controls = document.querySelector('[data-camera-controls]');
+    const select = document.querySelector('[data-camera-select]');
+    if (!controls || !select) return;
+    controls.hidden = state.cameras.length < 2;
+    select.innerHTML = state.cameras.map((camera, index) => `<option value="${escapeHTML(camera.deviceId)}">${escapeHTML(camera.label || `Cámara ${index + 1}`)}</option>`).join('');
+    select.value = state.selectedCamera;
   }
 
   async function startScanner(deviceId = state.selectedCamera) {
+    if (scannerStarting) return;
     stopScanner();
+    scannerStarting = true;
     state.error = '';
+    state.cameraPermission = 'pending';
     state.scannerMessage = 'Solicitando acceso a la cámara…';
     renderScannerMessages();
     try {
+      if (!isSecureContext && !['localhost', '127.0.0.1'].includes(location.hostname)) throw new DOMException('HTTPS required', 'SecurityError');
       if (!navigator.mediaDevices?.getUserMedia) throw new DOMException('Camera unavailable', 'NotSupportedError');
-      if (!('BarcodeDetector' in window)) {
-        state.error = 'Este navegador no admite lectura QR nativa. Utiliza el código manual.';
-        state.scannerMessage = '';
-        renderScannerMessages();
-        return;
-      }
-      const supported = await BarcodeDetector.getSupportedFormats?.();
-      if (supported && !supported.includes('qr_code')) throw new DOMException('QR unavailable', 'NotSupportedError');
-      detector = new BarcodeDetector({ formats: ['qr_code'] });
-      const videoConstraints = deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: 'environment' } };
+      await observeCameraPermission();
+      const videoConstraints = cameraConstraints({ deviceId, mobile: isMobileCameraDevice() });
       cameraStream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
+      state.cameraPermission = 'granted';
       const devices = await navigator.mediaDevices.enumerateDevices();
       state.cameras = devices.filter((device) => device.kind === 'videoinput');
       const activeTrack = cameraStream.getVideoTracks()[0];
       state.selectedCamera = activeTrack.getSettings().deviceId || deviceId || '';
+      updateCameraControls();
       const video = document.querySelector('[data-scanner-video]');
       if (!video) return stopScanner();
       video.srcObject = cameraStream;
       await video.play();
-      state.scannerMessage = 'Cámara activa';
+      state.scannerMessage = 'Cámara activa. Buscando código QR…';
       renderScannerMessages();
-      if (state.cameras.length > 1 && !document.querySelector('[data-camera-select]')) render();
-      else detectFrames(video);
+      detectFrames(video);
     } catch (error) {
       stopScanner();
+      state.cameraPermission = cameraPermissionFromError(error?.name);
       state.error = cameraError(error);
       state.scannerMessage = '';
       renderScannerMessages();
+    } finally {
+      scannerStarting = false;
     }
   }
 
@@ -362,6 +425,7 @@ if (isBusinessRoute) {
     document.querySelectorAll('[data-business-action]').forEach((button) => button.addEventListener('click', async () => {
       const action = button.dataset.businessAction;
       if (action === 'open-scanner') { state.view = 'scanner'; state.error = ''; render(); }
+      if (action === 'retry-camera') startScanner('');
       if (action === 'close-scanner') { stopScanner(); resetCustomer(); }
       if (action === 'cancel-preview' && !state.confirming) resetCustomer();
       if (action === 'confirm-stamp') confirmStamp();
