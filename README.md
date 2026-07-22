@@ -197,7 +197,7 @@ La pantalla valida la sesión temporal emitida por `PASSWORD_RECOVERY`, solicita
 
 La fase 3 sustituye la generación y validación simuladas por tres RPC autenticadas:
 
-- `create_stamp_request(customer_card_id)` comprueba la propiedad mediante `auth.uid()`, genera un token criptográfico de 256 bits, guarda únicamente su SHA-256 y devuelve una sola vez el token, el código de seis dígitos y una caducidad de 60 segundos.
+- `create_stamp_request(customer_card_id)` comprueba la propiedad mediante `auth.uid()`, genera un token criptográfico de 256 bits, guarda únicamente su SHA-256 y devuelve una sola vez el token, el código de seis dígitos y una caducidad de 90 segundos.
 - `validate_stamp_qr(business_id, qr)` acepta exclusivamente `SPIRIT:STAMP:V1:<token>` y comprueba empleado, membresía activa, negocio, caducidad y uso.
 - `validate_stamp_code(business_id, code)` realiza las mismas comprobaciones, limita a diez validaciones por empleado, negocio y minuto y nunca devuelve datos del cliente para intentos fallidos.
 
@@ -207,7 +207,7 @@ El token y el QR sólo viven en memoria y en el DOM mientras el panel está abie
 
 ### Actualización inmediata y fallback
 
-Mientras el cliente muestra un QR o código temporal, la app abre una única suscripción de **Postgres Changes** sobre inserciones de `stamp_transactions`, filtrada por `customer_card_id`. Se eligió esta opción porque la escucha dura como máximo 60 segundos, tiene una sola fila lógica por cliente y conserva la autorización RLS de la tabla. Sólo `stamp_transactions` se añade a `supabase_realtime`; no existen suscripciones globales.
+Mientras el cliente muestra un QR o código temporal, la app abre una única suscripción de **Postgres Changes** sobre inserciones de `stamp_transactions`, filtrada por `customer_card_id`. La escucha dura como máximo 90 segundos, tiene una sola fila lógica por cliente y conserva la autorización RLS de la tabla. Sólo `stamp_transactions` se añade a `supabase_realtime`; no existen suscripciones globales.
 
 Al recibir el evento, el cliente consulta de nuevo `customer_cards` y el historial, cierra la solicitud visual, elimina QR y código de memoria y muestra el nuevo progreso o la recompensa. La suscripción se elimina al confirmar, caducar, cerrar el modal, cambiar de sección, cerrar sesión o abandonar la página.
 
