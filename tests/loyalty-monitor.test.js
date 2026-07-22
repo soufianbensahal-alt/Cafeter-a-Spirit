@@ -20,6 +20,22 @@ test('no cierra la solicitud si la tarjeta no ha cambiado', () => {
   assert.equal(earnedRewardDelta(request, card), 0);
 });
 
+test('el canje se confirma solamente cuando disminuye el saldo de recompensas', () => {
+  const request = {
+    type: 'reward_redemption',
+    baselineStamps: 3,
+    baselineRewards: 2
+  };
+  assert.equal(hasLoyaltyBalanceChanged(request, {
+    currentStamps: 4,
+    availableRewards: 2
+  }), false);
+  assert.equal(hasLoyaltyBalanceChanged(request, {
+    currentStamps: 3,
+    availableRewards: 1
+  }), true);
+});
+
 test('activa polling sólo cuando Realtime falla o se cierra', () => {
   assert.equal(shouldStartPolling('SUBSCRIBED'), false);
   assert.equal(shouldStartPolling('CHANNEL_ERROR'), true);

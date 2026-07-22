@@ -213,6 +213,21 @@ Al recibir el evento, el cliente consulta de nuevo `customer_cards` y el histori
 
 Si el canal responde con error, timeout o cierre —o no se establece en ocho segundos— se activa polling cada cinco segundos. El polling se detiene con las mismas condiciones y nunca continúa fuera de una solicitud activa.
 
+### Canje seguro de recompensas
+
+Las solicitudes de sello y de canje comparten `stamp_sessions`, diferenciadas por `session_type = stamp | reward_redemption`. Esta opción conserva el mismo ciclo de vida, rate limiting, escáner, código manual y fallback Realtime sin duplicar infraestructura. Los QR usan formatos versionados independientes:
+
+```text
+SPIRIT:STAMP:V1:<token>
+SPIRIT:REWARD:V1:<token>
+```
+
+`create_reward_redemption_request(customer_card_id)` deriva el cliente de `auth.uid()`, exige al menos una recompensa, genera una sesión de 90 segundos y no modifica el saldo. `validate_loyalty_qr` y `validate_loyalty_code` detectan el tipo, limitan intentos y sólo exponen nombre enmascarado, premio y saldo al miembro activo del negocio.
+
+El descuento ocurre exclusivamente en `redeem_reward_session(stamp_session_id)`. La RPC bloquea primero la sesión y después la tarjeta, valida membresía, negocio, programa, caducidad, uso y saldo, resta exactamente una recompensa, marca `used_at` e inserta una transacción `redemption/completed` dentro de la misma transacción PostgreSQL. El índice único por sesión y la lectura del resultado ya registrado hacen que doble clic, reintentos y dos empleados sean idempotentes.
+
+El navegador no puede actualizar `available_rewards`, marcar sesiones ni insertar canjes. `anon` no puede ejecutar las RPC de fidelización y el frontend nunca utiliza `service_role`. El tipo `reversal` se conserva en el modelo para una corrección futura limitada a responsables, pero no existe todavía una RPC de reversión.
+
 ## Pruebas
 
 ```bash
@@ -222,7 +237,7 @@ npx supabase test db --local
 npx supabase db lint --local --schema public --level warning
 ```
 
-Las pruebas JavaScript cubren detección de confirmación, cálculo de recompensa, fallback y derivación aislada de contextos. Las pruebas pgTAP cubren Auth/RLS, aislamiento entre clientes y negocios, adhesión cliente explícita e idempotente, permisos directos, historial filtrado, publicación Realtime y permisos de las RPC. Las pruebas transaccionales remotas deben ejecutarse siempre con `ROLLBACK`; nunca necesitan `seed.sql` en producción.
+Las pruebas JavaScript cubren detección de confirmación de sello y canje, cálculo de recompensa, fallback y derivación aislada de contextos. Las pruebas pgTAP cubren Auth/RLS, aislamiento entre clientes y negocios, adhesión cliente explícita e idempotente, permisos directos, historial filtrado, publicación Realtime y permisos de las RPC. `reward_redemption_test.sql` añade 22 comprobaciones para el décimo sello, creación sin descuento, QR/código, confirmación, idempotencia, segundo empleado, caducidad, uso anterior, negocio cruzado, falta de membresía, auditoría y visibilidad del propietario. Las pruebas transaccionales remotas deben ejecutarse siempre con `ROLLBACK`; nunca necesitan `seed.sql` en producción.
 
 No se incluyen usuarios ni contraseñas de prueba en el repositorio. Para una prueba manual, crea usuarios desechables desde **Supabase Auth → Users**, configura sus filas de negocio/tarjeta desde una conexión administrativa y elimina o desactiva esos accesos al terminar.
 
@@ -232,7 +247,10 @@ No se incluyen usuarios ni contraseñas de prueba en el repositorio. Para una pr
 2. En el dispositivo de cafetería, abre `/cafeteria`, inicia sesión, escanea el QR o introduce el código y confirma.
 3. Comprueba que el cliente se actualiza sin recargar, que sólo existe una transacción, que el código deja de funcionar y que el historial del empleado muestra la operación.
 4. Si se alcanza el objetivo, comprueba que los sellos vuelven al módulo correcto y aumenta `available_rewards`.
-5. Revisa ambas consolas: no deben aparecer tokens, códigos, credenciales ni datos personales.
+5. Pulsa **Usar café gratis**, valida el nuevo QR o código en modo cafetería y comprueba que el saldo no cambia antes de **Confirmar canje**.
+6. Confirma que el cliente muestra **Premio canjeado**, cierra la cuenta atrás y refleja el saldo restante sin recargar.
+7. Reintenta el mismo QR y código: ambos deben devolver estado usado sin crear otra transacción.
+8. Revisa ambas consolas: no deben aparecer tokens, códigos, credenciales ni datos personales.
 
 ## Vercel y entornos
 
@@ -244,6 +262,7 @@ No se incluyen usuarios ni contraseñas de prueba en el repositorio. Para una pr
 
 ## Limitaciones
 
-- El canje/anulación de recompensas todavía no está implementado como operación transaccional; las recompensas disponibles se muestran para su gestión en cafetería.
+- La reversión de un canje no está implementada. El tipo `reversal` queda reservado, pero necesita una RPC separada, motivo obligatorio y autorización exclusiva de `owner` o `manager`.
+- La prueba de segundo empleado verifica la serialización e idempotencia desde dos identidades de equipo; una prueba de carga con conexiones verdaderamente paralelas sigue siendo recomendable antes de operar a gran escala.
 - `BarcodeDetector` no está disponible en todos los navegadores; el código manual sigue siendo el fallback.
 - Postgres Changes es adecuado para el volumen actual. Si se esperan miles de clientes concurrentes, debe migrarse a Broadcast privado con autorización explícita.

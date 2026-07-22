@@ -1,4 +1,5 @@
 import {
+  confirmRewardRedemptionSession,
   confirmStampSession,
   getBusinessStampHistory,
   StampSessionError,
@@ -68,16 +69,34 @@ if (isBusinessRoute) {
 
   const transactionList = () => `<section class="business-history" aria-labelledby="recent-title"><div class="business-section-head"><div><span class="business-kicker">Actividad</span><h2 id="recent-title">Historial del negocio</h2></div>${icons.clock}</div><form class="business-history-filters" data-business-form="history"><input name="customer" value="${escapeHTML(state.historyFilters.customer)}" placeholder="Cliente" aria-label="Filtrar por cliente"><input name="employee" value="${escapeHTML(state.historyFilters.employee)}" placeholder="Empleado" aria-label="Filtrar por empleado"><select name="type" aria-label="Tipo de operación"><option value="">Todos los tipos</option><option value="stamp" ${state.historyFilters.type === 'stamp' ? 'selected' : ''}>Sellos</option><option value="redemption" ${state.historyFilters.type === 'redemption' ? 'selected' : ''}>Canjes</option><option value="reversal" ${state.historyFilters.type === 'reversal' ? 'selected' : ''}>Reversiones</option></select><input name="from" type="date" value="${escapeHTML(state.historyFilters.from)}" aria-label="Desde"><input name="to" type="date" value="${escapeHTML(state.historyFilters.to)}" aria-label="Hasta"><button type="submit">Filtrar</button></form>${state.transactions.length ? `<ol>${state.transactions.map((item) => `<li><time datetime="${escapeHTML(item.timestamp)}">${formatTime(item.timestamp)}</time><div><strong>${escapeHTML(item.customerMasked)}</strong><span>${escapeHTML(item.result)} · ${escapeHTML(item.programName || '')}</span><small>${escapeHTML(item.employeeName || 'Equipo Spirit')}</small></div><b>${escapeHTML(item.progress)}</b></li>`).join('')}</ol>${state.historyHasMore ? '<button class="business-history-more" type="button" data-business-action="load-more-history">Cargar más</button>' : ''}` : '<p class="business-empty">No hay operaciones con estos filtros.</p>'}</section>`;
 
-  const homeView = () => `<main class="business-app">${brandHeader()}<section class="employee-strip"><div class="employee-avatar" aria-hidden="true">${escapeHTML(employeeInitials())}</div><div><span>${escapeHTML(roleLabel(state.employee?.role))}</span><strong>${escapeHTML(state.employee?.employeeName || '')}</strong></div>${state.employee?.isCustomer ? '<a class="employee-status" href="/">Vista cliente</a>' : '<span class="employee-status">Activa</span>'}</section><section class="business-action-card"><p class="business-kicker">Añadir un sello</p><h1>Procesa al cliente en segundos.</h1><p>Escanea su QR temporal o introduce el código de seis dígitos.</p><button class="business-primary business-primary--scan" type="button" data-business-action="open-scanner">${icons.scan}<span>Escanear QR</span></button><div class="business-divider"><span>o</span></div><form class="business-code-form" data-business-form="code" novalidate><label for="business-code">Código del cliente</label><input id="business-code" name="code" type="text" value="${escapeHTML(state.code)}" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" enterkeyhint="done" placeholder="000000" aria-describedby="business-code-help business-error" ${state.loading ? 'disabled' : ''}><small id="business-code-help">Exactamente 6 dígitos · válido durante ${STAMP_REQUEST_DURATION_SECONDS} segundos</small><p class="business-message business-message--error" id="business-error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.code.length !== 6 || state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Validando…' : 'Validar código'}</button></form></section>${transactionList()}<button class="business-logout" type="button" data-business-action="logout">Cerrar sesión</button><p class="business-security-note">Acceso protegido con Supabase Auth · Validación, confirmación y recompensas se procesan de forma atómica en el servidor.</p></main>`;
+  const homeView = () => `<main class="business-app">${brandHeader()}<section class="employee-strip"><div class="employee-avatar" aria-hidden="true">${escapeHTML(employeeInitials())}</div><div><span>${escapeHTML(roleLabel(state.employee?.role))}</span><strong>${escapeHTML(state.employee?.employeeName || '')}</strong></div>${state.employee?.isCustomer ? '<a class="employee-status" href="/">Vista cliente</a>' : '<span class="employee-status">Activa</span>'}</section><section class="business-action-card"><p class="business-kicker">Fidelización Spirit</p><h1>Procesa al cliente en segundos.</h1><p>Escanea su QR temporal o introduce el código de seis dígitos. El sistema detectará si es un sello o un canje.</p><button class="business-primary business-primary--scan" type="button" data-business-action="open-scanner">${icons.scan}<span>Escanear QR</span></button><div class="business-divider"><span>o</span></div><form class="business-code-form" data-business-form="code" novalidate><label for="business-code">Código del cliente</label><input id="business-code" name="code" type="text" value="${escapeHTML(state.code)}" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" enterkeyhint="done" placeholder="000000" aria-describedby="business-code-help business-error" ${state.loading ? 'disabled' : ''}><small id="business-code-help">Exactamente 6 dígitos · válido durante ${STAMP_REQUEST_DURATION_SECONDS} segundos</small><p class="business-message business-message--error" id="business-error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.code.length !== 6 || state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Validando…' : 'Validar código'}</button></form></section>${transactionList()}<button class="business-logout" type="button" data-business-action="logout">Cerrar sesión</button><p class="business-security-note">Acceso protegido con Supabase Auth · Validación, confirmación y recompensas se procesan de forma atómica en el servidor.</p></main>`;
 
   const progress = (value, goal) => `<div class="business-progress" role="img" aria-label="${value} de ${goal} sellos"><div><strong>${value}</strong><span>/ ${goal}</span></div><div class="business-progress__track"><span style="width:${(value / goal) * 100}%"></span></div></div>`;
 
   const previewView = () => {
     const session = state.stampSession;
-    return `<main class="business-app">${brandHeader()}<section class="business-preview"><button class="business-back" type="button" data-business-action="cancel-preview">← Cancelar</button><p class="business-kicker">Confirmación necesaria</p><h1>Revisa antes de añadir.</h1><div class="customer-card"><div class="customer-card__heading"><span class="customer-avatar" aria-hidden="true">S</span><div><small>Cliente</small><strong>${escapeHTML(session.customer)}</strong></div></div><dl><div><dt>Programa</dt><dd>${escapeHTML(session.program)}</dd></div><div><dt>Progreso actual</dt><dd>${session.currentProgress} de ${session.goal} sellos</dd></div><div><dt>Tras confirmar</dt><dd>${session.nextProgress} de ${session.goal} sellos</dd></div><div><dt>Recompensa</dt><dd>${escapeHTML(session.reward)}</dd></div></dl>${progress(session.nextProgress, session.goal)}</div><p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary business-primary--confirm" type="button" data-business-action="confirm-stamp" ${state.confirming ? 'disabled' : ''}>${state.confirming ? '<span class="business-spinner" aria-hidden="true"></span>Añadiendo sello…' : 'Confirmar sello'}</button><button class="business-secondary" type="button" data-business-action="cancel-preview" ${state.confirming ? 'disabled' : ''}>Cancelar</button></section></main>`;
+    const isReward = session.type === 'reward_redemption';
+    const details = isReward
+      ? `<div><dt>Premio</dt><dd>${escapeHTML(session.reward)}</dd></div><div><dt>Recompensas disponibles</dt><dd>${session.availableRewards}</dd></div><div><dt>Tras confirmar</dt><dd>${Math.max(0, session.availableRewards - 1)} disponibles</dd></div>`
+      : `<div><dt>Programa</dt><dd>${escapeHTML(session.program)}</dd></div><div><dt>Progreso actual</dt><dd>${session.currentProgress} de ${session.goal} sellos</dd></div><div><dt>Tras confirmar</dt><dd>${session.nextProgress} de ${session.goal} sellos</dd></div><div><dt>Recompensa</dt><dd>${escapeHTML(session.reward)}</dd></div>`;
+    const visualProgress = isReward ? '' : progress(session.nextProgress, session.goal);
+    const buttonCopy = state.confirming
+      ? `<span class="business-spinner" aria-hidden="true"></span>${isReward ? 'Canjeando premio…' : 'Añadiendo sello…'}`
+      : isReward ? 'Confirmar canje' : 'Confirmar sello';
+    return `<main class="business-app">${brandHeader()}<section class="business-preview"><button class="business-back" type="button" data-business-action="cancel-preview">← Cancelar</button><p class="business-kicker">Confirmación necesaria</p><h1>${isReward ? 'Vas a canjear 1 café gratuito.' : 'Revisa antes de añadir.'}</h1><div class="customer-card"><div class="customer-card__heading"><span class="customer-avatar" aria-hidden="true">S</span><div><small>Cliente</small><strong>${escapeHTML(session.customer)}</strong></div></div><dl>${details}</dl>${visualProgress}</div><p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary business-primary--confirm" type="button" data-business-action="confirm-session" ${state.confirming ? 'disabled' : ''}>${buttonCopy}</button><button class="business-secondary" type="button" data-business-action="cancel-preview" ${state.confirming ? 'disabled' : ''}>Cancelar</button></section></main>`;
   };
 
-  const successView = () => `<main class="business-app business-app--success">${brandHeader()}<section class="business-success"><span class="business-success__icon">${icons.check}</span><p class="business-kicker">${state.confirmation.status === 'already_processed' ? 'Operación recuperada' : 'Operación completada'}</p><h1>${state.confirmation.status === 'already_processed' ? 'Sello ya procesado.' : 'Sello añadido.'}</h1><p>La tarjeta queda en <strong>${state.confirmation.progress} de ${state.confirmation.goal} sellos</strong>${state.confirmation.rewardEarned > 0 ? ` y ha conseguido <strong>${state.confirmation.rewardEarned} recompensa${state.confirmation.rewardEarned > 1 ? 's' : ''}</strong>` : ''}.</p><button class="business-primary" type="button" data-business-action="next-customer">Procesar siguiente cliente</button><button class="business-secondary" type="button" data-business-action="next-customer">Volver al inicio</button></section>${transactionList()}</main>`;
+  const successView = () => {
+    const isReward = state.confirmation.type === 'reward_redemption';
+    const alreadyProcessed = state.confirmation.status === 'already_processed';
+    const title = isReward
+      ? alreadyProcessed ? 'Premio ya canjeado.' : 'Premio canjeado.'
+      : alreadyProcessed ? 'Sello ya procesado.' : 'Sello añadido.';
+    const copy = isReward
+      ? `Quedan <strong>${state.confirmation.availableRewards} recompensa${state.confirmation.availableRewards === 1 ? '' : 's'} disponible${state.confirmation.availableRewards === 1 ? '' : 's'}</strong>.`
+      : `La tarjeta queda en <strong>${state.confirmation.progress} de ${state.confirmation.goal} sellos</strong>${state.confirmation.rewardEarned > 0 ? ` y ha conseguido <strong>${state.confirmation.rewardEarned} recompensa${state.confirmation.rewardEarned > 1 ? 's' : ''}</strong>` : ''}.`;
+    return `<main class="business-app business-app--success">${brandHeader()}<section class="business-success"><span class="business-success__icon">${icons.check}</span><p class="business-kicker">${alreadyProcessed ? 'Operación recuperada' : 'Operación completada'}</p><h1>${title}</h1><p>${copy}</p><button class="business-primary" type="button" data-business-action="next-customer">Procesar siguiente cliente</button><button class="business-secondary" type="button" data-business-action="next-customer">Volver al inicio</button></section>${transactionList()}</main>`;
+  };
 
   const scannerView = () => `<main class="business-app business-app--scanner"><header class="scanner-header"><div><span class="business-kicker">Modo cafetería</span><strong>Escanear QR</strong></div><button type="button" data-business-action="close-scanner" aria-label="Cerrar escáner">×</button></header><section class="scanner-card"><div class="scanner-viewport" data-camera-permission="${state.cameraPermission}"><video data-scanner-video playsinline muted aria-label="Vista de la cámara"></video><div class="scanner-guide" aria-hidden="true"><span></span><span></span><span></span><span></span></div></div><p class="scanner-instruction">Coloca el QR del cliente dentro del recuadro.</p><label class="camera-select" data-camera-controls ${state.cameras.length > 1 ? '' : 'hidden'}>Cámara<select data-camera-select aria-label="Seleccionar cámara">${state.cameras.map((camera, index) => `<option value="${escapeHTML(camera.deviceId)}" ${camera.deviceId === state.selectedCamera ? 'selected' : ''}>${escapeHTML(camera.label || `Cámara ${index + 1}`)}</option>`).join('')}</select></label><p class="business-message business-message--scanner" role="status">${escapeHTML(state.scannerMessage)}</p><p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-secondary business-secondary--light business-camera-retry" type="button" data-business-action="retry-camera" ${['denied', 'error'].includes(state.cameraPermission) ? '' : 'hidden'}>Reintentar cámara</button><button class="business-secondary business-secondary--light" type="button" data-business-action="close-scanner">Introducir código manualmente</button></section></main>`;
 
@@ -195,25 +214,27 @@ if (isBusinessRoute) {
       state.view = 'preview';
     } catch (error) {
       state.error = readableError(error);
-      if (error?.code === 'session_expired') state.view = 'expired';
+      if (error?.code === 'expired') state.view = 'expired';
     } finally {
       state.loading = false;
       render();
     }
   }
 
-  async function confirmStamp() {
+  async function confirmSession() {
     if (state.confirming) return;
     state.confirming = true;
     state.error = '';
     render();
     try {
-      state.confirmation = await confirmStampSession(state.stampSession?.id);
+      state.confirmation = state.stampSession?.type === 'reward_redemption'
+        ? await confirmRewardRedemptionSession(state.stampSession.id)
+        : await confirmStampSession(state.stampSession?.id);
       await loadHistory(true);
       state.view = 'success';
     } catch (error) {
       state.error = readableError(error);
-      if (error?.code === 'session_expired') state.view = 'expired';
+      if (error?.code === 'expired') state.view = 'expired';
     } finally {
       state.confirming = false;
       render();
@@ -429,7 +450,7 @@ if (isBusinessRoute) {
       if (action === 'retry-camera') startScanner('');
       if (action === 'close-scanner') { stopScanner(); resetCustomer(); }
       if (action === 'cancel-preview' && !state.confirming) resetCustomer();
-      if (action === 'confirm-stamp') confirmStamp();
+      if (action === 'confirm-session') confirmSession();
       if (action === 'next-customer') resetCustomer();
       if (action === 'load-more-history') { try { await loadHistory(false); } catch (error) { state.error = readableError(error); } render(); }
       if (action === 'logout') {

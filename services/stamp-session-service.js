@@ -1,7 +1,10 @@
 import QRCode from 'qrcode';
 import { requireSupabase } from './supabase-client.js';
 
-const QR_PREFIX = 'SPIRIT:STAMP:V1:';
+const QR_PREFIXES = Object.freeze({
+  stamp: 'SPIRIT:STAMP:V1:',
+  reward_redemption: 'SPIRIT:REWARD:V1:'
+});
 
 const STATUS_MESSAGES = Object.freeze({
   invalid_code: 'El código no es correcto. Revísalo e inténtalo de nuevo.',
@@ -15,7 +18,9 @@ const STATUS_MESSAGES = Object.freeze({
   not_authenticated: 'La sesión de empleado ha caducado. Inicia sesión de nuevo.',
   not_found: 'No se ha encontrado la solicitud. Vuelve a validar el QR o el código.',
   inactive_program: 'El programa de fidelización ya no está activo.',
-  already_processed: 'Esta solicitud ya había sido procesada.'
+  already_processed: 'Esta solicitud ya había sido procesada.',
+  no_rewards_available: 'Ya no hay recompensas disponibles para canjear.',
+  invalid_session_type: 'Esta solicitud no corresponde con la operación seleccionada.'
 });
 
 export class StampSessionError extends Error {
@@ -35,15 +40,19 @@ const toServiceError = (error) => {
     'not_authenticated',
     'loyalty_program_unavailable',
     'customer_card_not_available',
+    'no_rewards_available',
     'creation_rate_limited',
-    'code_generation_failed'
+    'code_generation_failed',
+    'invalid_session_type'
   ].find((code) => message.includes(code));
   const messages = {
     not_authenticated: 'Inicia sesión para generar una solicitud de sello.',
     loyalty_program_unavailable: 'El programa de fidelización de Spirit no está disponible.',
     customer_card_not_available: 'Tu tarjeta Spirit todavía no está activa.',
+    no_rewards_available: 'Todavía no tienes un café gratuito disponible.',
     creation_rate_limited: 'Has generado varias solicitudes. Espera unos minutos antes de intentarlo de nuevo.',
-    code_generation_failed: 'No se ha podido generar un código seguro. Inténtalo de nuevo.'
+    code_generation_failed: 'No se ha podido generar un código seguro. Inténtalo de nuevo.',
+    invalid_session_type: 'La solicitud no corresponde con esta operación.'
   };
   if (knownCode) return new StampSessionError(knownCode, messages[knownCode], error);
   if (error?.name === 'TypeError' || /fetch|network/i.test(message)) {
@@ -126,10 +135,10 @@ export function subscribeToOwnStampTransactions(customerCardId, { onInsert, onSt
   return () => supabase.removeChannel(channel);
 }
 
-export async function createStampRequest() {
+async function createLoyaltyRequest({ rpcName, type }) {
   try {
     const card = await getOwnCustomerCard();
-    const { data, error } = await requireSupabase().rpc('create_stamp_request', {
+    const { data, error } = await requireSupabase().rpc(rpcName, {
       p_customer_card_id: card.id
     });
     if (error) throw error;
@@ -138,7 +147,7 @@ export async function createStampRequest() {
       throw new StampSessionError('invalid_response', 'La respuesta de la solicitud no es válida.');
     }
 
-    const qrContent = `${QR_PREFIX}${row.token}`;
+    const qrContent = `${QR_PREFIXES[type]}${row.token}`;
     const qrDataUrl = await QRCode.toDataURL(qrContent, {
       errorCorrectionLevel: 'M',
       margin: 2,
@@ -148,15 +157,28 @@ export async function createStampRequest() {
 
     return Object.freeze({
       qrDataUrl,
+      type,
       shortCode: row.short_code,
       expiresAt: row.expires_at,
       customerCardId: card.id,
       baselineStamps: card.currentStamps,
-      baselineRewards: card.availableRewards
+      baselineRewards: card.availableRewards,
+      rewardDescription: row.reward_description || card.rewardDescription
     });
   } catch (error) {
     throw toServiceError(error);
   }
+}
+
+export function createStampRequest() {
+  return createLoyaltyRequest({ rpcName: 'create_stamp_request', type: 'stamp' });
+}
+
+export function createRewardRedemptionRequest() {
+  return createLoyaltyRequest({
+    rpcName: 'create_reward_redemption_request',
+    type: 'reward_redemption'
+  });
 }
 
 const validatedSession = (row, source) => {
@@ -169,6 +191,7 @@ const validatedSession = (row, source) => {
   }
   return Object.freeze({
     id: row.stamp_session_id,
+    type: row.session_type || 'stamp',
     source,
     customer: row.customer_masked,
     customerMasked: row.customer_masked,
@@ -177,6 +200,7 @@ const validatedSession = (row, source) => {
     nextProgress: row.next_progress,
     goal: row.goal,
     reward: row.reward_description,
+    availableRewards: Number(row.available_rewards || 0),
     status: 'pending'
   });
 };
@@ -185,7 +209,7 @@ export async function validateStampCode(businessId, rawCode) {
   const code = String(rawCode ?? '').replace(/\s/g, '');
   if (!/^\d{6}$/.test(code)) throw new StampSessionError('invalid_code', 'Introduce un código de 6 dígitos.');
   try {
-    const { data, error } = await requireSupabase().rpc('validate_stamp_code', {
+    const { data, error } = await requireSupabase().rpc('validate_loyalty_code', {
       p_business_id: businessId,
       p_code: code
     });
@@ -198,17 +222,18 @@ export async function validateStampCode(businessId, rawCode) {
 
 export async function validateStampQr(businessId, rawContent) {
   const content = String(rawContent ?? '').trim();
-  if (!content.startsWith('SPIRIT:STAMP:')) {
+  if (!content.startsWith('SPIRIT:STAMP:') && !content.startsWith('SPIRIT:REWARD:')) {
     throw new StampSessionError('invalid_qr', STATUS_MESSAGES.invalid_qr);
   }
-  if (!content.startsWith(QR_PREFIX)) {
+  const supportedPrefix = Object.values(QR_PREFIXES).find((prefix) => content.startsWith(prefix));
+  if (!supportedPrefix) {
     throw new StampSessionError('invalid_version', STATUS_MESSAGES.invalid_version);
   }
-  if (!/^SPIRIT:STAMP:V1:[0-9a-f]{64}$/.test(content)) {
+  if (!/^SPIRIT:(STAMP|REWARD):V1:[0-9a-f]{64}$/.test(content)) {
     throw new StampSessionError('invalid_qr', STATUS_MESSAGES.invalid_qr);
   }
   try {
-    const { data, error } = await requireSupabase().rpc('validate_stamp_qr', {
+    const { data, error } = await requireSupabase().rpc('validate_loyalty_qr', {
       p_business_id: businessId,
       p_qr: content
     });
@@ -248,6 +273,34 @@ export async function confirmStampSession(stampSessionId) {
   }
 }
 
+export async function confirmRewardRedemptionSession(stampSessionId) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(stampSessionId || ''))) {
+    throw new StampSessionError('not_found', STATUS_MESSAGES.not_found);
+  }
+  try {
+    const { data, error } = await requireSupabase().rpc('redeem_reward_session', {
+      p_stamp_session_id: stampSessionId
+    });
+    if (error) throw error;
+    const row = firstRow(data);
+    if (!['confirmed', 'already_processed'].includes(row?.status)) {
+      const code = row?.status || 'unexpected';
+      throw new StampSessionError(code, STATUS_MESSAGES[code] || 'No se ha podido confirmar el canje.');
+    }
+    return Object.freeze({
+      status: row.status,
+      transactionId: row.transaction_id,
+      progress: row.current_stamps,
+      availableRewards: row.available_rewards,
+      reward: row.reward_description,
+      timestamp: row.confirmed_at,
+      type: 'reward_redemption'
+    });
+  } catch (error) {
+    throw toServiceError(error);
+  }
+}
+
 export async function getBusinessStampHistory(businessId, options = {}) {
   try {
     const limit = typeof options === 'number' ? options : options.limit;
@@ -269,9 +322,14 @@ export async function getBusinessStampHistory(businessId, options = {}) {
       customerMasked: row.customer_masked,
       programName: row.program_name,
       type: row.transaction_type,
+      status: row.transaction_status,
       result: row.result,
-      progress: `${row.current_stamps} de ${row.stamps_required}`,
+      progress: row.transaction_type === 'redemption'
+        ? `${row.available_rewards} premio${row.available_rewards === 1 ? '' : 's'} disponible${row.available_rewards === 1 ? '' : 's'}`
+        : `${row.current_stamps} de ${row.stamps_required}`,
       rewardEarned: row.reward_earned,
+      availableRewards: row.available_rewards,
+      rewardDescription: row.reward_description,
       employeeName: row.employee_name
     })));
   } catch (error) {

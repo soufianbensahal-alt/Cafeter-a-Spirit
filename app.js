@@ -13,6 +13,7 @@ import {
 } from './services/customer-service.js';
 import {
   createStampRequest,
+  createRewardRedemptionRequest,
   createOwnCustomerMembership,
   getOwnCustomerCard,
   getOwnStampHistory,
@@ -81,7 +82,7 @@ const copy = {
     personalEyebrow: 'Tu cuenta', personalTitle: 'Datos personales', changePhoto: 'Fotografía de perfil', gallery: 'Galería', camera: 'Cámara', firstName: 'Nombre', lastName: 'Apellidos', email: 'Correo electrónico', emailReadOnly: 'Gestionado por tu cuenta', changePassword: 'Cambiar contraseña', save: 'Guardar', close: 'Cerrar',
     passwordEyebrow: 'Seguridad', passwordTitle: 'Cambiar contraseña', currentPassword: 'Contraseña actual', newPassword: 'Nueva contraseña', confirmPassword: 'Confirmar contraseña', passwordLength: 'La nueva contraseña debe tener al menos 8 caracteres.', passwordMismatch: 'Las contraseñas no coinciden.', passwordIncorrect: 'La contraseña actual no es correcta.', passwordSaved: 'Contraseña actualizada',
     languageEyebrow: 'Preferencias', languageTitle: 'Idioma de la aplicación', welcome: 'Bienvenida a casa', loginTitle: 'Tu café.<br>Tus sellos.', phone: 'Teléfono', namePlaceholder: '¿Cómo te llamas?', privacy: 'Acepto la política de privacidad y el tratamiento de mis datos según el RGPD.', createAccount: 'Crear mi cuenta', signIn: 'Iniciar sesión', password: 'Contraseña', forgotPassword: 'He olvidado mi contraseña', sendRecovery: 'Enviar enlace de recuperación', backToSignIn: 'Volver al acceso', repeatPassword: 'Confirmar nueva contraseña', checkSession: 'Comprobando tu sesión…', authConfirmation: 'Revisa tu correo para confirmar la cuenta antes de iniciar sesión.', recoverySent: 'Si existe una cuenta con ese correo, recibirás un enlace de recuperación.', recoveryEyebrow: 'Seguridad de tu cuenta', recoveryTitle: 'Crea una nueva<br>contraseña.', recoveryCopy: 'Introduce una contraseña segura y repítela para confirmar que está escrita correctamente.', recoveryChecking: 'Validando el enlace de recuperación…', recoveryInvalidTitle: 'El enlace ya no es válido.', recoveryInvalidCopy: 'El enlace ha caducado, ya se ha utilizado o no puede verificarse. Solicita uno nuevo para continuar.', requestAnotherRecovery: 'Solicitar otro enlace', recoveryCompleteTitle: 'Contraseña actualizada.', recoveryCompleteCopy: 'Tu nueva contraseña ya está activa. Puedes continuar con tu cuenta Spirit.', continueToSpirit: 'Continuar en Spirit', recoverySessionMissing: 'No se ha podido validar el enlace. Solicita uno nuevo.', completeRecovery: 'Guardar nueva contraseña',
-    requestStamp: 'Solicitar sello', stampRequestTitle: 'Tu código temporal', stampRequestCopy: 'Enséñale el QR o el código al equipo de Spirit.', stampCodeLabel: 'Código de 6 dígitos', stampExpiresIn: 'Caduca en {count}', stampExpired: 'Esta solicitud ha caducado.', regenerateStamp: 'Generar uno nuevo', generatingStamp: 'Generando código seguro…', stampConfirmed: 'Sello añadido. Tu tarjeta ya está actualizada.', rewardWon: '¡Has conseguido {count} recompensa!', availableAtCafe: 'Disponible en cafetería', unavailableReward: 'Aún no disponible', cardUnavailable: 'Tarjeta todavía no disponible',
+    requestStamp: 'Solicitar sello', stampRequestTitle: 'Tu código temporal', stampRequestCopy: 'Enséñale el QR o el código al equipo de Spirit.', rewardRequestTitle: 'Usar café gratis', rewardRequestCopy: 'Enséñale este QR o código al equipo. El premio solo se descontará cuando confirmes el canje en caja.', useFreeCoffee: 'Usar café gratis', oneCoffeeAvailable: '1 café disponible', coffeesAvailable: '{count} cafés disponibles', stampCodeLabel: 'Código de 6 dígitos', stampExpiresIn: 'Caduca en {count}', stampExpired: 'Esta solicitud ha caducado.', regenerateStamp: 'Generar uno nuevo', generatingStamp: 'Generando código seguro…', stampConfirmed: 'Sello añadido. Tu tarjeta ya está actualizada.', rewardWon: '¡Has conseguido {count} recompensa!', rewardRedeemed: 'Premio canjeado. Disfruta de tu café gratuito.', availableAtCafe: 'Disponible en cafetería', unavailableReward: 'Aún no disponible', cardUnavailable: 'Tarjeta todavía no disponible',
     joinClub: 'Activar mi tarjeta', joiningClub: 'Activando tarjeta…', businessMode: 'Ir al modo cafetería', oauthGoogle: 'Continuar con Google',
     shareText: 'Descubre Cafetería Spirit · Brunch and Specialty Coffee Montcada', shareCopied: 'Enlace copiado para compartir', invalidImage: 'No se ha podido procesar la imagen.'
   },
@@ -95,7 +96,7 @@ const copy = {
     personalEyebrow: 'El teu compte', personalTitle: 'Dades personals', changePhoto: 'Fotografia de perfil', gallery: 'Galeria', camera: 'Càmera', firstName: 'Nom', lastName: 'Cognoms', email: 'Correu electrònic', emailReadOnly: 'Gestionat pel teu compte', changePassword: 'Canviar contrasenya', save: 'Desar', close: 'Tancar',
     passwordEyebrow: 'Seguretat', passwordTitle: 'Canviar contrasenya', currentPassword: 'Contrasenya actual', newPassword: 'Nova contrasenya', confirmPassword: 'Confirmar contrasenya', passwordLength: 'La nova contrasenya ha de tenir almenys 8 caràcters.', passwordMismatch: 'Les contrasenyes no coincideixen.', passwordIncorrect: 'La contrasenya actual no és correcta.', passwordSaved: 'Contrasenya actualitzada',
     languageEyebrow: 'Preferències', languageTitle: 'Idioma de l’aplicació', welcome: 'Benvinguda a casa', loginTitle: 'El teu cafè.<br>Els teus segells.', phone: 'Telèfon', namePlaceholder: 'Com et dius?', privacy: 'Accepto la política de privacitat i el tractament de les meves dades segons el RGPD.', createAccount: 'Crear el meu compte', signIn: 'Iniciar sessió', password: 'Contrasenya', forgotPassword: 'He oblidat la contrasenya', sendRecovery: 'Enviar enllaç de recuperació', backToSignIn: 'Tornar a l’accés', repeatPassword: 'Confirmar la nova contrasenya', checkSession: 'Comprovant la sessió…', authConfirmation: 'Revisa el correu per confirmar el compte abans d’iniciar sessió.', recoverySent: 'Si existeix un compte amb aquest correu, rebràs un enllaç de recuperació.', recoveryEyebrow: 'Seguretat del teu compte', recoveryTitle: 'Crea una nova<br>contrasenya.', recoveryCopy: 'Introdueix una contrasenya segura i repeteix-la per confirmar que està escrita correctament.', recoveryChecking: 'Validant l’enllaç de recuperació…', recoveryInvalidTitle: 'L’enllaç ja no és vàlid.', recoveryInvalidCopy: 'L’enllaç ha caducat, ja s’ha utilitzat o no es pot verificar. Sol·licita’n un de nou per continuar.', requestAnotherRecovery: 'Sol·licitar un altre enllaç', recoveryCompleteTitle: 'Contrasenya actualitzada.', recoveryCompleteCopy: 'La teva nova contrasenya ja està activa. Pots continuar amb el teu compte Spirit.', continueToSpirit: 'Continuar a Spirit', recoverySessionMissing: 'No s’ha pogut validar l’enllaç. Sol·licita’n un de nou.', completeRecovery: 'Desar la nova contrasenya',
-    requestStamp: 'Sol·licitar segell', stampRequestTitle: 'El teu codi temporal', stampRequestCopy: 'Ensenya el QR o el codi a l’equip de Spirit.', stampCodeLabel: 'Codi de 6 dígits', stampExpiresIn: 'Caduca en {count}', stampExpired: 'Aquesta sol·licitud ha caducat.', regenerateStamp: 'Generar-ne un de nou', generatingStamp: 'Generant un codi segur…', stampConfirmed: 'Segell afegit. La teva targeta ja està actualitzada.', rewardWon: 'Has aconseguit {count} recompensa!', availableAtCafe: 'Disponible a la cafeteria', unavailableReward: 'Encara no disponible', cardUnavailable: 'Targeta encara no disponible',
+    requestStamp: 'Sol·licitar segell', stampRequestTitle: 'El teu codi temporal', stampRequestCopy: 'Ensenya el QR o el codi a l’equip de Spirit.', rewardRequestTitle: 'Usar cafè gratis', rewardRequestCopy: 'Ensenya aquest QR o codi a l’equip. El premi només es descomptarà quan confirmis el bescanvi a caixa.', useFreeCoffee: 'Usar cafè gratis', oneCoffeeAvailable: '1 cafè disponible', coffeesAvailable: '{count} cafès disponibles', stampCodeLabel: 'Codi de 6 dígits', stampExpiresIn: 'Caduca en {count}', stampExpired: 'Aquesta sol·licitud ha caducat.', regenerateStamp: 'Generar-ne un de nou', generatingStamp: 'Generant un codi segur…', stampConfirmed: 'Segell afegit. La teva targeta ja està actualitzada.', rewardWon: 'Has aconseguit {count} recompensa!', rewardRedeemed: 'Premi bescanviat. Gaudeix del teu cafè gratuït.', availableAtCafe: 'Disponible a la cafeteria', unavailableReward: 'Encara no disponible', cardUnavailable: 'Targeta encara no disponible',
     joinClub: 'Activar la meva targeta', joiningClub: 'Activant targeta…', businessMode: 'Anar al mode cafeteria', oauthGoogle: 'Continuar amb Google',
     shareText: 'Descobreix Cafeteria Spirit · Brunch and Specialty Coffee Montcada', shareCopied: 'Enllaç copiat per compartir', invalidImage: 'No s’ha pogut processar la imatge.'
   }
@@ -178,25 +179,29 @@ function onboarding() {
 function home() {
   const stamps = Array.from({length:state.loyaltyGoal},(_,i)=>`<span class="stamp ${i<state.stamps?'stamp--earned':''}">${icons.cup}</span>`).join('');
   const remaining = Math.max(0, state.loyaltyGoal - state.stamps);
-  const rewardLabel = !state.loyaltyReady ? t('cardUnavailable') : state.availableRewards > 0 ? `${state.availableRewards} ${t('available').toLowerCase()}` : state.rewardDescription;
+  const rewardLabel = !state.loyaltyReady
+    ? t('cardUnavailable')
+    : t(state.availableRewards === 1 ? 'oneCoffeeAvailable' : 'coffeesAvailable', { count: state.availableRewards });
   const progressLabel = state.loyaltyReady ? t('stampsLeft',{count:remaining}) : t('cardUnavailable');
   const countLabel = state.loyaltyReady ? `${state.stamps}/${state.loyaltyGoal}` : '—';
   const loyaltyAction = state.customerCardId ? 'request-stamp' : 'join-loyalty';
   const loyaltyActionLabel = state.stampRequestLoading ? (state.customerCardId ? t('generatingStamp') : t('joiningClub')) : (state.customerCardId ? t('requestStamp') : t('joinClub'));
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${countLabel}</div></div><span class="reward-chip">${escapeHTML(rewardLabel)}</span></div><div class="stamps">${stamps}</div><div class="loyalty-card__footer"><div class="progress-copy">${progressLabel}</div><button class="loyalty-card__request" type="button" data-action="${loyaltyAction}" ${state.stampRequestLoading ? 'disabled' : ''}>${loyaltyActionLabel}</button></div></article><div class="section-head"><h2>${t('quickAccess')}</h2></div>${quickAccess()}</section>${nav('home')}</main>`;
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${countLabel}</div></div><span class="reward-chip">${escapeHTML(rewardLabel)}</span></div><div class="stamps">${stamps}</div><div class="loyalty-card__footer"><div class="progress-copy">${progressLabel}</div><div class="loyalty-card__actions"><button class="loyalty-card__request" type="button" data-action="${loyaltyAction}" ${state.stampRequestLoading ? 'disabled' : ''}>${loyaltyActionLabel}</button><button class="loyalty-card__request loyalty-card__request--reward" type="button" data-action="use-reward" ${state.availableRewards < 1 || state.stampRequestLoading ? 'disabled' : ''}>${t('useFreeCoffee')}</button></div></div></article><div class="section-head"><h2>${t('quickAccess')}</h2></div>${quickAccess()}</section>${nav('home')}</main>`;
 }
 
 function rewards() {
   if (!state.loyaltyReady) return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('yourCard')}</p><h1>${t('rewardsTitle')}</h1><div class="empty"><div><div class="empty__icon">☕</div><h2>${t('cardUnavailable')}</h2></div></div></section>${nav('rewards')}</main>`;
-  const rewardStatus = state.availableRewards > 0 ? `${state.availableRewards} ${t('available').toLowerCase()}` : t('unavailableReward');
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('rewardsEyebrow',{count:state.stamps})}</p><h1>${t('rewardsTitle')}</h1><p class="subtitle">${t('rewardsCopy')}</p><div class="section-head"><h2>${t('available')}</h2></div><div class="cards"><article class="reward-card"><div class="reward-art">☕</div><div><h3>${escapeHTML(state.rewardDescription)}</h3><p>${t('madeNow')}</p><div class="reward-card__foot"><span class="cost">${state.loyaltyGoal} ${t('stamps')}</span><button class="small-button" type="button" disabled>${escapeHTML(rewardStatus)}</button></div></div></article></div><p class="subtitle">${t('availableAtCafe')}</p></section>${nav('rewards')}</main>`;
+  const rewardStatus = state.availableRewards > 0
+    ? t(state.availableRewards === 1 ? 'oneCoffeeAvailable' : 'coffeesAvailable', { count: state.availableRewards })
+    : t('unavailableReward');
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('rewardsEyebrow',{count:state.stamps})}</p><h1>${t('rewardsTitle')}</h1><p class="subtitle">${t('rewardsCopy')}</p><div class="section-head"><h2>${t('available')}</h2></div><div class="cards"><article class="reward-card"><div class="reward-art">☕</div><div><h3>${escapeHTML(state.rewardDescription)}</h3><p>${t('madeNow')}</p><div class="reward-card__foot"><span class="cost">${escapeHTML(rewardStatus)}</span><button class="small-button" type="button" data-action="use-reward" ${state.availableRewards < 1 || state.stampRequestLoading ? 'disabled' : ''}>${t('useFreeCoffee')}</button></div></div></article></div><p class="subtitle">${t('availableAtCafe')}</p></section>${nav('rewards')}</main>`;
 }
 
 function history() {
   const formatDate = (value) => new Intl.DateTimeFormat(state.lang === 'ca' ? 'ca-ES' : 'es-ES', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
   const rows = state.loyaltyHistory.map((item) => ({
-    title: item.type === 'stamp' ? t('visitStamp') : state.rewardDescription,
-    date: `${formatDate(item.createdAt)} · ${item.programName || 'Spirit'} · ${item.businessName || 'Cafetería Spirit'}`,
+    title: item.type === 'stamp' ? t('visitStamp') : 'Café gratuito canjeado',
+    date: `${formatDate(item.createdAt)} · ${item.businessName || 'Cafetería Spirit'}${item.type === 'redemption' ? ` · ${item.availableRewards} restante(s)` : ''}`,
     points: item.type === 'stamp' ? `+${item.quantity}` : `−${item.quantity}`,
     spent: item.type !== 'stamp'
   }));
@@ -236,11 +241,13 @@ function authLoading() {
 const sheet = (content, className = '') => `<div class="modal-backdrop" data-sheet-backdrop><div class="modal ${className}" role="dialog" aria-modal="true">${content}</div></div>`;
 function stampRequestSheet() {
   const request = state.stampRequest;
+  const isReward = request?.type === 'reward_redemption';
+  const title = t(isReward ? 'rewardRequestTitle' : 'stampRequestTitle');
   if (request?.expired) {
-    return sheet(`<div data-stamp-request-sheet><div class="sheet-head"><div><p class="eyebrow">Spirit Coffee Club</p><h2>${t('stampRequestTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-stamp-request" aria-label="${t('close')}">×</button></div><div class="stamp-request stamp-request--expired"><span class="stamp-request__expired-icon" aria-hidden="true">⌛</span><p>${t('stampExpired')}</p><button class="primary-button" type="button" data-action="regenerate-stamp">${t('regenerateStamp')}</button></div></div>`, 'modal--form modal--stamp-request');
+    return sheet(`<div data-stamp-request-sheet><div class="sheet-head"><div><p class="eyebrow">Spirit Coffee Club</p><h2>${title}</h2></div><button class="sheet-close" type="button" data-action="close-stamp-request" aria-label="${t('close')}">×</button></div><div class="stamp-request stamp-request--expired"><span class="stamp-request__expired-icon" aria-hidden="true">⌛</span><p>${t('stampExpired')}</p><button class="primary-button" type="button" data-action="regenerate-stamp">${t('regenerateStamp')}</button></div></div>`, 'modal--form modal--stamp-request');
   }
   const initialCountdown = formatStampCountdown(STAMP_REQUEST_DURATION_SECONDS);
-  return sheet(`<div data-stamp-request-sheet><div class="sheet-head"><div><p class="eyebrow">Spirit Coffee Club</p><h2>${t('stampRequestTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-stamp-request" aria-label="${t('close')}">×</button></div><div class="stamp-request"><p class="subtitle">${t('stampRequestCopy')}</p><div class="stamp-request__qr"><img src="${request.qrDataUrl}" alt="QR temporal para solicitar un sello"></div><span class="stamp-request__label">${t('stampCodeLabel')}</span><strong class="stamp-request__code">${escapeHTML(request.shortCode)}</strong><p class="stamp-request__countdown" role="timer" aria-live="polite">${t('stampExpiresIn',{count:`<span data-stamp-countdown>${initialCountdown}</span>`})}</p><p class="stamp-request__security">El código se valida de forma segura y no contiene datos personales.</p></div></div>`, 'modal--form modal--stamp-request');
+  return sheet(`<div data-stamp-request-sheet><div class="sheet-head"><div><p class="eyebrow">Spirit Coffee Club</p><h2>${title}</h2></div><button class="sheet-close" type="button" data-action="close-stamp-request" aria-label="${t('close')}">×</button></div><div class="stamp-request"><p class="subtitle">${t(isReward ? 'rewardRequestCopy' : 'stampRequestCopy')}</p><div class="stamp-request__qr"><img src="${request.qrDataUrl}" alt="${isReward ? 'QR temporal para canjear un café gratuito' : 'QR temporal para solicitar un sello'}"></div><span class="stamp-request__label">${t('stampCodeLabel')}</span><strong class="stamp-request__code">${escapeHTML(request.shortCode)}</strong><p class="stamp-request__countdown" role="timer" aria-live="polite">${t('stampExpiresIn',{count:`<span data-stamp-countdown>${initialCountdown}</span>`})}</p><p class="stamp-request__security">El código es de un solo uso, no contiene datos personales y no descuenta nada hasta la confirmación del equipo.</p></div></div>`, 'modal--form modal--stamp-request');
 }
 
 let stampCountdownTimer = 0;
@@ -302,7 +309,9 @@ async function reconcileConfirmedStamp() {
     state.loyaltyHistoryHasMore = state.loyaltyHistory.length === 20;
     clearStampRequest();
     render();
-    showToast(rewardDelta > 0 ? t('rewardWon', { count: rewardDelta }) : t('stampConfirmed'));
+    showToast(request.type === 'reward_redemption'
+      ? t('rewardRedeemed')
+      : rewardDelta > 0 ? t('rewardWon', { count: rewardDelta }) : t('stampConfirmed'));
   } catch {
     // El siguiente evento o ciclo de polling vuelve a consultar la fuente de verdad.
   } finally {
@@ -345,7 +354,7 @@ function expireStampRequest() {
   stopStampMonitoring();
   clearInterval(stampCountdownTimer);
   stampCountdownTimer = 0;
-  state.stampRequest = { expired: true };
+  state.stampRequest = { ...state.stampRequest, expired: true };
   document.querySelector('[data-sheet-backdrop]')?.remove();
   openSheet(stampRequestSheet());
 }
@@ -363,17 +372,17 @@ function startStampCountdown() {
   stampCountdownTimer = setInterval(update, 250);
 }
 
-async function openStampRequest() {
+async function openLoyaltyRequest(createRequest) {
   if (state.stampRequestLoading) return;
   clearStampRequest();
   state.stampRequestLoading = true;
   render();
   try {
-    const request = await createStampRequest();
+    const request = await createRequest();
     state.stampRequest = request;
     state.stampRequestLoading = false;
     render();
-    if (state.screen === 'home') {
+    if (['home', 'rewards'].includes(state.screen)) {
       openSheet(stampRequestSheet());
       startStampCountdown();
       startStampMonitoring(request);
@@ -387,6 +396,9 @@ async function openStampRequest() {
     showToast(state.stampRequestError);
   }
 }
+
+const openStampRequest = () => openLoyaltyRequest(createStampRequest);
+const openRewardRequest = () => openLoyaltyRequest(createRewardRedemptionRequest);
 
 function personalSheet() {
   return sheet(`<div class="sheet-head"><div><p class="eyebrow">${t('personalEyebrow')}</p><h2>${t('personalTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-sheet" aria-label="${t('close')}">×</button></div><form class="sheet-form" data-form="profile"><div class="photo-editor">${avatar('avatar avatar--editor')}<strong>${t('changePhoto')}</strong><div class="photo-actions"><label class="photo-action">${t('gallery')}<input type="file" accept="image/*" data-photo-input hidden></label><label class="photo-action">${t('camera')}<input type="file" accept="image/*" capture="environment" data-photo-input hidden></label></div></div><div class="field"><label for="profile-first">${t('firstName')}</label><input id="profile-first" name="firstName" value="${escapeHTML(state.profile.firstName)}" maxlength="28" autocomplete="given-name" required></div><div class="field"><label for="profile-last">${t('lastName')}</label><input id="profile-last" name="lastName" value="${escapeHTML(state.profile.lastName)}" maxlength="42" autocomplete="family-name" required></div><div class="field"><label for="profile-email">${t('email')}</label><input id="profile-email" value="${escapeHTML(state.profile.email)}" type="email" readonly aria-describedby="email-note"><small id="email-note" class="field-note">${t('emailReadOnly')}</small></div><button class="sheet-link" type="button" data-action="open-password"><span>${t('changePassword')}</span><span>›</span></button><button class="primary-button" type="submit">${t('save')}</button></form>`, 'modal--form');
@@ -634,6 +646,7 @@ function bind() {
     if(action==='finish-onboarding' && !onboardingTransitioning){ localStorage.setItem('spirit-onboarded','1'); state.screen='login'; render(); }
     if(action==='close-sheet'){ document.querySelector('[data-sheet-backdrop]')?.remove(); }
     if(action==='request-stamp'){ openStampRequest(); }
+    if(action==='use-reward' && state.availableRewards > 0){ openRewardRequest(); }
     if(action==='join-loyalty'){
       if(state.stampRequestLoading)return;
       state.stampRequestLoading=true;state.stampRequestError='';render();
@@ -649,7 +662,7 @@ function bind() {
       render();
     }
     if(action==='close-stamp-request'){ clearStampRequest(); }
-    if(action==='regenerate-stamp'){ clearStampRequest(); openStampRequest(); }
+    if(action==='regenerate-stamp'){ const requestType=state.stampRequest?.type; clearStampRequest(); requestType==='reward_redemption'?openRewardRequest():openStampRequest(); }
     if(action==='open-personal'){ openSheet(personalSheet()); }
     if(action==='open-language'){ openSheet(languageSheet()); }
     if(action==='open-password'){ openSheet(passwordSheet()); }

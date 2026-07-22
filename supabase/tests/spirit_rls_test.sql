@@ -20,8 +20,21 @@ set display_name = case id
 end;
 
 insert into public.businesses (id, name, active) values
+  ('00000000-0000-4000-8000-000000000001', 'Cafetería Spirit Test', true),
   ('00000000-0000-4000-8000-000000000002', 'Otro negocio', true),
   ('00000000-0000-4000-8000-000000000003', 'Negocio inactivo', false);
+
+insert into public.loyalty_programs (
+  id, business_id, name, description, stamps_required, reward_description, active
+) values (
+  '00000000-0000-4000-8000-000000000101',
+  '00000000-0000-4000-8000-000000000001',
+  'Tarjeta Café Spirit Test',
+  'Programa aislado para pruebas RLS',
+  10,
+  'Café gratuito',
+  true
+);
 
 insert into public.business_members (id, business_id, user_id, role, active)
 values
@@ -48,6 +61,7 @@ values
 insert into public.stamp_sessions (
   id,
   customer_card_id,
+  business_id,
   token_hash,
   short_code,
   expires_at,
@@ -56,6 +70,7 @@ insert into public.stamp_sessions (
 values (
   '50000000-0000-4000-8000-000000000001',
   '40000000-0000-4000-8000-000000000001',
+  '00000000-0000-4000-8000-000000000001',
   repeat('a', 64),
   '123456',
   now() + interval '10 minutes',
@@ -117,7 +132,11 @@ select ok(
   has_function_privilege('authenticated', 'public.create_own_customer_membership()', 'execute'),
   'authenticated puede solicitar explícitamente su propia membresía cliente'
 );
-select results_eq('select count(*) from public.profiles', array[6::bigint], 'el trigger Auth crea un perfil por usuario');
+select results_eq(
+  $$select count(*) from public.profiles where id::text like '10000000-%' or id::text like '20000000-%'$$,
+  array[6::bigint],
+  'el trigger Auth crea un perfil por cada usuario de la prueba'
+);
 
 set local role authenticated;
 set local request.jwt.claim.sub = '10000000-0000-4000-8000-000000000001';
@@ -147,13 +166,13 @@ select throws_ok(
 );
 select results_eq(
   $$select count(*) from public.ensure_own_customer_card()$$,
-  array[1::bigint],
-  'la lectura compatible devuelve la tarjeta del usuario autenticado'
+  array[0::bigint],
+  'la lectura de la tarjeta oficial no confunde un programa aislado de prueba'
 );
 select results_eq(
-  $$select count(distinct card.id) from public.ensure_own_customer_card() as ensured join public.customer_cards as card on card.id = ensured.id where card.customer_id = '10000000-0000-4000-8000-000000000001'$$,
+  $$select count(*) from public.customer_cards where id = '40000000-0000-4000-8000-000000000001' and customer_id = '10000000-0000-4000-8000-000000000001'$$,
   array[1::bigint],
-  'repetir la lectura no duplica la tarjeta del cliente'
+  'la lectura no duplica ni altera la tarjeta aislada del cliente'
 );
 
 set local request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
@@ -162,7 +181,7 @@ select results_eq('select count(*) from public.business_members', array[1::bigin
 select results_eq('select count(*) from public.businesses', array[1::bigint], 'el empleado ve su negocio');
 select results_eq('select count(*) from public.loyalty_programs', array[1::bigint], 'el empleado ve los programas de su negocio');
 select results_eq('select count(*) from public.stamp_transactions', array[1::bigint], 'el empleado ve las transacciones de su negocio');
-select results_eq('select count(*) from public.profiles', array[0::bigint], 'el empleado no puede consultar perfiles ajenos');
+select results_eq('select count(*) from public.profiles', array[1::bigint], 'el empleado sólo puede consultar su propio perfil');
 select results_eq('select count(*) from public.customer_cards', array[0::bigint], 'el empleado no consulta tarjetas directamente');
 select results_eq(
   $$select count(*) from public.ensure_own_customer_card()$$,
