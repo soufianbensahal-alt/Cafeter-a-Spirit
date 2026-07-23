@@ -58,14 +58,27 @@ test('la carta implementa búsqueda, agrupación, categorías y scroll-spy', asy
   assert.match(app, /data-menu-category/);
   assert.match(app, /data-menu-section/);
   assert.match(app, /syncMenuFromScroll/);
-  assert.match(app, /scrollTo\(\{ top: section\.getBoundingClientRect\(\)\.top/);
+  assert.match(app, /menuScroller\.scrollTo\(\{ top: Math\.max\(0, top\), behavior: 'smooth' \}\)/);
+  assert.match(app, /menuScroller\.addEventListener\('scroll', menuScrollHandler/);
+  assert.match(app, /categories\.scrollLeft[\s\S]*categories\.scrollTo\(\{ left: Math\.max\(0, left\), behavior: 'smooth' \}\)/);
+  assert.doesNotMatch(app, /scrollIntoView/);
+  assert.match(app, /reachedBottom[\s\S]*sections\.at\(-1\)\.dataset\.menuSection/);
   assert.match(app, /menu-to-top--visible/);
 });
 
-test('buscador y categorías son sticky y los precios comparten columna', async () => {
+test('la cabecera queda fija y solo el listado utiliza scroll vertical', async () => {
   const styles = await read('styles.css');
 
-  assert.match(styles, /\.menu-sticky\s*\{\s*position:\s*sticky;/);
+  assert.match(styles, /\.menu-screen\s*\{[^}]*display:\s*flex;[^}]*overflow:\s*hidden;/s);
+  assert.match(styles, /\.menu-sticky\s*\{[^}]*flex:\s*0 0 auto;/s);
+  assert.match(styles, /\.menu-content\s*\{[^}]*flex:\s*1 1 auto;[^}]*overflow-y:\s*auto;/s);
+  assert.match(styles, /\.menu-content\s*\{[^}]*-webkit-overflow-scrolling:\s*touch;[^}]*touch-action:\s*pan-y;/s);
+  assert.doesNotMatch(styles, /\.menu-screen\s*\{[^}]*overflow-y:\s*(?:auto|scroll)/s);
+});
+
+test('los precios de la carta comparten columna y conservan su legibilidad', async () => {
+  const styles = await read('styles.css');
+
   assert.match(styles, /\.menu-product\s*\{[^}]*grid-template-columns:\s*minmax\(0,1fr\) 94px;/s);
   assert.match(styles, /\.menu-product__price\s*\{[^}]*text-align:\s*right;/s);
   assert.match(styles, /\.menu-product__main h3\s*\{[^}]*overflow-wrap:\s*anywhere;/s);

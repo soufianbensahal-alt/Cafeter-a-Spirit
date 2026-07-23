@@ -660,62 +660,110 @@ async function logout() {
 
 let menuScrollHandler = null;
 let menuScrollFrame = 0;
+let menuScroller = null;
+let menuNavigationTarget = null;
+let menuNavigationTimer = 0;
+let menuNavigationCancelHandler = null;
 
 function cleanupMenuInteractions() {
-  if (menuScrollHandler) removeEventListener('scroll', menuScrollHandler);
+  if (menuScroller && menuScrollHandler) menuScroller.removeEventListener('scroll', menuScrollHandler);
+  if (menuScroller && menuNavigationCancelHandler) {
+    menuScroller.removeEventListener('pointerdown', menuNavigationCancelHandler);
+    menuScroller.removeEventListener('touchstart', menuNavigationCancelHandler);
+    menuScroller.removeEventListener('wheel', menuNavigationCancelHandler);
+  }
   if (menuScrollFrame) cancelAnimationFrame(menuScrollFrame);
+  if (menuNavigationTimer) clearTimeout(menuNavigationTimer);
+  menuScroller = null;
   menuScrollHandler = null;
   menuScrollFrame = 0;
+  menuNavigationTarget = null;
+  menuNavigationTimer = 0;
+  menuNavigationCancelHandler = null;
 }
 
-function setMenuActiveCategory(categoryId) {
-  if (!categoryId || state.menuActiveCategory === categoryId) return;
+function centerMenuCategory(button) {
+  const categories = document.querySelector('[data-menu-categories]');
+  if (!categories || !button) return;
+  const categoriesRect = categories.getBoundingClientRect();
+  const buttonRect = button.getBoundingClientRect();
+  const left = categories.scrollLeft
+    + buttonRect.left
+    - categoriesRect.left
+    - ((categories.clientWidth - buttonRect.width) / 2);
+  categories.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+}
+
+function setMenuActiveCategory(categoryId, { center = true } = {}) {
+  if (!categoryId) return;
+  const changed = state.menuActiveCategory !== categoryId;
   state.menuActiveCategory = categoryId;
+  let activeButton = null;
   document.querySelectorAll('[data-menu-category]').forEach((button) => {
     const active = button.dataset.menuCategory === categoryId;
     button.classList.toggle('menu-category-tab--active', active);
     button.setAttribute('aria-pressed', String(active));
-    if (active) button.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    if (active) activeButton = button;
   });
+  if (changed && center) centerMenuCategory(activeButton);
+}
+
+function cancelMenuNavigation() {
+  if (menuNavigationTimer) clearTimeout(menuNavigationTimer);
+  menuNavigationTarget = null;
+  menuNavigationTimer = 0;
 }
 
 function syncMenuFromScroll() {
   menuScrollFrame = 0;
-  const sticky = document.querySelector('.menu-sticky');
+  if (!menuScroller) return;
   const sections = [...document.querySelectorAll('[data-menu-section]')];
-  const topOffset = (sticky?.getBoundingClientRect().height || 0) + 16;
+  const scrollerTop = menuScroller.getBoundingClientRect().top;
   let active = sections[0]?.dataset.menuSection;
 
-  for (const section of sections) {
-    if (section.getBoundingClientRect().top <= topOffset) active = section.dataset.menuSection;
-    else break;
+  if (!menuNavigationTarget) {
+    const reachedBottom = menuScroller.scrollTop + menuScroller.clientHeight >= menuScroller.scrollHeight - 2;
+    if (reachedBottom && sections.length) {
+      active = sections.at(-1).dataset.menuSection;
+    } else {
+      for (const section of sections) {
+        if (section.getBoundingClientRect().top <= scrollerTop + 16) active = section.dataset.menuSection;
+        else break;
+      }
+    }
+    setMenuActiveCategory(active);
   }
 
-  setMenuActiveCategory(active);
-  document.querySelector('.menu-to-top')?.classList.toggle('menu-to-top--visible', scrollY > 440);
+  document.querySelector('.menu-to-top')?.classList.toggle('menu-to-top--visible', menuScroller.scrollTop > 440);
 }
 
-function refreshMenuContent() {
+function refreshMenuContent({ resetScroll = false } = {}) {
   const content = document.querySelector('[data-menu-content]');
   if (content) content.innerHTML = menuContent();
   const clearButton = document.querySelector('[data-menu-clear]');
   if (clearButton) clearButton.hidden = !state.menuQuery;
+  if (resetScroll && menuScroller) menuScroller.scrollTop = 0;
   syncMenuFromScroll();
 }
 
 function bindMenuInteractions() {
   const search = document.querySelector('[data-menu-search]');
   if (!search) return;
+  menuScroller = document.querySelector('[data-menu-content]');
+  if (!menuScroller) return;
 
   search.addEventListener('input', (event) => {
     state.menuQuery = event.currentTarget.value;
-    refreshMenuContent();
+    cancelMenuNavigation();
+    refreshMenuContent({ resetScroll: true });
   });
 
   document.querySelector('[data-menu-clear]')?.addEventListener('click', () => {
     state.menuQuery = '';
     search.value = '';
-    refreshMenuContent();
+    cancelMenuNavigation();
+    setMenuActiveCategory(MENU_CATEGORIES[0].id);
+    refreshMenuContent({ resetScroll: true });
     search.focus();
   });
 
@@ -727,17 +775,33 @@ function bindMenuInteractions() {
       refreshMenuContent();
     }
     setMenuActiveCategory(categoryId);
+    centerMenuCategory(button);
     requestAnimationFrame(() => {
       const section = document.querySelector(`[data-menu-section="${categoryId}"]`);
-      const stickyHeight = document.querySelector('.menu-sticky')?.getBoundingClientRect().height || 0;
-      if (section) scrollTo({ top: section.getBoundingClientRect().top + scrollY - stickyHeight - 12, behavior: 'smooth' });
+      if (!section || !menuScroller) return;
+      const top = section.getBoundingClientRect().top
+        - menuScroller.getBoundingClientRect().top
+        + menuScroller.scrollTop
+        - 10;
+      cancelMenuNavigation();
+      menuNavigationTarget = categoryId;
+      menuNavigationTimer = setTimeout(() => {
+        menuNavigationTarget = null;
+        menuNavigationTimer = 0;
+        syncMenuFromScroll();
+      }, 700);
+      menuScroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     });
   }));
 
   menuScrollHandler = () => {
     if (!menuScrollFrame) menuScrollFrame = requestAnimationFrame(syncMenuFromScroll);
   };
-  addEventListener('scroll', menuScrollHandler, { passive: true });
+  menuNavigationCancelHandler = cancelMenuNavigation;
+  menuScroller.addEventListener('scroll', menuScrollHandler, { passive: true });
+  menuScroller.addEventListener('pointerdown', menuNavigationCancelHandler, { passive: true });
+  menuScroller.addEventListener('touchstart', menuNavigationCancelHandler, { passive: true });
+  menuScroller.addEventListener('wheel', menuNavigationCancelHandler, { passive: true });
   syncMenuFromScroll();
 }
 
@@ -818,7 +882,7 @@ function bind() {
     if(action==='use-reward' && state.availableRewards > 0){ openRewardRequest(); }
     if(action==='open-menu'){ state.menuQuery='';state.menuActiveCategory=MENU_CATEGORIES[0].id;state.screen='menu';render();scrollTo(0,0); }
     if(action==='close-menu'){ state.menuQuery='';state.screen='home';render();scrollTo(0,0); }
-    if(action==='menu-top'){ scrollTo({top:0,behavior:'smooth'}); }
+    if(action==='menu-top'){ document.querySelector('[data-menu-content]')?.scrollTo({top:0,behavior:'smooth'}); }
     if(action==='join-loyalty'){
       if(state.stampRequestLoading)return;
       state.stampRequestLoading=true;state.stampRequestError='';render();
