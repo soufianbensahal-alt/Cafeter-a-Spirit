@@ -208,6 +208,8 @@ h3 { font-size: 21px; line-height: 1.16; margin: 0; letter-spacing: -.012em; }
 .settings-row:last-child { border-bottom: 0; }
 .settings-row small { color: var(--muted); }
 .settings-row--switch { cursor: default; }
+.settings-row__copy { min-width: 0; display: grid; gap: 3px; padding: 10px 14px 10px 0; }
+.settings-row__copy small { max-width: 32ch; font-size: 11px; line-height: 1.35; }
 .settings-row--danger { color: var(--danger); }
 .switch { width: 50px; height: 30px; position: relative; flex: 0 0 auto; }
 .switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }

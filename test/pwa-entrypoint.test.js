@@ -23,7 +23,7 @@ test('el bootstrap separa cliente y cafetería', async () => {
 test('la caché PWA prioriza la versión de red', async () => {
   const worker = await readFile(projectFile('sw.js'), 'utf8');
 
-  assert.match(worker, /spirit-shell-v24/);
+  assert.match(worker, /spirit-shell-v25/);
   assert.match(worker, /fetch\(event\.request, \{ cache: 'no-store' \}\)/);
 });
 
