@@ -79,3 +79,11 @@ test('cliente y cafetería muestran el mismo control de persistencia', async () 
   assert.match(businessApp, /data-business-session-persistence/);
   assert.match(businessApp, /setSessionPersistence\(event\.currentTarget\.checked\)/);
 });
+
+test('el perfil del cliente no muestra la opción de invitar a un amigo', async () => {
+  const customerApp = await readFile(new URL('../app.js', import.meta.url), 'utf8');
+  const profileView = customerApp.match(/function profile\(\)[\s\S]*?function login\(\)/)?.[0] || '';
+
+  assert.doesNotMatch(profileView, /data-action="share"/);
+  assert.doesNotMatch(profileView, /inviteFriend/);
+});
