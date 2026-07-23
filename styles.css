@@ -441,6 +441,8 @@ html[data-theme="dark"] .toast { border-color: rgba(238,207,98,.14); background:
 
 @media (min-width: 700px) {
   .screen { padding-top: 36px; }
+}
+@media (min-width: 700px) and (max-width: 1023px) {
   .quick-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .quick-card { grid-column: span 2; }
   .quick-card:last-child:nth-child(3n + 1) { grid-column: 3 / span 2; }
@@ -451,6 +453,5 @@ html[data-theme="dark"] .toast { border-color: rgba(238,207,98,.14); background:
   .quick-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
   .quick-card { grid-column: span 2; }
   .quick-card:last-child:nth-child(odd) { grid-column: auto / span 2; }
-  .quick-card:nth-last-child(3):nth-child(4n + 1) { grid-column: 2 / span 2; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }

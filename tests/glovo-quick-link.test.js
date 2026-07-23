@@ -22,3 +22,20 @@ test('el logo de Glovo forma parte del shell offline de la PWA', async () => {
   assert.match(logo, /#00a082/);
   assert.match(worker, /\/assets\/glovo-logo\.svg/);
 });
+
+test('la cuadrícula de accesos mantiene filas equilibradas en cada breakpoint', async () => {
+  const styles = await read('styles.css');
+  const tabletStart = styles.indexOf('@media (min-width: 700px) and (max-width: 1023px)');
+  const desktopStart = styles.indexOf('@media (min-width: 1024px)');
+
+  assert.notEqual(tabletStart, -1, 'las reglas de tablet deben terminar antes de escritorio');
+  assert.notEqual(desktopStart, -1, 'deben existir reglas específicas para escritorio');
+
+  const tabletRules = styles.slice(tabletStart, desktopStart);
+  const desktopRules = styles.slice(desktopStart);
+
+  assert.match(tabletRules, /grid-template-columns:\s*repeat\(6,/);
+  assert.match(tabletRules, /nth-last-child\(2\):nth-child\(3n \+ 1\)/);
+  assert.match(desktopRules, /grid-template-columns:\s*repeat\(8,/);
+  assert.doesNotMatch(desktopRules, /nth-last-child\(2\):nth-child\(3n \+ 1\)/);
+});
