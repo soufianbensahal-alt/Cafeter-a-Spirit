@@ -162,7 +162,7 @@ const quickLinks = [
   {name: 'TikTok', subtitle: 'videos', icon: 'tiktok', href: 'https://www.tiktok.com/@spiritcoffee?_t=8mkgPy4coZF&_r=1'},
   {name: 'Google', subtitle: 'leaveReview', icon: 'star', href: 'https://google.com/maps/place//data=!4m3!3m2!1s0x12a4bdafe69b5aed:0x4b27331104bb0ad2!12e1?source=g.page.m.dd._&laa=lu-desktop-reviews-dialog-review-solicitation'},
   {name: 'Just Eat', subtitle: 'delivery', image: '/assets/just-eat-logo.avif', href: 'https://www.just-eat.es/restaurants-spirit-and-coffee-montcada-i-reixac'},
-  {name: 'Uber Eats', subtitle: 'delivery', image: '/assets/uber-eats-logo.png', useAsMask: true, href: 'https://www.ubereats.com/es/store/spirit-%26-coffee/S3m66DcHSLCtmmwzHhlp7A?diningMode=DELIVERY'},
+  {name: 'Uber Eats', subtitle: 'delivery', image: '/assets/uber-eats-logo.png', useAsMask: true, href: 'https://www.ubereats.com/es-en/store/cafeteria-spirit-|-brunch-pancakes-%26-bowls/S3m66DcHSLCtmmwzHhlp7A?diningMode=DELIVERY&pl=JTdCJTIyYWRkcmVzcyUyMiUzQSUyMkNhcnJlciUyMGRlJTIwTW9zcyVDMyVBOG4lMjBBbnRvbiUyQyUyMDU3JTIyJTJDJTIycmVmZXJlbmNlJTIyJTNBJTIyQ2hJSlBXdTY3Qk83cEJJUk5WYXFCeUktLTljJTIyJTJDJTIycmVmZXJlbmNlVHlwZSUyMiUzQSUyMmdvb2dsZV9wbGFjZXMlMjIlMkMlMjJsYXRpdHVkZSUyMiUzQTQxLjQ0NTI5MTk5OTk5OTk5NSUyQyUyMmxvbmdpdHVkZSUyMiUzQTIuMjQ3MDY4NDk5OTk5OTk5NyU3RA%3D%3D'},
   {name: 'Glovo', subtitle: 'delivery', image: '/assets/glovo-logo.svg', iconClass: 'quick-card__icon--glovo', href: 'https://glovoapp.com/es/es/montcada-i-reixach/stores/spirit-and-coffee-montacadaireixach'},
 ];
 
