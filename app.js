@@ -30,7 +30,7 @@ import {
   formatStampCountdown,
   STAMP_REQUEST_DURATION_SECONDS
 } from './services/stamp-expiry-rules.js';
-import { MENU_CATEGORIES } from './data/menu.js';
+import { MENU_CATEGORIES, getMenuCategories } from './data/menu.js';
 import {
   isSessionPersistenceEnabled,
   setSessionPersistence
@@ -236,10 +236,11 @@ const menuSection = (category) => `<section class="menu-category" id="menu-categ
 </section>`;
 
 function menuContent() {
+  const menuCategories = getMenuCategories(state.lang);
   const query = normalizeMenuText(state.menuQuery.trim());
-  if (!query) return MENU_CATEGORIES.map(menuSection).join('');
+  if (!query) return menuCategories.map(menuSection).join('');
 
-  const groups = MENU_CATEGORIES.map((category) => ({
+  const groups = menuCategories.map((category) => ({
     category,
     products: category.products.filter((product) => normalizeMenuText([
       product.name,
@@ -257,6 +258,7 @@ function menuContent() {
 }
 
 function menu() {
+  const menuCategories = getMenuCategories(state.lang);
   return `<main class="app-shell menu-shell"><section class="menu-screen">
     <header class="menu-sticky">
       <div class="menu-titlebar">
@@ -271,7 +273,7 @@ function menu() {
         <button class="menu-search__clear" type="button" data-menu-clear aria-label="${t('menuClear')}" ${state.menuQuery ? '' : 'hidden'}>${icons.close}</button>
       </label>
       <nav class="menu-categories" aria-label="${t('menuTitle')}" data-menu-categories>
-        ${MENU_CATEGORIES.map((category) => `<button type="button" class="menu-category-tab ${state.menuActiveCategory === category.id ? 'menu-category-tab--active' : ''}" data-menu-category="${category.id}" aria-pressed="${state.menuActiveCategory === category.id}">${escapeHTML(category.name)}</button>`).join('')}
+        ${menuCategories.map((category) => `<button type="button" class="menu-category-tab ${state.menuActiveCategory === category.id ? 'menu-category-tab--active' : ''}" data-menu-category="${category.id}" aria-pressed="${state.menuActiveCategory === category.id}">${escapeHTML(category.name)}</button>`).join('')}
       </nav>
     </header>
     <div class="menu-content" data-menu-content>${menuContent()}</div>

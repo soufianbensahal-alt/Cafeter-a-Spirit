@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { MENU_CATEGORIES } from '../data/menu.js';
+import { MENU_CATEGORIES, getMenuCategories } from '../data/menu.js';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -37,6 +37,57 @@ test('la carta conserva productos, precios y suplementos representativos', () =>
   assert.equal(byId.tostadas.products.find(({ name }) => name === 'Aguacate').priceNote, '+2 € queso brie');
   assert.ok(byId.cafes.notes.includes('Bebida de avena +0,30 €'));
   assert.ok(byId.creps.notes.some((note) => note.includes('Toppings +1,50 €')));
+});
+
+test('la carta se localiza al catalán sin alterar estructura, precios ni identificadores', () => {
+  const catalanMenu = getMenuCategories('ca');
+  const spanishShape = MENU_CATEGORIES.map(({ id, products }) => ({
+    id,
+    products: products.map(({ price }) => price)
+  }));
+  const catalanShape = catalanMenu.map(({ id, products }) => ({
+    id,
+    products: products.map(({ price }) => price)
+  }));
+  const byId = Object.fromEntries(catalanMenu.map((category) => [category.id, category]));
+
+  assert.deepEqual(catalanShape, spanishShape);
+  assert.deepEqual(catalanMenu.map(({ name }) => name), [
+    'Cafès',
+    'Begudes',
+    'Smoothies',
+    'Batuts',
+    'Protein',
+    'Bowls',
+    'Torrades',
+    'Molletes',
+    'Benedict',
+    'Pancakes',
+    'Creps',
+    'Creps salades',
+    'Entrepans',
+    'Omelette',
+    'Extres'
+  ]);
+  assert.equal(byId.tostadas.intro, 'En pa de xia, cruixents i saboroses des del primer mos.');
+  assert.deepEqual(
+    byId.tostadas.products.find(({ name }) => name === 'Salmó'),
+    { name: 'Salmó', description: 'amb formatge crema, alvocat i salmó fumat', price: '12,15 €' }
+  );
+  assert.equal(
+    byId.cafes.products.find(({ name }) => name === 'Capuccino Caramel').description,
+    'espresso, llet, caramel i cacau'
+  );
+  assert.ok(byId.benedict.notes.includes('Opció de pa sense gluten +1,50 €'));
+});
+
+test('la vista y la búsqueda de Carta consumen el catálogo del idioma activo', async () => {
+  const app = await read('app.js');
+
+  assert.match(app, /getMenuCategories\(state\.lang\)/);
+  assert.match(app, /menuCategories\.map\(menuSection\)/);
+  assert.match(app, /const groups = menuCategories\.map/);
+  assert.match(app, /menuCategories\.map\(\(category\) => `<button/);
 });
 
 test('Carta abre internamente y elimina por completo el enlace de Canva', async () => {
