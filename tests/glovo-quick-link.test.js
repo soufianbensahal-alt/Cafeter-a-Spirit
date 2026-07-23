@@ -23,6 +23,13 @@ test('el logo de Glovo forma parte del shell offline de la PWA', async () => {
   assert.match(worker, /\/assets\/glovo-logo\.svg/);
 });
 
+test('el logo de Glovo aprovecha el contenedor sin deformarse', async () => {
+  const styles = await read('styles.css');
+
+  assert.match(styles, /\.quick-card__icon--glovo img\s*\{\s*width:\s*46px;\s*height:\s*auto;\s*max-height:\s*40px;\s*padding:\s*0;/);
+  assert.match(styles, /html\[data-theme="dark"\] \.quick-card__icon--glovo\s*\{\s*background:\s*#fdc500;/);
+});
+
 test('la cuadrícula de accesos mantiene filas equilibradas en cada breakpoint', async () => {
   const styles = await read('styles.css');
   const tabletStart = styles.indexOf('@media (min-width: 700px) and (max-width: 1023px)');
