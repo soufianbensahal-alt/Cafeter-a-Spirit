@@ -35,6 +35,13 @@ import {
   isSessionPersistenceEnabled,
   setSessionPersistence
 } from './services/session-persistence.js';
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+  getPushNotificationState,
+  PushNotificationError,
+  synchronizePushLanguage
+} from './services/push-notification-service.js';
 
 const isBusinessMode = /^\/cafeteria\/?$/.test(window.location.pathname);
 const isPasswordRecoveryRoute = /^\/reset-password\/?$/.test(window.location.pathname)
@@ -88,7 +95,7 @@ const copy = {
     menuTitle: 'Carta', menuBack: 'Volver al inicio', menuSearch: 'Buscar plato o ingrediente', menuResults: 'Resultados', menuNoResults: 'No hemos encontrado ningún plato con ese nombre.', menuNoResultsCopy: 'Prueba con otro ingrediente o revisa las categorías.', menuClear: 'Limpiar búsqueda', menuTop: 'Volver arriba',
     rewardsEyebrow: 'Tienes {count} sellos', rewardsTitle: 'Algo bueno<br>te espera.', rewardsCopy: 'Canjea tus sellos en caja y disfruta de tu momento Spirit.', available: 'Disponibles', madeNow: 'Preparado al momento con mucho mimo.', stamps: 'sellos',
     historyEyebrow: 'Tus momentos Spirit', historyTitle: 'Cada visita<br>cuenta.', movements: 'Movimientos', visitStamp: 'Sello por visita', redeemedCoffee: 'Café gratuito canjeado', oneRewardRemaining: '{count} recompensa restante', rewardsRemaining: '{count} recompensas restantes', loadMore: 'Cargar más', noMovements: 'Aún no hay movimientos', noMovementsCopy: '¡Ven a por tu primer sello! Tu historia Spirit empieza con un café.',
-    profileEyebrow: 'Tu espacio', profileTitle: 'Muy tú.<br>Muy Spirit.', completeProfile: 'Completa tu nombre para personalizar Spirit', yourAccount: 'Tu cuenta', settings: 'Ajustes', personalData: 'Datos personales', notifications: 'Notificaciones', keepSession: 'Mantener sesión iniciada', keepSessionCopy: 'Recordar esta cuenta al volver a abrir Spirit', darkMode: 'Modo oscuro', language: 'Idioma', spanish: 'Castellano', catalan: 'Catalán', inviteFriend: 'Invita a un amigo', logout: 'Cerrar sesión',
+    profileEyebrow: 'Tu espacio', profileTitle: 'Muy tú.<br>Muy Spirit.', completeProfile: 'Completa tu nombre para personalizar Spirit', yourAccount: 'Tu cuenta', settings: 'Ajustes', personalData: 'Datos personales', notifications: 'Notificaciones', notificationsCopy: 'Recordatorio de accesos rápidos cada 2 días', notificationsEnabled: 'Notificaciones activadas', notificationsDisabled: 'Notificaciones desactivadas', notificationsDenied: 'Activa las notificaciones de Spirit desde los ajustes del dispositivo.', notificationsUnsupported: 'Este dispositivo no admite notificaciones web.', notificationsInstallIOS: 'En iPhone o iPad, añade Spirit a la pantalla de inicio para activar las notificaciones.', notificationsError: 'No se han podido configurar las notificaciones. Inténtalo de nuevo.', keepSession: 'Mantener sesión iniciada', keepSessionCopy: 'Recordar esta cuenta al volver a abrir Spirit', darkMode: 'Modo oscuro', language: 'Idioma', spanish: 'Castellano', catalan: 'Catalán', inviteFriend: 'Invita a un amigo', logout: 'Cerrar sesión',
     personalEyebrow: 'Tu cuenta', personalTitle: 'Datos personales', changePhoto: 'Fotografía de perfil', gallery: 'Galería', camera: 'Cámara', firstName: 'Nombre', lastName: 'Apellidos', email: 'Correo electrónico', emailReadOnly: 'Gestionado por tu cuenta', changePassword: 'Cambiar contraseña', save: 'Guardar', close: 'Cerrar',
     passwordEyebrow: 'Seguridad', passwordTitle: 'Cambiar contraseña', currentPassword: 'Contraseña actual', newPassword: 'Nueva contraseña', confirmPassword: 'Confirmar contraseña', passwordLength: 'La nueva contraseña debe tener al menos 8 caracteres.', passwordMismatch: 'Las contraseñas no coinciden.', passwordIncorrect: 'La contraseña actual no es correcta.', passwordSaved: 'Contraseña actualizada',
     languageEyebrow: 'Preferencias', languageTitle: 'Idioma de la aplicación', welcome: 'Bienvenida a casa', loginTitle: 'Tu café.<br>Tus sellos.', authLabel: 'Autenticación', phone: 'Teléfono', namePlaceholder: '¿Cómo te llamas?', emailPlaceholder: 'tu@email.com', privacy: 'Acepto la política de privacidad y el tratamiento de mis datos según el RGPD.', createAccount: 'Crear mi cuenta', signIn: 'Iniciar sesión', password: 'Contraseña', forgotPassword: 'He olvidado mi contraseña', sendRecovery: 'Enviar enlace de recuperación', backToSignIn: 'Volver al acceso', repeatPassword: 'Confirmar nueva contraseña', checkSession: 'Comprobando tu sesión…', authConfirmation: 'Revisa tu correo para confirmar la cuenta antes de iniciar sesión.', recoverySent: 'Si existe una cuenta con ese correo, recibirás un enlace de recuperación.', recoveryEyebrow: 'Seguridad de tu cuenta', recoveryTitle: 'Crea una nueva<br>contraseña.', recoveryCopy: 'Introduce una contraseña segura y repítela para confirmar que está escrita correctamente.', recoveryChecking: 'Validando el enlace de recuperación…', recoveryInvalidTitle: 'El enlace ya no es válido.', recoveryInvalidCopy: 'El enlace ha caducado, ya se ha utilizado o no puede verificarse. Solicita uno nuevo para continuar.', requestAnotherRecovery: 'Solicitar otro enlace', recoveryCompleteTitle: 'Contraseña actualizada.', recoveryCompleteCopy: 'Tu nueva contraseña ya está activa. Puedes continuar con tu cuenta Spirit.', continueToSpirit: 'Continuar en Spirit', recoverySessionMissing: 'No se ha podido validar el enlace. Solicita uno nuevo.', completeRecovery: 'Guardar nueva contraseña',
@@ -105,7 +112,7 @@ const copy = {
     menuTitle: 'Carta', menuBack: 'Tornar a l’inici', menuSearch: 'Cerca un plat o ingredient', menuResults: 'Resultats', menuNoResults: 'No hem trobat cap plat amb aquest nom.', menuNoResultsCopy: 'Prova amb un altre ingredient o revisa les categories.', menuClear: 'Netejar la cerca', menuTop: 'Tornar a dalt',
     rewardsEyebrow: 'Tens {count} segells', rewardsTitle: 'Una cosa bona<br>t’espera.', rewardsCopy: 'Bescanvia els teus segells a caixa i gaudeix del teu moment Spirit.', available: 'Disponibles', madeNow: 'Preparat al moment amb molta cura.', stamps: 'segells',
     historyEyebrow: 'Els teus moments Spirit', historyTitle: 'Cada visita<br>compta.', movements: 'Moviments', visitStamp: 'Segell per visita', redeemedCoffee: 'Cafè gratuït bescanviat', oneRewardRemaining: '{count} recompensa restant', rewardsRemaining: '{count} recompenses restants', loadMore: 'Carregar-ne més', noMovements: 'Encara no hi ha moviments', noMovementsCopy: 'Vine a buscar el teu primer segell! La teva història Spirit comença amb un cafè.',
-    profileEyebrow: 'El teu espai', profileTitle: 'Molt tu.<br>Molt Spirit.', completeProfile: 'Completa el teu nom per personalitzar Spirit', yourAccount: 'El teu compte', settings: 'Configuració', personalData: 'Dades personals', notifications: 'Notificacions', keepSession: 'Mantenir la sessió iniciada', keepSessionCopy: 'Recordar aquest compte en tornar a obrir Spirit', darkMode: 'Mode fosc', language: 'Idioma', spanish: 'Castellà', catalan: 'Català', inviteFriend: 'Convida un amic', logout: 'Tancar sessió',
+    profileEyebrow: 'El teu espai', profileTitle: 'Molt tu.<br>Molt Spirit.', completeProfile: 'Completa el teu nom per personalitzar Spirit', yourAccount: 'El teu compte', settings: 'Configuració', personalData: 'Dades personals', notifications: 'Notificacions', notificationsCopy: 'Recordatori d’accessos ràpids cada 2 dies', notificationsEnabled: 'Notificacions activades', notificationsDisabled: 'Notificacions desactivades', notificationsDenied: 'Activa les notificacions de Spirit des de la configuració del dispositiu.', notificationsUnsupported: 'Aquest dispositiu no admet notificacions web.', notificationsInstallIOS: 'A l’iPhone o l’iPad, afegeix Spirit a la pantalla d’inici per activar les notificacions.', notificationsError: 'No s’han pogut configurar les notificacions. Torna-ho a provar.', keepSession: 'Mantenir la sessió iniciada', keepSessionCopy: 'Recordar aquest compte en tornar a obrir Spirit', darkMode: 'Mode fosc', language: 'Idioma', spanish: 'Castellà', catalan: 'Català', inviteFriend: 'Convida un amic', logout: 'Tancar sessió',
     personalEyebrow: 'El teu compte', personalTitle: 'Dades personals', changePhoto: 'Fotografia de perfil', gallery: 'Galeria', camera: 'Càmera', firstName: 'Nom', lastName: 'Cognoms', email: 'Correu electrònic', emailReadOnly: 'Gestionat pel teu compte', changePassword: 'Canviar contrasenya', save: 'Desar', close: 'Tancar',
     passwordEyebrow: 'Seguretat', passwordTitle: 'Canviar contrasenya', currentPassword: 'Contrasenya actual', newPassword: 'Nova contrasenya', confirmPassword: 'Confirmar contrasenya', passwordLength: 'La nova contrasenya ha de tenir almenys 8 caràcters.', passwordMismatch: 'Les contrasenyes no coincideixen.', passwordIncorrect: 'La contrasenya actual no és correcta.', passwordSaved: 'Contrasenya actualitzada',
     languageEyebrow: 'Preferències', languageTitle: 'Idioma de l’aplicació', welcome: 'Benvinguda a casa', loginTitle: 'El teu cafè.<br>Els teus segells.', authLabel: 'Autenticació', phone: 'Telèfon', namePlaceholder: 'Com et dius?', emailPlaceholder: 'el_teu@email.com', privacy: 'Accepto la política de privacitat i el tractament de les meves dades segons el RGPD.', createAccount: 'Crear el meu compte', signIn: 'Iniciar sessió', password: 'Contrasenya', forgotPassword: 'He oblidat la contrasenya', sendRecovery: 'Enviar enllaç de recuperació', backToSignIn: 'Tornar a l’accés', repeatPassword: 'Confirmar la nova contrasenya', checkSession: 'Comprovant la sessió…', authConfirmation: 'Revisa el correu per confirmar el compte abans d’iniciar sessió.', recoverySent: 'Si existeix un compte amb aquest correu, rebràs un enllaç de recuperació.', recoveryEyebrow: 'Seguretat del teu compte', recoveryTitle: 'Crea una nova<br>contrasenya.', recoveryCopy: 'Introdueix una contrasenya segura i repeteix-la per confirmar que està escrita correctament.', recoveryChecking: 'Validant l’enllaç de recuperació…', recoveryInvalidTitle: 'L’enllaç ja no és vàlid.', recoveryInvalidCopy: 'L’enllaç ha caducat, ja s’ha utilitzat o no es pot verificar. Sol·licita’n un de nou per continuar.', requestAnotherRecovery: 'Sol·licitar un altre enllaç', recoveryCompleteTitle: 'Contrasenya actualitzada.', recoveryCompleteCopy: 'La teva nova contrasenya ja està activa. Pots continuar amb el teu compte Spirit.', continueToSpirit: 'Continuar a Spirit', recoverySessionMissing: 'No s’ha pogut validar l’enllaç. Sol·licita’n un de nou.', completeRecovery: 'Desar la nova contrasenya',
@@ -129,7 +136,8 @@ const state = {
   loyaltyHistoryHasMore: false,
   lang: localStorage.getItem('spirit-language') === 'ca' ? 'ca' : 'es',
   theme: document.documentElement.dataset.theme || 'light',
-  notifications: localStorage.getItem('spirit-notifications') !== 'false',
+  notifications: false,
+  notificationsLoading: false,
   keepSession: isSessionPersistenceEnabled(),
   profile: { ...defaultProfile },
   hasBusinessAccess: false,
@@ -215,7 +223,7 @@ function home() {
   const countLabel = state.loyaltyReady ? `${state.stamps}/${state.loyaltyGoal}` : '—';
   const loyaltyAction = state.customerCardId ? 'request-stamp' : 'join-loyalty';
   const loyaltyActionLabel = state.stampRequestLoading ? (state.customerCardId ? t('generatingStamp') : t('joiningClub')) : (state.customerCardId ? t('requestStamp') : t('joinClub'));
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${countLabel}</div></div><span class="reward-chip">${escapeHTML(rewardLabel)}</span></div><div class="stamps">${stamps}</div><div class="loyalty-card__footer"><div class="progress-copy">${progressLabel}</div><div class="loyalty-card__actions"><button class="loyalty-card__request" type="button" data-action="${loyaltyAction}" ${state.stampRequestLoading ? 'disabled' : ''}>${loyaltyActionLabel}</button><button class="loyalty-card__request loyalty-card__request--reward" type="button" data-action="use-reward" ${state.availableRewards < 1 || state.stampRequestLoading ? 'disabled' : ''}>${t('useFreeCoffee')}</button></div></div></article><div class="section-head"><h2>${t('quickAccess')}</h2></div>${quickAccess()}</section>${nav('home')}</main>`;
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${countLabel}</div></div><span class="reward-chip">${escapeHTML(rewardLabel)}</span></div><div class="stamps">${stamps}</div><div class="loyalty-card__footer"><div class="progress-copy">${progressLabel}</div><div class="loyalty-card__actions"><button class="loyalty-card__request" type="button" data-action="${loyaltyAction}" ${state.stampRequestLoading ? 'disabled' : ''}>${loyaltyActionLabel}</button><button class="loyalty-card__request loyalty-card__request--reward" type="button" data-action="use-reward" ${state.availableRewards < 1 || state.stampRequestLoading ? 'disabled' : ''}>${t('useFreeCoffee')}</button></div></div></article><div class="section-head" id="quick-access"><h2>${t('quickAccess')}</h2></div>${quickAccess()}</section>${nav('home')}</main>`;
 }
 
 const normalizeMenuText = (value = '') => String(value)
@@ -311,7 +319,7 @@ function history() {
 
 function profile() {
   const loyaltyCount = state.loyaltyReady ? `${state.stamps} ${t('stamps')}` : t('cardUnavailable');
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('profileEyebrow')}</p><h1>${t('profileTitle')}</h1>${state.needsProfileCompletion ? `<button class="profile-completion" type="button" data-action="open-personal">${t('completeProfile')}</button>` : ''}<div class="section-head"><h2>${t('yourAccount')}</h2></div><article class="profile-card">${avatar()}<div><h3>${escapeHTML(state.profile.firstName)} ${escapeHTML(state.profile.lastName)}</h3><p>${escapeHTML(state.profile.email)} · ${loyaltyCount}</p></div></article><div class="section-head"><h2>${t('settings')}</h2></div><div class="settings-list"><button class="settings-row" data-action="open-personal"><span>${t('personalData')}</span><span>›</span></button>${state.hasBusinessAccess ? `<a class="settings-row settings-row--link" href="/cafeteria"><span>${t('businessMode')}</span><span>›</span></a>` : ''}<label class="settings-row settings-row--switch"><span>${t('notifications')}</span><span class="switch"><input type="checkbox" data-notifications ${state.notifications?'checked':''}><span class="switch__track" aria-hidden="true"></span></span></label><label class="settings-row settings-row--switch"><span class="settings-row__copy"><span>${t('keepSession')}</span><small>${t('keepSessionCopy')}</small></span><span class="switch"><input type="checkbox" data-session-persistence ${state.keepSession?'checked':''}><span class="switch__track" aria-hidden="true"></span></span></label><label class="settings-row settings-row--switch"><span>${t('darkMode')}</span><span class="switch"><input type="checkbox" data-theme-toggle ${state.theme==='dark'?'checked':''}><span class="switch__track" aria-hidden="true"></span></span></label><button class="settings-row" data-action="open-language"><span>${t('language')}</span><small>${state.lang==='ca'?t('catalan'):t('spanish')}</small></button><button class="settings-row settings-row--danger" data-action="logout"><span>${t('logout')}</span><span>›</span></button></div><div class="section-head"><h2>Spirit Coffee</h2></div><p class="subtitle">Passeig Rocamora, 9<br>Montcada i Reixac · Barcelona</p></section>${nav('profile')}</main>`;
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('profileEyebrow')}</p><h1>${t('profileTitle')}</h1>${state.needsProfileCompletion ? `<button class="profile-completion" type="button" data-action="open-personal">${t('completeProfile')}</button>` : ''}<div class="section-head"><h2>${t('yourAccount')}</h2></div><article class="profile-card">${avatar()}<div><h3>${escapeHTML(state.profile.firstName)} ${escapeHTML(state.profile.lastName)}</h3><p>${escapeHTML(state.profile.email)} · ${loyaltyCount}</p></div></article><div class="section-head"><h2>${t('settings')}</h2></div><div class="settings-list"><button class="settings-row" data-action="open-personal"><span>${t('personalData')}</span><span>›</span></button>${state.hasBusinessAccess ? `<a class="settings-row settings-row--link" href="/cafeteria"><span>${t('businessMode')}</span><span>›</span></a>` : ''}<label class="settings-row settings-row--switch"><span class="settings-row__copy"><span>${t('notifications')}</span><small>${t('notificationsCopy')}</small></span><span class="switch"><input type="checkbox" data-notifications ${state.notifications?'checked':''} ${state.notificationsLoading?'disabled':''}><span class="switch__track" aria-hidden="true"></span></span></label><label class="settings-row settings-row--switch"><span class="settings-row__copy"><span>${t('keepSession')}</span><small>${t('keepSessionCopy')}</small></span><span class="switch"><input type="checkbox" data-session-persistence ${state.keepSession?'checked':''}><span class="switch__track" aria-hidden="true"></span></span></label><label class="settings-row settings-row--switch"><span>${t('darkMode')}</span><span class="switch"><input type="checkbox" data-theme-toggle ${state.theme==='dark'?'checked':''}><span class="switch__track" aria-hidden="true"></span></span></label><button class="settings-row" data-action="open-language"><span>${t('language')}</span><small>${state.lang==='ca'?t('catalan'):t('spanish')}</small></button><button class="settings-row settings-row--danger" data-action="logout"><span>${t('logout')}</span><span>›</span></button></div><div class="section-head"><h2>Spirit Coffee</h2></div><p class="subtitle">Passeig Rocamora, 9<br>Montcada i Reixac · Barcelona</p></section>${nav('profile')}</main>`;
 }
 
 function login() {
@@ -546,6 +554,29 @@ const readableStampError = (error) => {
   return messages[error?.code] || (state.lang === 'es' ? error?.message : t('requestError'));
 };
 
+const readablePushError = (error) => {
+  if (!(error instanceof PushNotificationError)) return t('notificationsError');
+  return {
+    push_permission_denied: t('notificationsDenied'),
+    push_unsupported: t('notificationsUnsupported'),
+    ios_install_required: t('notificationsInstallIOS')
+  }[error.code] || t('notificationsError');
+};
+
+async function refreshPushNotificationPreference({ rerender = false } = {}) {
+  state.notifications = await getPushNotificationState();
+  if (state.notifications) {
+    try {
+      await synchronizePushLanguage(state.lang);
+    } catch {
+      state.notifications = false;
+    }
+  }
+  localStorage.removeItem('spirit-notifications');
+  if (rerender) render();
+  return state.notifications;
+}
+
 function applyCustomerContext(context) {
   if (!context) return;
   state.profile = {
@@ -620,6 +651,7 @@ async function initializeCustomerAuth() {
     if (context) {
       applyCustomerContext(context);
       await refreshCustomerLoyaltySafely();
+      await refreshPushNotificationPreference();
       if (isOAuthCallbackRoute) {
         window.history.replaceState({}, '', '/');
         state.screen = 'home';
@@ -682,6 +714,11 @@ async function enterSpirit() {
 
 async function logout() {
   clearStampRequest();
+  if (state.notifications) {
+    try { await disablePushNotifications(); }
+    catch (error) { showToast(readablePushError(error)); }
+    state.notifications = false;
+  }
   try { await signOut(); }
   catch (error) { showToast(readableAuthError(error)); }
   clearCustomerIdentity();
@@ -844,6 +881,15 @@ function render() {
   cleanupMenuInteractions();
   app.innerHTML = ({intro,onboarding,login,authLoading,home,menu,rewards,history,profile})[state.screen]();
   bind();
+  if (state.screen === 'home' && window.location.hash === '#quick-access') {
+    requestAnimationFrame(() => {
+      const quickAccessSection = document.querySelector('#quick-access');
+      if (quickAccessSection) window.scrollTo({
+        top: window.scrollY + quickAccessSection.getBoundingClientRect().top - 24,
+        behavior: 'smooth'
+      });
+    });
+  }
   if (state.screen === 'intro') {
     document.querySelector('[data-intro-logo]')?.addEventListener('error', finishIntro, {once: true});
     clearTimeout(render.introFallback);
@@ -946,8 +992,8 @@ function bind() {
   })});
   document.querySelectorAll('[data-sheet-backdrop]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',(event)=>{if(event.target===el){if(el.querySelector('[data-stamp-request-sheet]'))clearStampRequest();else el.remove();}})});
   document.querySelectorAll('[data-onboarding-swipe]:not([data-bound])').forEach(el=>{el.dataset.bound='1';let startX=0;let startY=0;el.addEventListener('touchstart',(event)=>{startX=event.changedTouches[0].clientX;startY=event.changedTouches[0].clientY;},{passive:true});el.addEventListener('touchend',(event)=>{const deltaX=event.changedTouches[0].clientX-startX;const deltaY=event.changedTouches[0].clientY-startY;if(Math.abs(deltaX)>52&&Math.abs(deltaX)>Math.abs(deltaY)*1.2)moveOnboarding(deltaX<0?1:-1);},{passive:true})});
-  document.querySelectorAll('[data-language]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{state.lang=el.dataset.language;localStorage.setItem('spirit-language',state.lang);document.querySelector('[data-sheet-backdrop]')?.remove();render();})});
-  document.querySelectorAll('[data-notifications]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',(event)=>{state.notifications=event.currentTarget.checked;localStorage.setItem('spirit-notifications',String(state.notifications));})});
+  document.querySelectorAll('[data-language]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',async()=>{state.lang=el.dataset.language;localStorage.setItem('spirit-language',state.lang);document.querySelector('[data-sheet-backdrop]')?.remove();render();if(state.notifications){try{await synchronizePushLanguage(state.lang);}catch(error){showToast(readablePushError(error));}}})});
+  document.querySelectorAll('[data-notifications]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',async(event)=>{if(state.notificationsLoading)return;const desired=event.currentTarget.checked;state.notificationsLoading=true;event.currentTarget.disabled=true;try{state.notifications=desired?await enablePushNotifications(state.lang):await disablePushNotifications();showToast(t(desired?'notificationsEnabled':'notificationsDisabled'));}catch(error){state.notifications=await getPushNotificationState();showToast(readablePushError(error));}finally{state.notificationsLoading=false;render();}})});
   document.querySelectorAll('[data-session-persistence]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',(event)=>{state.keepSession=setSessionPersistence(event.currentTarget.checked);event.currentTarget.checked=state.keepSession;})});
   document.querySelectorAll('[data-theme-toggle]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',(event)=>applyTheme(event.currentTarget.checked?'dark':'light',true))});
   document.querySelectorAll('[data-photo-input]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',async(event)=>{try{state.profile.photo=await imageToAvatar(event.currentTarget.files[0]);document.querySelectorAll('.avatar').forEach(avatarElement=>{avatarElement.innerHTML=`<img src="${state.profile.photo}" alt="${escapeHTML(state.profile.firstName)}">`;});}catch{showToast(t('invalidImage'));}event.currentTarget.value='';})});
@@ -991,6 +1037,7 @@ if (!isBusinessMode) {
         try {
           applyCustomerContext(await getCustomerContext(user));
           await refreshCustomerLoyaltySafely();
+          await refreshPushNotificationPreference();
           if (isOAuthCallbackRoute || state.screen === 'authLoading') window.history.replaceState({}, '', '/');
           if (state.screen === 'login' || state.screen === 'authLoading') state.screen = 'home';
           render();

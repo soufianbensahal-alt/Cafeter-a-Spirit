@@ -66,3 +66,42 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(event.request))
   );
 });
+
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data?.json() ?? {};
+  } catch {
+    payload = { body: event.data?.text() ?? '' };
+  }
+
+  const title = payload.title || 'Spirit Coffee';
+  event.waitUntil(self.registration.showNotification(title, {
+    body: payload.body || 'Accede a tus accesos rápidos desde Spirit Coffee.',
+    icon: payload.icon || '/assets/icons/spirit-192.png',
+    badge: payload.badge || '/assets/icons/favicon-64.png',
+    tag: payload.tag || 'spirit-notification',
+    renotify: false,
+    data: {
+      url: payload.url || '/#quick-access'
+    }
+  }));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || '/', self.location.origin).href;
+
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
+    });
+    const client = windows.find((candidate) => new URL(candidate.url).origin === self.location.origin);
+    if (client) {
+      if ('navigate' in client) await client.navigate(targetUrl);
+      return client.focus();
+    }
+    return self.clients.openWindow(targetUrl);
+  })());
+});
