@@ -57,7 +57,7 @@ Deno.serve(async (request: Request) => {
   const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY") ?? "";
   const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY") ?? "";
   const vapidSubject = Deno.env.get("VAPID_SUBJECT")
-    ?? "https://cafeteria-spirit.vercel.app";
+    ?? "https://www.spiritcoffee.es";
 
   if (request.method === "GET") {
     if (!vapidPublicKey) {

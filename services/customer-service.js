@@ -11,6 +11,11 @@ import {
   updatePassword
 } from './auth-service.js';
 import { getUserContexts } from './user-context-service.js';
+import {
+  getEmailConfirmationUrl,
+  getGoogleCallbackUrl,
+  getPasswordResetUrl
+} from './site-origin.js';
 
 const splitName = (displayName = '') => {
   const parts = String(displayName).trim().split(/\s+/).filter(Boolean);
@@ -45,7 +50,7 @@ export async function signUpCustomer({ email, password, displayName }) {
     email,
     password,
     displayName,
-    redirectTo: new URL('/', window.location.origin).href
+    redirectTo: getEmailConfirmationUrl()
   });
   return {
     confirmationRequired: !data.session,
@@ -55,7 +60,7 @@ export async function signUpCustomer({ email, password, displayName }) {
 
 export const signInCustomerWithOAuth = (provider) => signInWithOAuth(
   provider,
-  new URL('/auth/callback', window.location.origin).href
+  getGoogleCallbackUrl()
 );
 
 export async function updateCustomerProfile(displayName) {
@@ -72,7 +77,7 @@ export async function updateCustomerProfile(displayName) {
 
 export const requestCustomerPasswordReset = (email) => sendPasswordReset(
   email,
-  new URL('/reset-password', window.location.origin).href
+  getPasswordResetUrl()
 );
 
 export const updateCustomerPassword = (email, currentPassword, nextPassword) => (

@@ -172,7 +172,7 @@ El frontend inicia OAuth con `supabase.auth.signInWithOAuth()` y vuelve a `/auth
 Configuración manual necesaria en **Supabase Dashboard → Authentication → Providers**:
 
 1. Activa Google y añade el Client ID/secret creados en Google Cloud. En Google autoriza el callback alojado `https://iabuhjhyvsqhtiqowarq.supabase.co/auth/v1/callback`.
-2. En **Authentication → URL Configuration**, mantén la URL pública como Site URL y añade `https://<dominio>/auth/callback`, además de las variantes locales necesarias.
+2. En **Authentication → URL Configuration**, utiliza `https://www.spiritcoffee.es` como Site URL y añade `https://www.spiritcoffee.es/auth/callback`, además de las variantes locales necesarias.
 3. No incorpores secretos de Google al repositorio o al frontend.
 
 Supabase enlaza automáticamente la identidad de Google cuando entrega el mismo correo verificado. No se fusionan cuentas por texto de email ni por `user_metadata`.
@@ -189,7 +189,7 @@ http://localhost:3000/reset-password
 http://localhost:4173/reset-password
 ```
 
-En producción añade `https://<dominio-publico>/reset-password` y `https://<dominio-publico>/auth/callback`. Si la URL solicitada no está en la lista permitida, Supabase utiliza el Site URL como destino alternativo; por eso un Site URL antiguo como `http://localhost:3000` provoca que el enlace del correo abra una página inexistente.
+En producción están permitidas `https://www.spiritcoffee.es/reset-password`, `https://www.spiritcoffee.es/auth/callback` y `https://www.spiritcoffee.es/**`. Si la URL solicitada no está en la lista permitida, Supabase utiliza el Site URL como destino alternativo; por eso un Site URL antiguo como `http://localhost:3000` provoca que el enlace del correo abra una página inexistente.
 
 La pantalla valida la sesión temporal emitida por `PASSWORD_RECOVERY`, solicita la nueva contraseña dos veces, exige un mínimo de ocho caracteres y sólo entonces llama a `supabase.auth.updateUser()`. También ofrece un estado específico para enlaces caducados, inválidos o ya utilizados.
 
