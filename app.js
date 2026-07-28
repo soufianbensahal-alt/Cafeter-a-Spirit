@@ -42,10 +42,11 @@ import {
   PushNotificationError,
   synchronizePushLanguage
 } from './services/push-notification-service.js';
+import { createPasswordRecoveryState } from './services/password-recovery-state.js';
 
 const isBusinessMode = /^\/cafeteria\/?$/.test(window.location.pathname);
-const isPasswordRecoveryRoute = /^\/reset-password\/?$/.test(window.location.pathname)
-  || new URLSearchParams(window.location.search).get('auth') === 'recovery';
+const passwordRecoveryState = createPasswordRecoveryState();
+const isPasswordRecoveryRoute = passwordRecoveryState.isPending();
 const isOAuthCallbackRoute = /^\/auth\/callback\/?$/.test(window.location.pathname);
 
 const oauthCallbackError = (() => {
@@ -612,6 +613,26 @@ function clearCustomerIdentity() {
   state.loyaltyHistoryHasMore = false;
 }
 
+function normalizePasswordRecoveryRoute() {
+  if (!/^\/reset-password\/?$/.test(window.location.pathname)) {
+    window.history.replaceState({}, '', '/reset-password');
+  }
+}
+
+async function abandonPasswordRecovery(nextMode = 'signin') {
+  passwordRecoveryState.clearPending();
+  window.history.replaceState({}, '', '/');
+  try {
+    await signOut();
+  } catch {}
+  clearCustomerIdentity();
+  state.authMode = nextMode;
+  state.authError = '';
+  state.authNotice = '';
+  state.screen = 'login';
+  render();
+}
+
 async function initializeCustomerAuth() {
   try {
     if (isOAuthCallbackRoute && oauthCallbackError) {
@@ -632,6 +653,7 @@ async function initializeCustomerAuth() {
       }
     }
     if (isPasswordRecoveryRoute) {
+      normalizePasswordRecoveryRoute();
       if (recoveryLinkError) {
         state.authStatus = 'unauthenticated';
         state.authMode = 'recoveryError';
@@ -983,11 +1005,11 @@ function bind() {
     if(action==='open-language'){ openSheet(languageSheet()); }
     if(action==='open-password'){ openSheet(passwordSheet()); }
     if(action==='share'){ shareSpirit(); }
-    if(action==='auth-signin'){ if(isPasswordRecoveryRoute)window.history.replaceState({},'', '/'); state.authMode='signin'; state.authError=''; state.authNotice=''; render(); }
+    if(action==='auth-signin'){ if(passwordRecoveryState.isPending()){await abandonPasswordRecovery();return;} state.authMode='signin'; state.authError=''; state.authNotice=''; render(); }
     if(action==='auth-signup'){ state.authMode='signup'; state.authError=''; state.authNotice=''; render(); }
     if(action==='auth-forgot'){ state.authMode='forgot'; state.authError=''; state.authNotice=''; render(); }
-    if(action==='recovery-request'){ window.history.replaceState({},'', '/'); state.authMode='forgot'; state.authError=''; state.authNotice=''; render(); }
-    if(action==='recovery-continue'){ window.history.replaceState({},'', '/'); state.authMode='signin'; state.screen='home'; render(); scrollTo(0,0); }
+    if(action==='recovery-request'){ await abandonPasswordRecovery('forgot'); }
+    if(action==='recovery-continue'){ passwordRecoveryState.clearPending(); window.history.replaceState({},'', '/'); state.authMode='signin'; state.screen='home'; render(); scrollTo(0,0); }
     if(action==='logout'){ await logout(); }
   })});
   document.querySelectorAll('[data-sheet-backdrop]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',(event)=>{if(event.target===el){if(el.querySelector('[data-stamp-request-sheet]'))clearStampRequest();else el.remove();}})});
@@ -1000,7 +1022,7 @@ function bind() {
   document.querySelectorAll('[data-oauth-provider]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',async()=>{if(state.authLoading)return;state.authLoading=true;state.authError='';render();try{await signInCustomerWithOAuth(el.dataset.oauthProvider);}catch(error){state.authLoading=false;state.authError=readableAuthError(error);render();}})});
   document.querySelector('[data-form="customer-auth"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const form=e.currentTarget;const data=new FormData(form);state.authLoading=true;state.authError='';state.authNotice='';render();try{if(form.dataset.authMode==='signup'){const result=await signUpCustomer({email:data.get('email'),password:data.get('password'),displayName:data.get('name')});if(result.confirmationRequired){state.authMode='signin';state.authNotice=t('authConfirmation');state.screen='login';}else{applyCustomerContext(result.context);await refreshCustomerLoyaltySafely();state.screen='home';}}else{applyCustomerContext(await signInCustomer(data.get('email'),data.get('password')));await refreshCustomerLoyaltySafely();state.screen='home';}}catch(error){state.authError=readableAuthError(error);state.screen='login';}finally{state.authLoading=false;render();}});
   document.querySelector('[data-form="customer-forgot"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);state.authLoading=true;state.authError='';state.authNotice='';render();try{await requestCustomerPasswordReset(data.get('email'));state.authNotice=t('recoverySent');state.authMode='signin';}catch(error){state.authError=readableAuthError(error);}finally{state.authLoading=false;state.screen='login';render();}});
-  document.querySelector('[data-form="customer-recovery"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);const password=String(data.get('password')||'');const confirmation=String(data.get('confirmation')||'');if(password.length<8){state.authError=t('passwordLength');render();return;}if(password!==confirmation){state.authError=t('passwordMismatch');render();return;}state.authLoading=true;state.authError='';render();try{await completeCustomerPasswordRecovery(password);const context=await getCustomerContext();if(!context)throw Object.assign(new Error(t('recoverySessionMissing')),{code:'session_not_found'});applyCustomerContext(context);await refreshCustomerLoyaltySafely();window.history.replaceState({},'', '/');state.authMode='recoverySuccess';state.screen='login';}catch(error){state.authError=readableAuthError(error);if(['session_not_found','otp_expired','access_denied'].includes(error?.code))state.authMode='recoveryError';}finally{state.authLoading=false;render();}});
+  document.querySelector('[data-form="customer-recovery"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);const password=String(data.get('password')||'');const confirmation=String(data.get('confirmation')||'');if(password.length<8){state.authError=t('passwordLength');render();return;}if(password!==confirmation){state.authError=t('passwordMismatch');render();return;}state.authLoading=true;state.authError='';render();try{await completeCustomerPasswordRecovery(password);passwordRecoveryState.clearPending();const context=await getCustomerContext();if(!context)throw Object.assign(new Error(t('recoverySessionMissing')),{code:'session_not_found'});applyCustomerContext(context);await refreshCustomerLoyaltySafely();window.history.replaceState({},'', '/');state.authMode='recoverySuccess';state.screen='login';}catch(error){state.authError=readableAuthError(error);if(['session_not_found','otp_expired','access_denied'].includes(error?.code))state.authMode='recoveryError';}finally{state.authLoading=false;render();}});
   document.querySelector('[data-form="profile"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);try{const context=await updateCustomerProfile(`${data.get('firstName')} ${data.get('lastName')}`);applyCustomerContext(context);document.querySelector('[data-sheet-backdrop]')?.remove();render();}catch(error){showToast(readableAuthError(error));}});
   document.querySelector('[data-form="password"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);const current=data.get('currentPassword');const next=data.get('newPassword');const confirmation=data.get('confirmPassword');const error=e.currentTarget.querySelector('[data-password-error]');error.textContent='';if(next.length<8){error.textContent=t('passwordLength');return;}if(next!==confirmation){error.textContent=t('passwordMismatch');return;}try{await updateCustomerPassword(state.profile.email,current,next);document.querySelector('[data-sheet-backdrop]')?.remove();showToast(t('passwordSaved'));}catch(authError){error.textContent=readableAuthError(authError);}});
   bindMenuInteractions();
@@ -1012,6 +1034,8 @@ if (!isBusinessMode) {
   try {
     subscribeToAuthChanges(async(event, user) => {
       if (event === 'PASSWORD_RECOVERY') {
+        passwordRecoveryState.markPending();
+        normalizePasswordRecoveryRoute();
         state.authStatus = 'authenticated';
         state.authMode = 'recovery';
         state.authError = '';
@@ -1027,7 +1051,8 @@ if (!isBusinessMode) {
         return;
       }
       if (event === 'SIGNED_IN' && user && state.authStatus !== 'authenticated') {
-        if (isPasswordRecoveryRoute && ['recoveryChecking', 'recovery'].includes(state.authMode)) {
+        if (passwordRecoveryState.isPending()) {
+          normalizePasswordRecoveryRoute();
           state.authStatus = 'authenticated';
           state.authMode = 'recovery';
           state.screen = 'login';
