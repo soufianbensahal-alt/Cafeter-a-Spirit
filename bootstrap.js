@@ -11,7 +11,7 @@ if ('serviceWorker' in navigator) {
       || hash.get('type') === 'recovery';
     const isRecoveryPending = (() => {
       try {
-        return localStorage.getItem(passwordRecoveryPendingKey) === 'true';
+        return sessionStorage.getItem(passwordRecoveryPendingKey) === 'true';
       } catch {
         return false;
       }

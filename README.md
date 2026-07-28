@@ -191,7 +191,17 @@ http://localhost:4173/reset-password
 
 En producción están permitidas `https://www.spiritcoffee.es/reset-password`, `https://www.spiritcoffee.es/auth/callback` y `https://www.spiritcoffee.es/**`. Si la URL solicitada no está en la lista permitida, Supabase utiliza el Site URL como destino alternativo; por eso un Site URL antiguo como `http://localhost:3000` provoca que el enlace del correo abra una página inexistente.
 
-La pantalla valida la sesión temporal emitida por `PASSWORD_RECOVERY`, solicita la nueva contraseña dos veces, exige un mínimo de ocho caracteres y sólo entonces llama a `supabase.auth.updateUser()`. También ofrece un estado específico para enlaces caducados, inválidos o ya utilizados.
+La recuperación utiliza un enlace propio con `{{ .TokenHash }}`:
+
+```html
+<a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=recovery">
+  Restablecer contraseña
+</a>
+```
+
+La pantalla no consume el OTP al abrirse. Al enviar ambas contraseñas, crea un cliente Supabase aislado (sin sesión persistente), ejecuta `verifyOtp({ token_hash, type: 'recovery' })` y sólo después llama a `updateUser()`. La verificación en Auth es la barrera de un solo uso: si dos pestañas intentan consumir el mismo enlace, únicamente una puede obtener la sesión temporal. Tras el cambio, la sesión temporal se cierra y la aplicación vuelve al formulario de acceso con una confirmación.
+
+La plantilla versionada está en `supabase/templates/recovery.html`. `supabase/config.toml` la aplica al entorno local. En el proyecto alojado debe copiarse a **Authentication → Email Templates → Reset password**, o aplicarse mediante Management API; el archivo local no modifica por sí solo la plantilla alojada.
 
 ### Solicitudes temporales de sello
 

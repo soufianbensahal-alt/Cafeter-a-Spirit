@@ -1,4 +1,7 @@
-import { requireSupabase } from './supabase-client.js';
+import {
+  createIsolatedSupabaseClient,
+  requireSupabase
+} from './supabase-client.js';
 
 export class AuthServiceError extends Error {
   constructor(code, message, cause) {
@@ -88,6 +91,15 @@ export async function signOut() {
   }
 }
 
+export async function signOutCurrentSession() {
+  try {
+    const { error } = await requireSupabase().auth.signOut({ scope: 'local' });
+    if (error && !isMissingSession(error)) throw error;
+  } catch (error) {
+    if (!isMissingSession(error)) throw authError(error, 'sign_out_failed');
+  }
+}
+
 export async function sendPasswordReset(email, redirectTo) {
   try {
     const { error } = await requireSupabase().auth.resetPasswordForEmail(
@@ -109,6 +121,91 @@ export async function updatePassword(password) {
     throw authError(error, 'password_update_failed');
   }
 }
+
+const invalidRecoveryCodes = new Set([
+  'access_denied',
+  'bad_jwt',
+  'flow_state_expired',
+  'flow_state_not_found',
+  'invalid_grant',
+  'otp_expired',
+  'session_not_found',
+  'token_not_found'
+]);
+
+const recoveryError = (error) => {
+  const normalized = authError(error, 'password_recovery_failed');
+  if (
+    invalidRecoveryCodes.has(normalized.code)
+    || /expired|invalid|already been used|token/i.test(normalized.message)
+  ) {
+    return new AuthServiceError(
+      'recovery_link_invalid',
+      'El enlace de recuperación ha caducado o ya se ha utilizado.',
+      error
+    );
+  }
+  return normalized;
+};
+
+export const createPasswordRecoveryCompleter = (
+  createRecoveryClient = createIsolatedSupabaseClient
+) => async (tokenHash, password) => {
+  const cleanTokenHash = String(tokenHash || '').trim();
+  if (!cleanTokenHash) {
+    throw new AuthServiceError(
+      'recovery_link_invalid',
+      'El enlace de recuperación ha caducado o ya se ha utilizado.'
+    );
+  }
+
+  const recoveryClient = createRecoveryClient();
+  let recoverySessionCreated = false;
+  let verificationSucceeded = false;
+
+  try {
+    const { data: verification, error: verificationError } = await recoveryClient.auth.verifyOtp({
+      token_hash: cleanTokenHash,
+      type: 'recovery'
+    });
+    if (verificationError) throw verificationError;
+    if (!verification?.session || !verification?.user) {
+      throw new AuthServiceError(
+        'recovery_link_invalid',
+        'El enlace de recuperación ha caducado o ya se ha utilizado.'
+      );
+    }
+
+    recoverySessionCreated = true;
+    verificationSucceeded = true;
+    const { data, error } = await recoveryClient.auth.updateUser({ password });
+    if (error) throw error;
+    if (!data?.user) {
+      throw new AuthServiceError(
+        'password_update_failed',
+        'No se ha podido actualizar la contraseña.'
+      );
+    }
+    return data.user;
+  } catch (error) {
+    if (verificationSucceeded) {
+      throw new AuthServiceError(
+        'recovery_link_consumed',
+        'El enlace se ha verificado, pero no se ha podido actualizar la contraseña. Solicita uno nuevo.',
+        error
+      );
+    }
+    throw recoveryError(error);
+  } finally {
+    if (recoverySessionCreated) {
+      try {
+        await recoveryClient.auth.signOut({ scope: 'local' });
+      } catch {}
+    }
+  }
+};
+
+export const completePasswordRecovery = createPasswordRecoveryCompleter();
 
 export async function reauthenticateAndUpdatePassword(email, currentPassword, nextPassword) {
   await signInWithEmail(email, currentPassword);

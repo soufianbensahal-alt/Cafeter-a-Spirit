@@ -32,3 +32,17 @@ export function requireSupabase() {
   }
   return supabase;
 }
+
+export function createIsolatedSupabaseClient() {
+  if (!supabaseConfiguration.configured) {
+    requireSupabase();
+  }
+
+  return createClient(supabaseUrl, supabasePublishableKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false
+    }
+  });
+}

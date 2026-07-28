@@ -6,6 +6,7 @@ import {
   signInCustomerWithOAuth,
   signInCustomer,
   signOut,
+  signOutCurrentSession,
   signUpCustomer,
   subscribeToAuthChanges,
   updateCustomerPassword,
@@ -47,6 +48,7 @@ import { createPasswordRecoveryState } from './services/password-recovery-state.
 const isBusinessMode = /^\/cafeteria\/?$/.test(window.location.pathname);
 const passwordRecoveryState = createPasswordRecoveryState();
 const isPasswordRecoveryRoute = passwordRecoveryState.isPending();
+const recoveryTokenHash = passwordRecoveryState.getTokenHash();
 const isOAuthCallbackRoute = /^\/auth\/callback\/?$/.test(window.location.pathname);
 
 const oauthCallbackError = (() => {
@@ -99,7 +101,7 @@ const copy = {
     profileEyebrow: 'Tu espacio', profileTitle: 'Muy tú.<br>Muy Spirit.', completeProfile: 'Completa tu nombre para personalizar Spirit', yourAccount: 'Tu cuenta', settings: 'Ajustes', personalData: 'Datos personales', notifications: 'Notificaciones', notificationsCopy: 'Recordatorio de accesos rápidos cada 2 días', notificationsEnabled: 'Notificaciones activadas', notificationsDisabled: 'Notificaciones desactivadas', notificationsDenied: 'Activa las notificaciones de Spirit desde los ajustes del dispositivo.', notificationsUnsupported: 'Este dispositivo no admite notificaciones web.', notificationsInstallIOS: 'En iPhone o iPad, añade Spirit a la pantalla de inicio para activar las notificaciones.', notificationsError: 'No se han podido configurar las notificaciones. Inténtalo de nuevo.', keepSession: 'Mantener sesión iniciada', keepSessionCopy: 'Recordar esta cuenta al volver a abrir Spirit', darkMode: 'Modo oscuro', language: 'Idioma', spanish: 'Castellano', catalan: 'Catalán', inviteFriend: 'Invita a un amigo', logout: 'Cerrar sesión',
     personalEyebrow: 'Tu cuenta', personalTitle: 'Datos personales', changePhoto: 'Fotografía de perfil', gallery: 'Galería', camera: 'Cámara', firstName: 'Nombre', lastName: 'Apellidos', email: 'Correo electrónico', emailReadOnly: 'Gestionado por tu cuenta', changePassword: 'Cambiar contraseña', save: 'Guardar', close: 'Cerrar',
     passwordEyebrow: 'Seguridad', passwordTitle: 'Cambiar contraseña', currentPassword: 'Contraseña actual', newPassword: 'Nueva contraseña', confirmPassword: 'Confirmar contraseña', passwordLength: 'La nueva contraseña debe tener al menos 8 caracteres.', passwordMismatch: 'Las contraseñas no coinciden.', passwordIncorrect: 'La contraseña actual no es correcta.', passwordSaved: 'Contraseña actualizada',
-    languageEyebrow: 'Preferencias', languageTitle: 'Idioma de la aplicación', welcome: 'Bienvenida a casa', loginTitle: 'Tu café.<br>Tus sellos.', authLabel: 'Autenticación', phone: 'Teléfono', namePlaceholder: '¿Cómo te llamas?', emailPlaceholder: 'tu@email.com', privacy: 'Acepto la política de privacidad y el tratamiento de mis datos según el RGPD.', createAccount: 'Crear mi cuenta', signIn: 'Iniciar sesión', password: 'Contraseña', forgotPassword: 'He olvidado mi contraseña', sendRecovery: 'Enviar enlace de recuperación', backToSignIn: 'Volver al acceso', repeatPassword: 'Confirmar nueva contraseña', checkSession: 'Comprobando tu sesión…', authConfirmation: 'Revisa tu correo para confirmar la cuenta antes de iniciar sesión.', recoverySent: 'Si existe una cuenta con ese correo, recibirás un enlace de recuperación.', recoveryEyebrow: 'Seguridad de tu cuenta', recoveryTitle: 'Crea una nueva<br>contraseña.', recoveryCopy: 'Introduce una contraseña segura y repítela para confirmar que está escrita correctamente.', recoveryChecking: 'Validando el enlace de recuperación…', recoveryInvalidTitle: 'El enlace ya no es válido.', recoveryInvalidCopy: 'El enlace ha caducado, ya se ha utilizado o no puede verificarse. Solicita uno nuevo para continuar.', requestAnotherRecovery: 'Solicitar otro enlace', recoveryCompleteTitle: 'Contraseña actualizada.', recoveryCompleteCopy: 'Tu nueva contraseña ya está activa. Puedes continuar con tu cuenta Spirit.', continueToSpirit: 'Continuar en Spirit', recoverySessionMissing: 'No se ha podido validar el enlace. Solicita uno nuevo.', completeRecovery: 'Guardar nueva contraseña',
+    languageEyebrow: 'Preferencias', languageTitle: 'Idioma de la aplicación', welcome: 'Bienvenida a casa', loginTitle: 'Tu café.<br>Tus sellos.', authLabel: 'Autenticación', phone: 'Teléfono', namePlaceholder: '¿Cómo te llamas?', emailPlaceholder: 'tu@email.com', privacy: 'Acepto la política de privacidad y el tratamiento de mis datos según el RGPD.', createAccount: 'Crear mi cuenta', signIn: 'Iniciar sesión', password: 'Contraseña', forgotPassword: 'He olvidado mi contraseña', sendRecovery: 'Enviar enlace de recuperación', backToSignIn: 'Volver al acceso', repeatPassword: 'Confirmar nueva contraseña', checkSession: 'Comprobando tu sesión…', authConfirmation: 'Revisa tu correo para confirmar la cuenta antes de iniciar sesión.', recoverySent: 'Si existe una cuenta con ese correo, recibirás un enlace de recuperación.', recoveryEyebrow: 'Seguridad de tu cuenta', recoveryTitle: 'Crea una nueva<br>contraseña.', recoveryCopy: 'Introduce una contraseña segura y repítela para confirmar que está escrita correctamente.', recoveryChecking: 'Validando el enlace de recuperación…', recoveryInvalidTitle: 'El enlace ya no es válido.', recoveryInvalidCopy: 'El enlace ha caducado, ya se ha utilizado o no puede verificarse. Solicita uno nuevo para continuar.', requestAnotherRecovery: 'Solicitar otro enlace', recoveryCompleteTitle: 'Contraseña actualizada.', recoveryCompleteCopy: 'Tu nueva contraseña ya está activa. Puedes continuar con tu cuenta Spirit.', recoveryCompleteSignIn: 'Contraseña actualizada correctamente. Inicia sesión con tu nueva contraseña.', continueToSpirit: 'Continuar en Spirit', recoverySessionMissing: 'No se ha podido validar el enlace. Solicita uno nuevo.', completeRecovery: 'Guardar nueva contraseña',
     requestStamp: 'Solicitar sello', stampRequestTitle: 'Tu código temporal', stampRequestCopy: 'Enséñale el QR o el código al equipo de Spirit.', rewardRequestTitle: 'Usar café gratuito', rewardRequestCopy: 'Enséñale este QR o código al equipo. El premio solo se descontará cuando confirmes el canje en caja.', useFreeCoffee: 'Usar café gratuito', oneCoffeeAvailable: '1 café disponible', coffeesAvailable: '{count} cafés disponibles', rewardQrAlt: 'QR temporal para canjear un café gratuito', stampQrAlt: 'QR temporal para solicitar un sello', requestSecurity: 'El código es de un solo uso, no contiene datos personales y no descuenta nada hasta la confirmación del equipo.', stampCodeLabel: 'Código de 6 dígitos', stampExpiresIn: 'Caduca en {count}', stampExpired: 'Esta solicitud ha caducado.', regenerateStamp: 'Generar uno nuevo', generatingStamp: 'Generando código seguro…', stampConfirmed: 'Sello añadido. Tu tarjeta ya está actualizada.', rewardWon: '¡Has conseguido {count} recompensa!', rewardRedeemed: 'Premio canjeado. Disfruta de tu café gratuito.', availableAtCafe: 'Disponible en cafetería', unavailableReward: 'Aún no disponible', cardUnavailable: 'Tarjeta todavía no disponible',
     invalidCredentials: 'El correo o la contraseña no son correctos.', emailNotConfirmed: 'Confirma tu correo antes de iniciar sesión.', accountExists: 'Ya existe una cuenta con este correo.', weakPassword: 'La contraseña no cumple los requisitos de seguridad.', tooManyAttempts: 'Demasiados intentos. Espera unos minutos antes de volver a probar.', networkError: 'No se ha podido conectar con Spirit. Revisa tu conexión.', operationError: 'No se ha podido completar la operación.', googleAccessError: 'No se ha podido completar el acceso con Google. Inténtalo de nuevo.', googleSessionError: 'No se ha podido recuperar la sesión de Google. Inténtalo de nuevo.',
     stampLoginRequired: 'Inicia sesión para generar una solicitud de sello.', loyaltyUnavailable: 'El programa de fidelización de Spirit no está disponible.', customerCardInactive: 'Tu tarjeta Spirit todavía no está activa.', noRewardsAvailable: 'Todavía no tienes un café gratuito disponible.', requestRateLimited: 'Has generado varias solicitudes. Espera unos minutos antes de intentarlo de nuevo.', secureCodeError: 'No se ha podido generar un código seguro. Inténtalo de nuevo.', wrongRequestType: 'La solicitud no corresponde con esta operación.', invalidRequestResponse: 'La respuesta de la solicitud no es válida.', requestError: 'No se ha podido completar la solicitud. Inténtalo de nuevo.',
@@ -116,7 +118,7 @@ const copy = {
     profileEyebrow: 'El teu espai', profileTitle: 'Molt tu.<br>Molt Spirit.', completeProfile: 'Completa el teu nom per personalitzar Spirit', yourAccount: 'El teu compte', settings: 'Configuració', personalData: 'Dades personals', notifications: 'Notificacions', notificationsCopy: 'Recordatori d’accessos ràpids cada 2 dies', notificationsEnabled: 'Notificacions activades', notificationsDisabled: 'Notificacions desactivades', notificationsDenied: 'Activa les notificacions de Spirit des de la configuració del dispositiu.', notificationsUnsupported: 'Aquest dispositiu no admet notificacions web.', notificationsInstallIOS: 'A l’iPhone o l’iPad, afegeix Spirit a la pantalla d’inici per activar les notificacions.', notificationsError: 'No s’han pogut configurar les notificacions. Torna-ho a provar.', keepSession: 'Mantenir la sessió iniciada', keepSessionCopy: 'Recordar aquest compte en tornar a obrir Spirit', darkMode: 'Mode fosc', language: 'Idioma', spanish: 'Castellà', catalan: 'Català', inviteFriend: 'Convida un amic', logout: 'Tancar sessió',
     personalEyebrow: 'El teu compte', personalTitle: 'Dades personals', changePhoto: 'Fotografia de perfil', gallery: 'Galeria', camera: 'Càmera', firstName: 'Nom', lastName: 'Cognoms', email: 'Correu electrònic', emailReadOnly: 'Gestionat pel teu compte', changePassword: 'Canviar contrasenya', save: 'Desar', close: 'Tancar',
     passwordEyebrow: 'Seguretat', passwordTitle: 'Canviar contrasenya', currentPassword: 'Contrasenya actual', newPassword: 'Nova contrasenya', confirmPassword: 'Confirmar contrasenya', passwordLength: 'La nova contrasenya ha de tenir almenys 8 caràcters.', passwordMismatch: 'Les contrasenyes no coincideixen.', passwordIncorrect: 'La contrasenya actual no és correcta.', passwordSaved: 'Contrasenya actualitzada',
-    languageEyebrow: 'Preferències', languageTitle: 'Idioma de l’aplicació', welcome: 'Benvinguda a casa', loginTitle: 'El teu cafè.<br>Els teus segells.', authLabel: 'Autenticació', phone: 'Telèfon', namePlaceholder: 'Com et dius?', emailPlaceholder: 'el_teu@email.com', privacy: 'Accepto la política de privacitat i el tractament de les meves dades segons el RGPD.', createAccount: 'Crear el meu compte', signIn: 'Iniciar sessió', password: 'Contrasenya', forgotPassword: 'He oblidat la contrasenya', sendRecovery: 'Enviar enllaç de recuperació', backToSignIn: 'Tornar a l’accés', repeatPassword: 'Confirmar la nova contrasenya', checkSession: 'Comprovant la sessió…', authConfirmation: 'Revisa el correu per confirmar el compte abans d’iniciar sessió.', recoverySent: 'Si existeix un compte amb aquest correu, rebràs un enllaç de recuperació.', recoveryEyebrow: 'Seguretat del teu compte', recoveryTitle: 'Crea una nova<br>contrasenya.', recoveryCopy: 'Introdueix una contrasenya segura i repeteix-la per confirmar que està escrita correctament.', recoveryChecking: 'Validant l’enllaç de recuperació…', recoveryInvalidTitle: 'L’enllaç ja no és vàlid.', recoveryInvalidCopy: 'L’enllaç ha caducat, ja s’ha utilitzat o no es pot verificar. Sol·licita’n un de nou per continuar.', requestAnotherRecovery: 'Sol·licitar un altre enllaç', recoveryCompleteTitle: 'Contrasenya actualitzada.', recoveryCompleteCopy: 'La teva nova contrasenya ja està activa. Pots continuar amb el teu compte Spirit.', continueToSpirit: 'Continuar a Spirit', recoverySessionMissing: 'No s’ha pogut validar l’enllaç. Sol·licita’n un de nou.', completeRecovery: 'Desar la nova contrasenya',
+    languageEyebrow: 'Preferències', languageTitle: 'Idioma de l’aplicació', welcome: 'Benvinguda a casa', loginTitle: 'El teu cafè.<br>Els teus segells.', authLabel: 'Autenticació', phone: 'Telèfon', namePlaceholder: 'Com et dius?', emailPlaceholder: 'el_teu@email.com', privacy: 'Accepto la política de privacitat i el tractament de les meves dades segons el RGPD.', createAccount: 'Crear el meu compte', signIn: 'Iniciar sessió', password: 'Contrasenya', forgotPassword: 'He oblidat la contrasenya', sendRecovery: 'Enviar enllaç de recuperació', backToSignIn: 'Tornar a l’accés', repeatPassword: 'Confirmar la nova contrasenya', checkSession: 'Comprovant la sessió…', authConfirmation: 'Revisa el correu per confirmar el compte abans d’iniciar sessió.', recoverySent: 'Si existeix un compte amb aquest correu, rebràs un enllaç de recuperació.', recoveryEyebrow: 'Seguretat del teu compte', recoveryTitle: 'Crea una nova<br>contrasenya.', recoveryCopy: 'Introdueix una contrasenya segura i repeteix-la per confirmar que està escrita correctament.', recoveryChecking: 'Validant l’enllaç de recuperació…', recoveryInvalidTitle: 'L’enllaç ja no és vàlid.', recoveryInvalidCopy: 'L’enllaç ha caducat, ja s’ha utilitzat o no es pot verificar. Sol·licita’n un de nou per continuar.', requestAnotherRecovery: 'Sol·licitar un altre enllaç', recoveryCompleteTitle: 'Contrasenya actualitzada.', recoveryCompleteCopy: 'La teva nova contrasenya ja està activa. Pots continuar amb el teu compte Spirit.', recoveryCompleteSignIn: 'Contrasenya actualitzada correctament. Inicia sessió amb la nova contrasenya.', continueToSpirit: 'Continuar a Spirit', recoverySessionMissing: 'No s’ha pogut validar l’enllaç. Sol·licita’n un de nou.', completeRecovery: 'Desar la nova contrasenya',
     requestStamp: 'Sol·licitar un segell', stampRequestTitle: 'El teu codi temporal', stampRequestCopy: 'Ensenya el QR o el codi a l’equip de Spirit.', rewardRequestTitle: 'Utilitzar el cafè gratuït', rewardRequestCopy: 'Ensenya aquest QR o codi a l’equip. El premi només es descomptarà quan confirmis el bescanvi a caixa.', useFreeCoffee: 'Utilitzar el cafè gratuït', oneCoffeeAvailable: '1 cafè gratuït disponible', coffeesAvailable: '{count} cafès gratuïts disponibles', rewardQrAlt: 'QR temporal per bescanviar un cafè gratuït', stampQrAlt: 'QR temporal per sol·licitar un segell', requestSecurity: 'El codi és d’un sol ús, no conté dades personals i no descompta res fins que l’equip ho confirma.', stampCodeLabel: 'Codi de 6 dígits', stampExpiresIn: 'Caduca en {count}', stampExpired: 'Aquesta sol·licitud ha caducat.', regenerateStamp: 'Generar-ne un de nou', generatingStamp: 'Generant un codi segur…', stampConfirmed: 'Segell afegit. La teva targeta ja està actualitzada.', rewardWon: 'Has aconseguit {count} recompensa!', rewardRedeemed: 'Premi bescanviat. Gaudeix del teu cafè gratuït.', availableAtCafe: 'Disponible a la cafeteria', unavailableReward: 'Encara no disponible', cardUnavailable: 'Targeta encara no disponible',
     invalidCredentials: 'El correu o la contrasenya no són correctes.', emailNotConfirmed: 'Confirma el correu abans d’iniciar sessió.', accountExists: 'Ja existeix un compte amb aquest correu.', weakPassword: 'La contrasenya no compleix els requisits de seguretat.', tooManyAttempts: 'Massa intents. Espera uns minuts abans de tornar-ho a provar.', networkError: 'No s’ha pogut connectar amb Spirit. Revisa la connexió.', operationError: 'No s’ha pogut completar l’operació.', googleAccessError: 'No s’ha pogut completar l’accés amb Google. Torna-ho a provar.', googleSessionError: 'No s’ha pogut recuperar la sessió de Google. Torna-ho a provar.',
     stampLoginRequired: 'Inicia sessió per generar una sol·licitud de segell.', loyaltyUnavailable: 'El programa de fidelització de Spirit no està disponible.', customerCardInactive: 'La teva targeta Spirit encara no està activa.', noRewardsAvailable: 'Encara no tens cap cafè gratuït disponible.', requestRateLimited: 'Has generat diverses sol·licituds. Espera uns minuts abans de tornar-ho a provar.', secureCodeError: 'No s’ha pogut generar un codi segur. Torna-ho a provar.', wrongRequestType: 'La sol·licitud no correspon a aquesta operació.', invalidRequestResponse: 'La resposta de la sol·licitud no és vàlida.', requestError: 'No s’ha pogut completar la sol·licitud. Torna-ho a provar.',
@@ -144,7 +146,9 @@ const state = {
   hasBusinessAccess: false,
   needsProfileCompletion: false,
   authStatus: 'checking',
-  authMode: isPasswordRecoveryRoute ? (recoveryLinkError ? 'recoveryError' : 'recoveryChecking') : 'signin',
+  authMode: isPasswordRecoveryRoute
+    ? (recoveryLinkError || !recoveryTokenHash ? 'forgot' : 'recovery')
+    : 'signin',
   authLoading: false,
   authError: '',
   authNotice: '',
@@ -532,7 +536,9 @@ const readableAuthError = (error) => {
     network_error: t('networkError'),
     session_not_found: t('recoverySessionMissing'),
     otp_expired: t('recoverySessionMissing'),
-    access_denied: t('recoverySessionMissing')
+    access_denied: t('recoverySessionMissing'),
+    recovery_link_invalid: t('recoveryInvalidCopy'),
+    recovery_link_consumed: t('recoveryInvalidCopy')
   };
   return messages[error?.code]
     || (state.lang === 'es' ? error?.message : '')
@@ -614,16 +620,20 @@ function clearCustomerIdentity() {
 }
 
 function normalizePasswordRecoveryRoute() {
-  if (!/^\/reset-password\/?$/.test(window.location.pathname)) {
+  if (
+    !/^\/reset-password\/?$/.test(window.location.pathname)
+    || window.location.search
+    || window.location.hash
+  ) {
     window.history.replaceState({}, '', '/reset-password');
   }
 }
 
 async function abandonPasswordRecovery(nextMode = 'signin') {
-  passwordRecoveryState.clearPending();
+  passwordRecoveryState.clear();
   window.history.replaceState({}, '', '/');
   try {
-    await signOut();
+    await signOutCurrentSession();
   } catch {}
   clearCustomerIdentity();
   state.authMode = nextMode;
@@ -645,29 +655,29 @@ async function initializeCustomerAuth() {
       return;
     }
 
+    if (isPasswordRecoveryRoute) {
+      normalizePasswordRecoveryRoute();
+      try {
+        await signOutCurrentSession();
+      } catch {}
+      state.authStatus = 'unauthenticated';
+      state.authMode = recoveryLinkError || !recoveryTokenHash
+        ? 'forgot'
+        : 'recovery';
+      if (state.authMode === 'forgot') {
+        state.authError = t('recoveryInvalidCopy');
+      }
+      state.screen = 'login';
+      render();
+      return;
+    }
+
     let user = await getCurrentUser();
     if (isOAuthCallbackRoute && !user) {
       for (let attempt = 0; attempt < 12 && !user; attempt += 1) {
         await new Promise((resolve) => setTimeout(resolve, 150));
         user = await getCurrentUser();
       }
-    }
-    if (isPasswordRecoveryRoute) {
-      normalizePasswordRecoveryRoute();
-      if (recoveryLinkError) {
-        state.authStatus = 'unauthenticated';
-        state.authMode = 'recoveryError';
-      } else if (user) {
-        state.authStatus = 'authenticated';
-        if (state.authMode === 'recoveryChecking') state.authMode = 'recovery';
-      } else {
-        state.authStatus = 'unauthenticated';
-        state.authMode = 'recoveryError';
-        state.authError = t('recoverySessionMissing');
-      }
-      state.screen = 'login';
-      render();
-      return;
     }
     const context = user ? await getCustomerContext(user) : null;
     if (context) {
@@ -1009,7 +1019,7 @@ function bind() {
     if(action==='auth-signup'){ state.authMode='signup'; state.authError=''; state.authNotice=''; render(); }
     if(action==='auth-forgot'){ state.authMode='forgot'; state.authError=''; state.authNotice=''; render(); }
     if(action==='recovery-request'){ await abandonPasswordRecovery('forgot'); }
-    if(action==='recovery-continue'){ passwordRecoveryState.clearPending(); window.history.replaceState({},'', '/'); state.authMode='signin'; state.screen='home'; render(); scrollTo(0,0); }
+    if(action==='recovery-continue'){ passwordRecoveryState.clear(); window.history.replaceState({},'', '/'); state.authMode='signin'; state.screen='login'; render(); scrollTo(0,0); }
     if(action==='logout'){ await logout(); }
   })});
   document.querySelectorAll('[data-sheet-backdrop]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',(event)=>{if(event.target===el){if(el.querySelector('[data-stamp-request-sheet]'))clearStampRequest();else el.remove();}})});
@@ -1022,7 +1032,7 @@ function bind() {
   document.querySelectorAll('[data-oauth-provider]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',async()=>{if(state.authLoading)return;state.authLoading=true;state.authError='';render();try{await signInCustomerWithOAuth(el.dataset.oauthProvider);}catch(error){state.authLoading=false;state.authError=readableAuthError(error);render();}})});
   document.querySelector('[data-form="customer-auth"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const form=e.currentTarget;const data=new FormData(form);state.authLoading=true;state.authError='';state.authNotice='';render();try{if(form.dataset.authMode==='signup'){const result=await signUpCustomer({email:data.get('email'),password:data.get('password'),displayName:data.get('name')});if(result.confirmationRequired){state.authMode='signin';state.authNotice=t('authConfirmation');state.screen='login';}else{applyCustomerContext(result.context);await refreshCustomerLoyaltySafely();state.screen='home';}}else{applyCustomerContext(await signInCustomer(data.get('email'),data.get('password')));await refreshCustomerLoyaltySafely();state.screen='home';}}catch(error){state.authError=readableAuthError(error);state.screen='login';}finally{state.authLoading=false;render();}});
   document.querySelector('[data-form="customer-forgot"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);state.authLoading=true;state.authError='';state.authNotice='';render();try{await requestCustomerPasswordReset(data.get('email'));state.authNotice=t('recoverySent');state.authMode='signin';}catch(error){state.authError=readableAuthError(error);}finally{state.authLoading=false;state.screen='login';render();}});
-  document.querySelector('[data-form="customer-recovery"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);const password=String(data.get('password')||'');const confirmation=String(data.get('confirmation')||'');if(password.length<8){state.authError=t('passwordLength');render();return;}if(password!==confirmation){state.authError=t('passwordMismatch');render();return;}state.authLoading=true;state.authError='';render();try{await completeCustomerPasswordRecovery(password);passwordRecoveryState.clearPending();const context=await getCustomerContext();if(!context)throw Object.assign(new Error(t('recoverySessionMissing')),{code:'session_not_found'});applyCustomerContext(context);await refreshCustomerLoyaltySafely();window.history.replaceState({},'', '/');state.authMode='recoverySuccess';state.screen='login';}catch(error){state.authError=readableAuthError(error);if(['session_not_found','otp_expired','access_denied'].includes(error?.code))state.authMode='recoveryError';}finally{state.authLoading=false;render();}});
+  document.querySelector('[data-form="customer-recovery"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);const password=String(data.get('password')||'');const confirmation=String(data.get('confirmation')||'');if(password.length<8){state.authError=t('passwordLength');render();return;}if(password!==confirmation){state.authError=t('passwordMismatch');render();return;}const tokenHash=passwordRecoveryState.getTokenHash();if(!tokenHash){passwordRecoveryState.clear();window.history.replaceState({},'', '/');clearCustomerIdentity();state.authMode='forgot';state.authError=t('recoveryInvalidCopy');state.screen='login';render();return;}state.authLoading=true;state.authError='';render();try{await completeCustomerPasswordRecovery(tokenHash,password);passwordRecoveryState.clear();window.history.replaceState({},'', '/');clearCustomerIdentity();state.authMode='signin';state.authNotice=t('recoveryCompleteSignIn');state.screen='login';}catch(error){const invalidRecovery=['session_not_found','otp_expired','access_denied','recovery_link_invalid','recovery_link_consumed'].includes(error?.code);if(invalidRecovery){passwordRecoveryState.clear();window.history.replaceState({},'', '/');clearCustomerIdentity();state.authMode='forgot';state.authError=t('recoveryInvalidCopy');state.screen='login';}else{state.authError=readableAuthError(error);}}finally{state.authLoading=false;render();}});
   document.querySelector('[data-form="profile"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);try{const context=await updateCustomerProfile(`${data.get('firstName')} ${data.get('lastName')}`);applyCustomerContext(context);document.querySelector('[data-sheet-backdrop]')?.remove();render();}catch(error){showToast(readableAuthError(error));}});
   document.querySelector('[data-form="password"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);const current=data.get('currentPassword');const next=data.get('newPassword');const confirmation=data.get('confirmPassword');const error=e.currentTarget.querySelector('[data-password-error]');error.textContent='';if(next.length<8){error.textContent=t('passwordLength');return;}if(next!==confirmation){error.textContent=t('passwordMismatch');return;}try{await updateCustomerPassword(state.profile.email,current,next);document.querySelector('[data-sheet-backdrop]')?.remove();showToast(t('passwordSaved'));}catch(authError){error.textContent=readableAuthError(authError);}});
   bindMenuInteractions();
@@ -1036,16 +1046,24 @@ if (!isBusinessMode) {
       if (event === 'PASSWORD_RECOVERY') {
         passwordRecoveryState.markPending();
         normalizePasswordRecoveryRoute();
-        state.authStatus = 'authenticated';
-        state.authMode = 'recovery';
-        state.authError = '';
+        state.authStatus = 'unauthenticated';
+        state.authMode = 'forgot';
+        state.authError = t('recoveryInvalidCopy');
         state.screen = 'login';
+        try {
+          await signOutCurrentSession();
+        } catch {}
+        passwordRecoveryState.clear();
         render();
         return;
       }
       if (event === 'SIGNED_OUT') {
         clearStampRequest();
         clearCustomerIdentity();
+        if (passwordRecoveryState.isPending()) {
+          state.authMode = passwordRecoveryState.getTokenHash() ? 'recovery' : 'forgot';
+          if (state.authMode === 'forgot') state.authError = t('recoveryInvalidCopy');
+        }
         if (!['intro', 'onboarding'].includes(state.screen)) state.screen = 'login';
         render();
         return;
@@ -1053,8 +1071,9 @@ if (!isBusinessMode) {
       if (event === 'SIGNED_IN' && user && state.authStatus !== 'authenticated') {
         if (passwordRecoveryState.isPending()) {
           normalizePasswordRecoveryRoute();
-          state.authStatus = 'authenticated';
-          state.authMode = 'recovery';
+          state.authStatus = 'unauthenticated';
+          state.authMode = passwordRecoveryState.getTokenHash() ? 'recovery' : 'forgot';
+          if (state.authMode === 'forgot') state.authError = t('recoveryInvalidCopy');
           state.screen = 'login';
           render();
           return;

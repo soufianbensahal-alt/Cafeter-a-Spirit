@@ -1,14 +1,15 @@
 import { requireSupabase } from './supabase-client.js';
 import {
   getCurrentUser,
+  completePasswordRecovery,
   reauthenticateAndUpdatePassword,
   sendPasswordReset,
   signInWithEmail,
   signInWithOAuth,
   signOut,
+  signOutCurrentSession,
   signUpWithEmail,
-  subscribeToAuthChanges,
-  updatePassword
+  subscribeToAuthChanges
 } from './auth-service.js';
 import { getUserContexts } from './user-context-service.js';
 import {
@@ -84,6 +85,13 @@ export const updateCustomerPassword = (email, currentPassword, nextPassword) => 
   reauthenticateAndUpdatePassword(email, currentPassword, nextPassword)
 );
 
-export const completeCustomerPasswordRecovery = (nextPassword) => updatePassword(nextPassword);
+export const completeCustomerPasswordRecovery = (tokenHash, nextPassword) => (
+  completePasswordRecovery(tokenHash, nextPassword)
+);
 
-export { getCurrentUser, signOut, subscribeToAuthChanges };
+export {
+  getCurrentUser,
+  signOut,
+  signOutCurrentSession,
+  subscribeToAuthChanges
+};
