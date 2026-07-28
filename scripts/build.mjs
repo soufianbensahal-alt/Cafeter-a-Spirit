@@ -11,6 +11,7 @@ const files = ['index.html', 'app.js', 'bootstrap.js', 'styles.css', 'sw.js', 'm
 await rm(outputDirectory, { recursive: true, force: true });
 await mkdir(`${outputDirectory}/business`, { recursive: true });
 await cp('assets', `${outputDirectory}/assets`, { recursive: true });
+if (existsSync('public')) await cp('public', outputDirectory, { recursive: true });
 await copyFile('business/business.css', `${outputDirectory}/business/business.css`);
 await copyFile('business/manifest.webmanifest', `${outputDirectory}/business/manifest.webmanifest`);
 await Promise.all(files.filter((file) => file !== 'app.js').map((file) => copyFile(file, `${outputDirectory}/${file}`)));
