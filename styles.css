@@ -211,6 +211,12 @@ h3 { font-size: 21px; line-height: 1.16; margin: 0; letter-spacing: -.012em; }
 .settings-row__copy { min-width: 0; display: grid; gap: 3px; padding: 10px 14px 10px 0; }
 .settings-row__copy small { max-width: 32ch; font-size: 11px; line-height: 1.35; }
 .settings-row--danger { color: var(--danger); }
+.danger-zone { margin-top: 34px; padding: 18px; border: 1px solid rgba(152,68,56,.2); border-radius: 24px; background: rgba(152,68,56,.055); box-shadow: var(--shadow-subtle); }
+.danger-zone .section-head { margin: 0 0 16px; }
+.danger-zone .section-head h2 { color: var(--danger); }
+.danger-zone .section-head p { max-width: 36ch; margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.danger-zone__button { min-height: 50px; width: 100%; border: 1px solid rgba(152,68,56,.32); border-radius: 16px; background: transparent; color: var(--danger); font-weight: 800; cursor: pointer; transition: transform .2s ease, background-color .2s ease; }
+.danger-zone__button:active { transform: scale(.98); }
 .switch { width: 50px; height: 30px; position: relative; flex: 0 0 auto; }
 .switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .switch__track { position: absolute; inset: 0; border: 1px solid rgba(105,92,44,.16); border-radius: var(--radius-pill); background: rgba(95,89,76,.22); box-shadow: inset 0 1px 3px rgba(46,45,41,.08); transition: background-color .22s ease, border-color .22s ease; cursor: pointer; }
@@ -320,6 +326,14 @@ h3 { font-size: 21px; line-height: 1.16; margin: 0; letter-spacing: -.012em; }
 .language-option--active { border-color: var(--mustard-dark); background: rgba(238,207,98,.3); }
 .language-option:active { transform: scale(.98); }
 .form-error { min-height: 18px; margin: -2px 4px 0; color: var(--danger); font-size: 12px; font-weight: 700; line-height: 1.4; }
+.modal--danger { border-color: rgba(152,68,56,.24); }
+.modal--danger .sheet-head { margin-bottom: 14px; }
+.modal--danger .sheet-head h2 { color: var(--danger); }
+.delete-account-warning { margin: 0 0 20px; color: var(--muted); line-height: 1.55; }
+.delete-account-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.primary-button--danger { background: var(--danger); color: #fff; box-shadow: 0 8px 22px rgba(100,32,26,.2); }
+.primary-button--danger:disabled { background: rgba(152,68,56,.2); color: rgba(46,45,41,.5); box-shadow: none; cursor: not-allowed; }
+[data-delete-account-modal][data-deleting="true"] { cursor: wait; }
 .code { font: 34px "DM Serif Display", serif; letter-spacing: .18em; background: var(--cream); border: 1px solid var(--border-soft); border-radius: 18px; padding: 18px 8px; margin: 22px 0; box-shadow: inset 0 1px 0 rgba(255,255,255,.55); }
 .empty { min-height: 48svh; display: grid; place-items: center; text-align: center; padding: 40px 24px; background: var(--surface-soft); border: 1px solid rgba(255,255,255,.45); border-radius: 28px; box-shadow: var(--shadow-subtle); }
 .empty__icon { width: 96px; height:96px; border: 1px solid rgba(255,255,255,.48); border-radius:50%; background:linear-gradient(145deg, #f4da77, var(--mustard)); display:grid; place-items:center; font-size:42px; margin:auto auto 20px; box-shadow: var(--shadow-subtle); }
@@ -403,6 +417,8 @@ html[data-theme="dark"] .history-row { border-color: rgba(238,207,98,.1); }
 html[data-theme="dark"] .history-row__icon { border-color: rgba(238,207,98,.15); background: linear-gradient(145deg, #373329, #292720); }
 html[data-theme="dark"] .avatar { color: #171612; }
 html[data-theme="dark"] .settings-row { border-color: rgba(238,207,98,.1); }
+html[data-theme="dark"] .danger-zone { border-color: rgba(240,160,149,.24); background: rgba(152,68,56,.09); }
+html[data-theme="dark"] .danger-zone__button { border-color: rgba(240,160,149,.36); color: var(--danger); }
 html[data-theme="dark"] .switch__track { border-color: rgba(238,207,98,.18); background: #4a463c; }
 html[data-theme="dark"] .switch__track::after { background: #f7f0de; }
 html[data-theme="dark"] .switch input:checked + .switch__track { background: var(--mustard); border-color: var(--mustard); }
@@ -436,6 +452,9 @@ html[data-theme="dark"] .recovery-state__icon { background: rgba(238,207,98,.14)
 html[data-theme="dark"] .recovery-state--success .recovery-state__icon { background: var(--mustard); color: #171612; }
 html[data-theme="dark"] .modal-backdrop { background: rgba(0,0,0,.68); }
 html[data-theme="dark"] .modal { border-color: rgba(238,207,98,.15); background: rgba(33,31,25,.96); color: #f7f0de; box-shadow: 0 28px 80px rgba(0,0,0,.48); }
+html[data-theme="dark"] .modal--danger { border-color: rgba(240,160,149,.24); }
+html[data-theme="dark"] .primary-button--danger { background: #a84e43; color: #fff; }
+html[data-theme="dark"] .primary-button--danger:disabled { background: rgba(240,160,149,.12); color: rgba(247,240,222,.36); }
 html[data-theme="dark"] .stamp-request__qr { border-color: rgba(238,207,98,.2); background: #fffaf0; }
 html[data-theme="dark"] .stamp-request__countdown { background: rgba(238,207,98,.14); color: var(--mustard); }
 html[data-theme="dark"] .sheet-close,
@@ -457,7 +476,12 @@ html[data-theme="dark"] .toast { border-color: rgba(238,207,98,.14); background:
   .small-button:not(:disabled):hover, .primary-button:not(.primary-button--light):hover { background: var(--mustard-dark); }
   .primary-button--light:hover { background: #f7edcf; }
   .settings-row:hover { background: rgba(255,255,255,.36); }
+  .danger-zone__button:hover { background: rgba(152,68,56,.08); }
   .field input:hover, .field select:hover { border-color: var(--mustard-deep); }
+}
+
+@media (max-width: 420px) {
+  .delete-account-actions { grid-template-columns: 1fr; }
 }
 
 @media (hover: hover) {

@@ -24,6 +24,18 @@ const storageKeys = (storage) => {
 };
 
 const isSupabaseAuthKey = (key) => key.startsWith('sb-') && key.includes('-auth-token');
+const isSpiritApplicationKey = (key) => key.startsWith('spirit-') || isSupabaseAuthKey(key);
+
+export function clearSpiritApplicationStorage(
+  persistentStorage = browserStorage('localStorage'),
+  temporaryStorage = browserStorage('sessionStorage')
+) {
+  [persistentStorage, temporaryStorage].forEach((storage) => {
+    storageKeys(storage)
+      .filter(isSpiritApplicationKey)
+      .forEach((key) => safeRemove(storage, key));
+  });
+}
 
 export function createSessionPersistenceController(persistentStorage, temporaryStorage) {
   const knownAuthKeys = new Set();
