@@ -398,6 +398,11 @@ deno_version = 2
 [functions.delete-account]
 verify_jwt = true
 
+[functions.send-reward-email]
+# This endpoint is called only by the internal pg_cron worker and authenticates
+# every request with a separate random secret stored in Supabase Vault.
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
