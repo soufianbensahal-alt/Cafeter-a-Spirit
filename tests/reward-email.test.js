@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
   renderRewardEmail,
+  renderRewardEmailText,
   sendWithResend
 } from '../supabase/functions/send-reward-email/email.js';
 
@@ -12,7 +13,7 @@ test('la plantilla Spirit es legible sin imágenes y escapa datos variables', ()
   const html = renderRewardEmail({
     displayName: '<Soufian>',
     rewardDescription: '<Café gratuito>',
-    appUrl: 'https://www.spiritcoffee.es/'
+    appUrl: 'https://www.spiritcoffee.es/promociones?source=email#premio'
   });
 
   assert.match(html, /¡Enhorabuena, &lt;Soufian&gt;!/);
@@ -20,8 +21,51 @@ test('la plantilla Spirit es legible sin imágenes y escapa datos variables', ()
   assert.match(html, /Has completado tu tarjeta Spirit/);
   assert.match(html, /https:\/\/www\.spiritcoffee\.es\/email\/logo-white\.png/);
   assert.match(html, /https:\/\/www\.spiritcoffee\.es\/email\/paw-pattern\.png/);
+  assert.match(html, /alt="Spirit Coffee Club"/);
+  assert.match(
+    html,
+    /href="https:\/\/www\.spiritcoffee\.es\/promociones\?source=email#premio"/
+  );
+  assert.match(html, /max-width:600px/);
+  assert.match(
+    html,
+    /<!--\[if mso\]>[\s\S]*?<table role="presentation" width="600"[\s\S]*?<!\[endif\]-->/
+  );
+  assert.match(html, /background-color:#272622/);
+  assert.match(html, /min-width:220px/);
   assert.match(html, /Ver mi recompensa/);
   assert.doesNotMatch(html, /<Soufian>|<Café gratuito>/);
+  assert.doesNotMatch(html, /display:\s*flex|display:\s*grid|filter:|@font-face/i);
+});
+
+test('la versión de texto plano conserva el contenido y enlaza a la tarjeta real', () => {
+  const text = renderRewardEmailText({
+    displayName: 'Soufian <script>',
+    rewardDescription: 'Café gratuito',
+    appUrl: 'https://www.spiritcoffee.es/promociones?source=email'
+  });
+
+  assert.match(text, /¡Enhorabuena, Soufian!/);
+  assert.match(text, /TU RECOMPENSA\nCafé gratuito/);
+  assert.match(
+    text,
+    /https:\/\/www\.spiritcoffee\.es\/promociones\?source=email\n/
+  );
+  assert.match(text, /Este mensaje no incluye códigos ni datos de acceso/);
+  assert.doesNotMatch(text, /<script>/);
+});
+
+test('la URL de la recompensa conserva rutas válidas y rechaza protocolos inseguros', () => {
+  const rootHtml = renderRewardEmail({
+    appUrl: 'https://www.spiritcoffee.es/'
+  });
+  const unsafeHtml = renderRewardEmail({
+    appUrl: 'javascript:alert(1)'
+  });
+
+  assert.match(rootHtml, /href="https:\/\/www\.spiritcoffee\.es\/"/);
+  assert.match(unsafeHtml, /href="https:\/\/www\.spiritcoffee\.es\/"/);
+  assert.doesNotMatch(unsafeHtml, /javascript:/);
 });
 
 test('Resend recibe un idempotency key estable y no expone datos fuera del body', async () => {
@@ -41,6 +85,7 @@ test('Resend recibe un idempotency key estable y no expone datos fuera del body'
     to: 'customer@spirit.test',
     subject: 'Premio',
     html: '<p>Premio</p>',
+    text: 'Premio',
     idempotencyKey: 'spirit-reward-notification-id'
   });
 
@@ -52,7 +97,8 @@ test('Resend recibe un idempotency key estable y no expone datos fuera del body'
     from: 'Spirit <test@spirit.test>',
     to: ['customer@spirit.test'],
     subject: 'Premio',
-    html: '<p>Premio</p>'
+    html: '<p>Premio</p>',
+    text: 'Premio'
   });
 });
 
@@ -68,6 +114,7 @@ test('un error de Resend falla de forma controlada y no se interpreta como envia
       to: 'customer@spirit.test',
       subject: 'Premio',
       html: '<p>Premio</p>',
+      text: 'Premio',
       idempotencyKey: 'spirit-reward-notification-id'
     }),
     /dominio no verificado/

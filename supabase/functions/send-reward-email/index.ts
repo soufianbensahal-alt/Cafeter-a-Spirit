@@ -1,6 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.110.6";
-import { renderRewardEmail, sendWithResend } from "./email.js";
+import {
+  renderRewardEmail,
+  renderRewardEmailText,
+  sendWithResend,
+} from "./email.js";
 
 type RewardNotification = {
   id: string;
@@ -119,6 +123,11 @@ Deno.serve(async (request: Request) => {
         rewardDescription: notification.reward_description,
         appUrl,
       });
+      const text = renderRewardEmailText({
+        displayName: profile?.display_name ?? "",
+        rewardDescription: notification.reward_description,
+        appUrl,
+      });
 
       const providerMessageId = await sendWithResend({
         apiKey: resendApiKey,
@@ -126,6 +135,7 @@ Deno.serve(async (request: Request) => {
         to: email,
         subject: "¡Has conseguido un café gratis en Spirit! ☕",
         html,
+        text,
         idempotencyKey: `spirit-reward-${notification.id}`,
       });
 
