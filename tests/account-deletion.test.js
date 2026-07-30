@@ -152,7 +152,7 @@ test('la Edge Function obtiene la identidad del JWT y borra solo ese usuario', a
 
 test('la migración elimina datos cliente y anonimiza auditoría de empleados', async () => {
   const migration = await read(
-    'supabase/migrations/20260729171931_harden_account_deletion_cascades.sql'
+    'supabase/migrations/20260729172740_harden_account_deletion_cascades.sql'
   );
 
   assert.match(migration, /customer_cards_customer_id_fkey[\s\S]*on delete cascade/);

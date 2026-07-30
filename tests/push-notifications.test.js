@@ -25,7 +25,7 @@ test('el service worker muestra el aviso y abre los accesos rápidos', async () 
 });
 
 test('el envío recurrente solo reclama suscripciones con dos días de antigüedad', async () => {
-  const migration = await read('../supabase/migrations/20260723205428_add_web_push_notifications.sql');
+  const migration = await read('../supabase/migrations/20260723210447_add_web_push_notifications.sql');
   const sender = await read('../supabase/functions/send-quick-access-reminders/index.ts');
 
   assert.match(migration, /last_notified_at <= now\(\) - interval '2 days'/);
