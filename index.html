@@ -13,8 +13,12 @@
   <script>
     (() => {
       const isBusinessRoute = /^\/cafeteria\/?$/.test(location.pathname);
-      const savedTheme = localStorage.getItem('spirit-theme');
-      const theme = savedTheme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      let savedTheme = null;
+      try { savedTheme = localStorage.getItem('spirit-theme'); } catch {}
+      const preference = ['system', 'light', 'dark'].includes(savedTheme) ? savedTheme : 'system';
+      const systemIsDark = typeof matchMedia === 'function'
+        && matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = preference === 'system' ? (systemIsDark ? 'dark' : 'light') : preference;
       document.documentElement.dataset.theme = theme;
       document.querySelector('#theme-color').content = theme === 'dark' ? '#171612' : '#eecf62';
 
