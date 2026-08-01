@@ -739,7 +739,7 @@ async function initializeCustomerAuth() {
 }
 
 async function initializeEmailConfirmation() {
-  if (!emailConfirmationRoute.shouldVerify) {
+  if (!emailConfirmationRoute.shouldVerify && !emailConfirmationRoute.shouldConsumeSession) {
     if (emailConfirmationRoute.status === 'processing') {
       state.emailConfirmationStatus = 'invalid';
       window.history.replaceState({}, '', emailConfirmationResultUrl('invalid'));
@@ -754,7 +754,17 @@ async function initializeEmailConfirmation() {
   render();
 
   try {
-    await confirmCustomerEmail(tokenHash);
+    if (emailConfirmationRoute.shouldVerify) {
+      await confirmCustomerEmail(tokenHash);
+    } else {
+      const user = await getCurrentUser();
+      if (!user || (!user.email_confirmed_at && !user.confirmed_at)) {
+        const error = new Error('The email confirmation session is invalid.');
+        error.code = 'email_confirmation_invalid';
+        throw error;
+      }
+      await signOutCurrentSession();
+    }
     state.emailConfirmationStatus = 'confirmed';
     window.history.replaceState({}, '', emailConfirmationResultUrl('confirmed'));
   } catch (error) {
