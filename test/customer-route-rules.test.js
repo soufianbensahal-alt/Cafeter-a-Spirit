@@ -9,3 +9,8 @@ test('la recuperación de contraseña conserva su pantalla dedicada', () => {
 test('la entrada normal mantiene la introducción', () => {
   assert.equal(initialCustomerScreen(), 'intro');
 });
+
+test('confirmación y login utilizan sus pantallas públicas sin pasar por la intro', () => {
+  assert.equal(initialCustomerScreen({ emailConfirmation: true }), 'emailConfirmation');
+  assert.equal(initialCustomerScreen({ login: true }), 'login');
+});

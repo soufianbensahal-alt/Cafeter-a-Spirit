@@ -167,17 +167,32 @@ La adhesión es idempotente y no recibe `user_id`: deriva siempre el propietario
 
 ### URLs de Auth
 
-Configura en **Authentication → URL Configuration** la URL pública de producción como **Site URL** y añade como **Redirect URLs** cada origen permitido con la ruta `/reset-password`. La recuperación usa una pantalla propia en esa ruta y el alta vuelve a `/`.
+Configura en **Authentication → URL Configuration** la URL pública de producción como **Site URL** y añade como **Redirect URLs** cada origen permitido con las rutas `/reset-password` y `/auth/confirm`. La recuperación usa una pantalla propia en `/reset-password`; las altas nuevas envían `emailRedirectTo` a `/auth/confirm`. `/email-confirmed` es una ruta interna posterior y no necesita formar parte del allowlist de Auth.
 
 Ejemplos locales:
 
 ```text
 http://127.0.0.1:4173/reset-password
+http://127.0.0.1:4173/auth/confirm
 http://localhost:3000/reset-password
+http://localhost:3000/auth/confirm
 http://localhost:4173/reset-password
+http://localhost:4173/auth/confirm
 ```
 
 En producción están permitidas `https://www.spiritcoffee.es/reset-password` y `https://www.spiritcoffee.es/**`. Si la URL solicitada no está en la lista permitida, Supabase utiliza el Site URL como destino alternativo; por eso un Site URL antiguo como `http://localhost:3000` provoca que el enlace del correo abra una página inexistente.
+
+La plantilla **Authentication → Emails → Confirm sign up** debe conservar todo su diseño y sustituir únicamente el destino del botón por:
+
+```html
+<a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=email">
+  Confirmar correo
+</a>
+```
+
+`{{ .RedirectTo }}` procede exclusivamente del `emailRedirectTo` calculado por la aplicación desde `window.location.origin`; no se acepta una redirección introducida por el usuario. `/auth/confirm` valida `type=email`, limpia inmediatamente el token de la barra de direcciones y ejecuta `verifyOtp` mediante un cliente Supabase aislado con `persistSession: false`. La sesión temporal devuelta por Auth se cierra con `signOut({ scope: 'local' })` antes de mostrar `/email-confirmed`. El botón de esa pantalla abre `/login`, donde el acceso sigue siendo manual con correo y contraseña.
+
+El token se consume de forma atómica en Supabase Auth. Si el mismo enlace se abre en dos pestañas, solo la primera verificación puede completarse; la segunda termina en el estado de enlace utilizado o caducado. Ninguno de los clientes aislados escribe la sesión en el almacenamiento compartido de la aplicación.
 
 La recuperación utiliza un enlace propio con `{{ .TokenHash }}`:
 

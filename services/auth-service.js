@@ -132,6 +132,80 @@ const recoveryError = (error) => {
   return normalized;
 };
 
+const invalidEmailConfirmationCodes = new Set([
+  'access_denied',
+  'bad_jwt',
+  'flow_state_expired',
+  'flow_state_not_found',
+  'invalid_grant',
+  'otp_expired',
+  'token_not_found'
+]);
+
+const emailConfirmationError = (error) => {
+  const normalized = authError(error, 'email_confirmation_failed');
+  if (
+    invalidEmailConfirmationCodes.has(normalized.code)
+    || /expired|invalid|already been used|token/i.test(normalized.message)
+  ) {
+    return new AuthServiceError(
+      'email_confirmation_invalid',
+      'El enlace de confirmación ha caducado o ya se ha utilizado.',
+      error
+    );
+  }
+  return normalized;
+};
+
+export const createEmailConfirmationVerifier = (
+  createConfirmationClient = createIsolatedSupabaseClient
+) => async (tokenHash) => {
+  const cleanTokenHash = String(tokenHash || '').trim();
+  if (!cleanTokenHash) {
+    throw new AuthServiceError(
+      'email_confirmation_invalid',
+      'El enlace de confirmación ha caducado o ya se ha utilizado.'
+    );
+  }
+
+  const confirmationClient = createConfirmationClient();
+  let temporarySessionCreated = false;
+
+  try {
+    const { data, error } = await confirmationClient.auth.verifyOtp({
+      token_hash: cleanTokenHash,
+      type: 'email'
+    });
+    if (error) throw error;
+    if (!data?.session || !data?.user) {
+      throw new AuthServiceError(
+        'email_confirmation_invalid',
+        'El enlace de confirmación ha caducado o ya se ha utilizado.'
+      );
+    }
+
+    temporarySessionCreated = true;
+    return data.user;
+  } catch (error) {
+    throw emailConfirmationError(error);
+  } finally {
+    if (temporarySessionCreated) {
+      try {
+        const { error } = await confirmationClient.auth.signOut({ scope: 'local' });
+        if (error && !isMissingSession(error)) throw error;
+      } catch (error) {
+        throw new AuthServiceError(
+          'email_confirmation_cleanup_failed',
+          'La cuenta se ha confirmado, pero no se ha podido cerrar la sesión temporal.',
+          error
+        );
+      }
+    }
+  }
+};
+
+export const verifyEmailConfirmation = createEmailConfirmationVerifier();
+
 export const createPasswordRecoveryCompleter = (
   createRecoveryClient = createIsolatedSupabaseClient
 ) => async (tokenHash, password) => {

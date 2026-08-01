@@ -8,6 +8,8 @@ test('Supabase utiliza el dominio público y permite la recuperación', async ()
   const config = await read('../supabase/config.toml');
 
   assert.match(config, /site_url = "https:\/\/www\.spiritcoffee\.es"/);
+  assert.match(config, /enable_confirmations = true/);
+  assert.match(config, /"https:\/\/www\.spiritcoffee\.es\/auth\/confirm"/);
   assert.match(config, /"https:\/\/www\.spiritcoffee\.es\/reset-password"/);
   assert.match(config, /"https:\/\/www\.spiritcoffee\.es\/\*\*"/);
 });
@@ -20,7 +22,7 @@ test('registro y recuperación construyen redirectTo desde el origen desplegado'
   try {
     assert.equal(siteOrigin.getSiteOrigin(), 'https://www.spiritcoffee.es');
     assert.equal(siteOrigin.getPasswordResetUrl(), 'https://www.spiritcoffee.es/reset-password');
-    assert.equal(siteOrigin.getEmailConfirmationUrl(), 'https://www.spiritcoffee.es/');
+    assert.equal(siteOrigin.getEmailConfirmationUrl(), 'https://www.spiritcoffee.es/auth/confirm');
   } finally {
     globalThis.window = previousWindow;
   }
@@ -61,7 +63,17 @@ test('Vercel reescribe la recuperación hacia la SPA y no conserva callback OAut
   const rewrites = new Map(vercelConfig.rewrites.map(({ source, destination }) => [source, destination]));
 
   assert.equal(rewrites.get('/reset-password'), '/index.html');
+  assert.equal(rewrites.get('/auth/confirm'), '/index.html');
+  assert.equal(rewrites.get('/email-confirmed'), '/index.html');
+  assert.equal(rewrites.get('/login'), '/index.html');
   assert.equal(rewrites.has('/auth/callback'), false);
+});
+
+test('la plantilla de alta entrega el hash a la ruta propia sin consumir ConfirmationURL', async () => {
+  const template = await read('../supabase/templates/confirmation.html');
+
+  assert.match(template, /\{\{ \.RedirectTo \}\}\?token_hash=\{\{ \.TokenHash \}\}&amp;type=email/);
+  assert.doesNotMatch(template, /ConfirmationURL/);
 });
 
 test('el dominio antiguo no permanece en archivos funcionales o de configuración', async () => {

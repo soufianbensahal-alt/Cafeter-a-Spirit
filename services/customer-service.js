@@ -8,7 +8,8 @@ import {
   signOut,
   signOutCurrentSession,
   signUpWithEmail,
-  subscribeToAuthChanges
+  subscribeToAuthChanges,
+  verifyEmailConfirmation
 } from './auth-service.js';
 import { getUserContexts } from './user-context-service.js';
 import {
@@ -81,6 +82,8 @@ export const updateCustomerPassword = (email, currentPassword, nextPassword) => 
 export const completeCustomerPasswordRecovery = (tokenHash, nextPassword) => (
   completePasswordRecovery(tokenHash, nextPassword)
 );
+
+export const confirmCustomerEmail = (tokenHash) => verifyEmailConfirmation(tokenHash);
 
 export {
   getCurrentUser,

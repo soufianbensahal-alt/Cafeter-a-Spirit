@@ -17,6 +17,30 @@
     {
       "source": "/reset-password/",
       "destination": "/index.html"
+    },
+    {
+      "source": "/auth/confirm",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/auth/confirm/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/email-confirmed",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/email-confirmed/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/login/",
+      "destination": "/index.html"
     }
   ],
   "headers": [

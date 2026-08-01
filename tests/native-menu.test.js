@@ -96,7 +96,7 @@ test('Carta abre internamente y elimina por completo el enlace de Canva', async 
   assert.doesNotMatch(app, /canva\.com\/design\/DAFuLPRj4h0/i);
   assert.match(app, /\{name: 'Carta', subtitle: 'viewMenu', icon: 'card', action: 'open-menu'\}/);
   assert.match(app, /data-action="close-menu"/);
-  assert.match(app, /\{intro,onboarding,login,authLoading,home,menu,rewards,history,profile\}/);
+  assert.match(app, /\{intro,onboarding,login,emailConfirmation,authLoading,home,menu,rewards,history,profile\}/);
 });
 
 test('la carta implementa búsqueda, agrupación, categorías y scroll-spy', async () => {
