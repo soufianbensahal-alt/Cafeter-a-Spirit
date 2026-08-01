@@ -43,7 +43,7 @@ test('cliente y empleados se instalan como PWAs independientes', async () => {
   assert.match(html, /isBusinessRoute \? '\/business\/manifest\.webmanifest' : '\/manifest\.webmanifest'/);
 });
 
-test('el callback OAuth conserva estilos y recursos desde cualquier ruta', async () => {
+test('la aplicación conserva rutas absolutas para estilos y recursos', async () => {
   const [html, app, styles] = await Promise.all([
     readFile(projectFile('index.html'), 'utf8'),
     readFile(projectFile('app.js'), 'utf8'),

@@ -5,7 +5,6 @@ import {
   reauthenticateAndUpdatePassword,
   sendPasswordReset,
   signInWithEmail,
-  signInWithOAuth,
   signOut,
   signOutCurrentSession,
   signUpWithEmail,
@@ -14,7 +13,6 @@ import {
 import { getUserContexts } from './user-context-service.js';
 import {
   getEmailConfirmationUrl,
-  getGoogleCallbackUrl,
   getPasswordResetUrl
 } from './site-origin.js';
 
@@ -58,11 +56,6 @@ export async function signUpCustomer({ email, password, displayName }) {
     context: data.session ? await getCustomerContext(data.user) : null
   };
 }
-
-export const signInCustomerWithOAuth = (provider) => signInWithOAuth(
-  provider,
-  getGoogleCallbackUrl()
-);
 
 export async function updateCustomerProfile(displayName) {
   const user = await getCurrentUser();

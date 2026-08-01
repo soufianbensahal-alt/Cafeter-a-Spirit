@@ -17,7 +17,7 @@ En Vercel, el modo de empleados está disponible en `/cafeteria` mediante la ree
 ## Flujos incluidos
 
 - Intro audiovisual de Spirit a pantalla completa, reproducida antes de acceder a la app y omisible con un toque.
-- Onboarding de tres pasos, registro y acceso por email o Google con Supabase Auth.
+- Onboarding de tres pasos, registro y acceso por email con Supabase Auth.
 - Inicio con progreso, objetivo y recompensas procedentes de la tarjeta real.
 - Recompensas disponibles según el programa activo; el canje todavía se realiza en cafetería.
 - Historial real de operaciones autorizado por RLS.
@@ -165,18 +165,6 @@ La adhesión es idempotente y no recibe `user_id`: deriva siempre el propietario
 
 `authenticated` sólo recibe `EXECUTE` sobre esa RPC y conserva acceso de lectura sobre su propia tarjeta mediante RLS. `anon` no puede ejecutarla y el navegador no obtiene permisos directos de inserción o actualización sobre `customer_cards`.
 
-### Google
-
-El frontend inicia OAuth con `supabase.auth.signInWithOAuth()` y vuelve a `/auth/callback`; la sesión persistida es la misma que usan email, cliente y modo cafetería. Los tokens del proveedor no se guardan en `localStorage`, base de datos propia, URL de aplicación ni logs.
-
-Configuración manual necesaria en **Supabase Dashboard → Authentication → Providers**:
-
-1. Activa Google y añade el Client ID/secret creados en Google Cloud. En Google autoriza el callback alojado `https://iabuhjhyvsqhtiqowarq.supabase.co/auth/v1/callback`.
-2. En **Authentication → URL Configuration**, utiliza `https://www.spiritcoffee.es` como Site URL y añade `https://www.spiritcoffee.es/auth/callback`, además de las variantes locales necesarias.
-3. No incorpores secretos de Google al repositorio o al frontend.
-
-Supabase enlaza automáticamente la identidad de Google cuando entrega el mismo correo verificado. No se fusionan cuentas por texto de email ni por `user_metadata`.
-
 ### URLs de Auth
 
 Configura en **Authentication → URL Configuration** la URL pública de producción como **Site URL** y añade como **Redirect URLs** cada origen permitido con la ruta `/reset-password`. La recuperación usa una pantalla propia en esa ruta y el alta vuelve a `/`.
@@ -189,7 +177,7 @@ http://localhost:3000/reset-password
 http://localhost:4173/reset-password
 ```
 
-En producción están permitidas `https://www.spiritcoffee.es/reset-password`, `https://www.spiritcoffee.es/auth/callback` y `https://www.spiritcoffee.es/**`. Si la URL solicitada no está en la lista permitida, Supabase utiliza el Site URL como destino alternativo; por eso un Site URL antiguo como `http://localhost:3000` provoca que el enlace del correo abra una página inexistente.
+En producción están permitidas `https://www.spiritcoffee.es/reset-password` y `https://www.spiritcoffee.es/**`. Si la URL solicitada no está en la lista permitida, Supabase utiliza el Site URL como destino alternativo; por eso un Site URL antiguo como `http://localhost:3000` provoca que el enlace del correo abra una página inexistente.
 
 La recuperación utiliza un enlace propio con `{{ .TokenHash }}`:
 

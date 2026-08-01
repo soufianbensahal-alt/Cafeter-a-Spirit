@@ -1,5 +1,4 @@
-export function initialCustomerScreen({ passwordRecovery = false, oauthCallback = false } = {}) {
+export function initialCustomerScreen({ passwordRecovery = false } = {}) {
   if (passwordRecovery) return 'login';
-  if (oauthCallback) return 'authLoading';
   return 'intro';
 }

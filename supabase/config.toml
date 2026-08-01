@@ -162,17 +162,13 @@ site_url = "https://www.spiritcoffee.es"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 additional_redirect_urls = [
   "https://www.spiritcoffee.es",
-  "https://www.spiritcoffee.es/auth/callback",
   "https://www.spiritcoffee.es/reset-password",
   "https://www.spiritcoffee.es/**",
   "http://127.0.0.1:4173",
-  "http://127.0.0.1:4173/auth/callback",
   "http://127.0.0.1:4173/reset-password",
   "http://localhost:3000",
-  "http://localhost:3000/auth/callback",
   "http://localhost:3000/reset-password",
   "http://localhost:4173",
-  "http://localhost:4173/auth/callback",
   "http://localhost:4173/reset-password"
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
