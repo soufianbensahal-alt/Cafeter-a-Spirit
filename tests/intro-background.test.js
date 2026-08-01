@@ -14,6 +14,19 @@ test('la intro cubre el viewport dinámico y todas las safe areas con el amarill
   assert.match(styles, /\.intro-screen[^}]*background:\s*#eecf62/i);
 });
 
+test('el modo oscuro no puede sobrescribir el amarillo de la safe area', async () => {
+  const styles = await read('../styles.css');
+  const darkDocumentRule = styles.indexOf('html[data-theme="dark"] body');
+  const darkSplashOverride = styles.indexOf('html.splash-active[data-theme="dark"]');
+
+  assert.ok(darkDocumentRule >= 0);
+  assert.ok(darkSplashOverride > darkDocumentRule);
+  assert.match(
+    styles.slice(darkSplashOverride),
+    /html\.splash-active\[data-theme="dark"\][\s\S]*?html\.splash-active\[data-theme="dark"\] body[\s\S]*?background:\s*#eecf62/i
+  );
+});
+
 test('la carga inicial pinta la safe area amarilla antes de renderizar y conserva viewport-fit', async () => {
   const html = await read('../index.html');
 

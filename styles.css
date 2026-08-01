@@ -362,6 +362,9 @@ html[data-theme="dark"] {
   color: #f7f0de;
 }
 html[data-theme="dark"] body { background: var(--frame); color: #f7f0de; }
+html.splash-active[data-theme="dark"],
+html.splash-active[data-theme="dark"] body,
+html.splash-active[data-theme="dark"] #app { background: #eecf62; }
 html[data-theme="dark"] ::selection { background: var(--mustard); color: #171612; }
 html[data-theme="dark"] .app-shell { background: #171612; box-shadow: 0 0 90px rgba(0,0,0,.48); }
 html[data-theme="dark"] .screen { background: radial-gradient(circle at 100% 0, rgba(238,207,98,.09), transparent 30%), linear-gradient(180deg, rgba(255,255,255,.015), transparent 44%), #171612; }
