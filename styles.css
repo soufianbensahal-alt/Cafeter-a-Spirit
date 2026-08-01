@@ -40,7 +40,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 ::selection { background: var(--ink); color: var(--cream); }
 
 #app { min-height: 100svh; }
-.intro-screen { position: fixed; z-index: 100; inset: 0; background: var(--mustard); display: grid; place-items: center; overflow: hidden; color: white; }
+html.splash-active,
+html.splash-active body,
+html.splash-active #app { background: #eecf62; }
+html.splash-active,
+html.splash-active body { min-height: 100vh; min-height: 100dvh; }
+html.splash-active body { overscroll-behavior: none; }
+.intro-screen { position: fixed; z-index: 100; inset: 0; width: 100%; height: 100vh; height: 100dvh; min-height: 100vh; min-height: 100dvh; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); background: #eecf62; display: grid; place-items: center; overflow: hidden; color: white; }
 .intro-brand { position: relative; z-index: 2; display: grid; justify-items: center; gap: 22px; animation: intro-brand-in 1s cubic-bezier(.2,.85,.25,1) both; }
 .intro-logo { width: 156px; height: auto; display: block; filter: drop-shadow(0 12px 28px rgba(105,92,44,.18)); }
 .intro-brand p { margin: 0; color: rgba(255,255,255,.92); font-size: 11px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; animation: intro-copy-in .7s .45s ease both; }

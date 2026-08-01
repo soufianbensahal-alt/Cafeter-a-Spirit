@@ -171,6 +171,7 @@ const themeController = createThemePreferenceController({
   onChange: ({ preference, effectiveTheme }) => {
     state.themePreference = preference;
     state.theme = effectiveTheme;
+    syncIntroPresentation();
   }
 });
 const applyTheme = (preference, persist = false) => (
@@ -953,6 +954,7 @@ function bindMenuInteractions() {
 
 function render() {
   document.documentElement.lang = state.lang;
+  syncIntroPresentation();
   cleanupMenuInteractions();
   app.innerHTML = ({intro,onboarding,login,authLoading,home,menu,rewards,history,profile})[state.screen]();
   bind();
@@ -970,6 +972,16 @@ function render() {
     clearTimeout(render.introFallback);
     render.introFallback = setTimeout(finishIntro, 2600);
   }
+}
+
+function syncIntroPresentation() {
+  const active = state.screen === 'intro';
+  document.documentElement.classList.toggle('splash-active', active);
+  document.body.classList.toggle('splash-active', active);
+  document.querySelector('#theme-color')?.setAttribute(
+    'content',
+    active ? '#eecf62' : state.theme === 'dark' ? '#171612' : '#eecf62'
+  );
 }
 function showToast(message) { const toast=document.querySelector('#toast'); toast.textContent=message; toast.classList.add('toast--show'); clearTimeout(showToast.timer); showToast.timer=setTimeout(()=>toast.classList.remove('toast--show'),2200); }
 
