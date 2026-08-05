@@ -225,7 +225,7 @@ body.business-mode #toast { display: none; }
 
 @media (max-width: 390px) {
   .session-badge { padding: 0 9px; font-size: 0; }
-  .session-badge::after { content: "Simulada"; font-size: 10px; }
+  .session-badge::after { content: "Segura"; font-size: 10px; }
   .business-action-card, .business-preview { padding: 20px; }
   .business-action-card h1, .business-preview h1 { font-size: 37px; }
   .customer-card dl div { grid-template-columns: 1fr; gap: 5px; }
