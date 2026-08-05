@@ -28,11 +28,11 @@ test('el modo oscuro no puede sobrescribir el amarillo de la safe area', async (
 });
 
 test('la carga inicial pinta la safe area amarilla antes de renderizar y conserva viewport-fit', async () => {
-  const html = await read('../index.html');
+  const [html, startup] = await Promise.all([read('../index.html'), read('../startup.js')]);
 
   assert.match(html, /viewport-fit=cover/);
-  assert.match(html, /classList\.toggle\('splash-active', startsWithSplash\)/);
-  assert.match(html, /startsWithSplash\s*\?\s*'#eecf62'/);
+  assert.match(startup, /classList\.toggle\('splash-active', startsWithSplash\)/);
+  assert.match(startup, /startsWithSplash\s*\?\s*'#eecf62'/);
   assert.equal((html.match(/<meta[^>]+name="viewport"/g) || []).length, 1);
 });
 

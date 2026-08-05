@@ -6,7 +6,7 @@ if (existsSync('.env.local')) process.loadEnvFile('.env.local');
 else if (existsSync('.env')) process.loadEnvFile('.env');
 
 const outputDirectory = 'dist';
-const files = ['index.html', 'app.js', 'bootstrap.js', 'styles.css', 'sw.js', 'manifest.webmanifest'];
+const files = ['index.html', 'app.js', 'bootstrap.js', 'startup.js', 'styles.css', 'sw.js', 'manifest.webmanifest'];
 
 await rm(outputDirectory, { recursive: true, force: true });
 await mkdir(`${outputDirectory}/business`, { recursive: true });
@@ -29,7 +29,8 @@ await build({
   legalComments: 'none',
   define: {
     __SUPABASE_URL__: JSON.stringify(process.env.SUPABASE_URL || ''),
-    __SUPABASE_PUBLISHABLE_KEY__: JSON.stringify(process.env.SUPABASE_PUBLISHABLE_KEY || '')
+    __SUPABASE_PUBLISHABLE_KEY__: JSON.stringify(process.env.SUPABASE_PUBLISHABLE_KEY || ''),
+    __TURNSTILE_SITE_KEY__: JSON.stringify(process.env.TURNSTILE_SITE_KEY || '')
   }
 });
 

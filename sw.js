@@ -1,8 +1,9 @@
-const CACHE_NAME = 'spirit-shell-v26';
+const CACHE_NAME = 'spirit-shell-v27';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/bootstrap.js',
+  '/startup.js',
   '/styles.css',
   '/app.js',
   '/business/business.css',

@@ -2,6 +2,7 @@ import {
   confirmRewardRedemptionSession,
   confirmStampSession,
   getBusinessStampHistory,
+  reportBusinessSecurityFailure,
   StampSessionError,
   validateStampCode,
   validateStampQr
@@ -15,6 +16,18 @@ import {
 } from '../services/employee-service.js';
 import { cameraConstraints, cameraPermissionFromError } from '../services/camera-rules.js';
 import { STAMP_REQUEST_DURATION_SECONDS } from '../services/stamp-expiry-rules.js';
+import {
+  beginBusinessMfaEnrollment,
+  getBusinessMfaState,
+  MfaServiceError,
+  verifyBusinessMfa
+} from '../services/mfa-service.js';
+import { reportSecurityError } from '../services/security-observer.js';
+import {
+  captchaConfiguration,
+  mountCaptcha,
+  readCaptchaToken
+} from '../services/captcha-service.js';
 import {
   isSessionPersistenceEnabled,
   setSessionPersistence
@@ -44,7 +57,9 @@ if (isBusinessRoute) {
     selectedCamera: '',
     scannerMessage: '',
     cameraPermission: 'idle',
-    keepSession: isSessionPersistenceEnabled()
+    keepSession: isSessionPersistenceEnabled(),
+    mfaFactorId: '',
+    mfaEnrollment: null
   };
 
   let cameraStream = null;
@@ -105,7 +120,11 @@ if (isBusinessRoute) {
 
   const scannerView = () => `<main class="business-app business-app--scanner"><header class="scanner-header"><div><span class="business-kicker">Modo cafetería</span><strong>Escanear QR</strong></div><button type="button" data-business-action="close-scanner" aria-label="Cerrar escáner">×</button></header><section class="scanner-card"><div class="scanner-viewport" data-camera-permission="${state.cameraPermission}"><video data-scanner-video playsinline muted aria-label="Vista de la cámara"></video><div class="scanner-guide" aria-hidden="true"><span></span><span></span><span></span><span></span></div></div><p class="scanner-instruction">Coloca el QR del cliente dentro del recuadro.</p><label class="camera-select" data-camera-controls ${state.cameras.length > 1 ? '' : 'hidden'}>Cámara<select data-camera-select aria-label="Seleccionar cámara">${state.cameras.map((camera, index) => `<option value="${escapeHTML(camera.deviceId)}" ${camera.deviceId === state.selectedCamera ? 'selected' : ''}>${escapeHTML(camera.label || `Cámara ${index + 1}`)}</option>`).join('')}</select></label><p class="business-message business-message--scanner" role="status">${escapeHTML(state.scannerMessage)}</p><p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-secondary business-secondary--light business-camera-retry" type="button" data-business-action="retry-camera" ${['denied', 'error'].includes(state.cameraPermission) ? '' : 'hidden'}>Reintentar cámara</button><button class="business-secondary business-secondary--light" type="button" data-business-action="close-scanner">Introducir código manualmente</button></section></main>`;
 
-  const signedOutView = () => `<main class="business-app business-app--signed-out"><section class="signed-out-card"><img src="/assets/spirit-logo-header.png" alt="Spirit"><p class="business-kicker">Modo cafetería</p><h1>Acceso de equipo.</h1><p>Inicia sesión con la cuenta autorizada de Cafetería Spirit.</p><form class="business-login-form" data-business-form="login" novalidate><label for="employee-email">Correo electrónico</label><input id="employee-email" name="email" type="email" autocomplete="username" inputmode="email" required><label for="employee-password">Contraseña</label><input id="employee-password" name="password" type="password" minlength="8" autocomplete="current-password" required><p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Comprobando…' : 'Acceder'}</button></form></section></main>`;
+  const signedOutView = () => `<main class="business-app business-app--signed-out"><section class="signed-out-card"><img src="/assets/spirit-logo-header.png" alt="Spirit"><p class="business-kicker">Modo cafetería</p><h1>Acceso de equipo.</h1><p>Inicia sesión con la cuenta autorizada de Cafetería Spirit.</p><form class="business-login-form" data-business-form="login" novalidate><label for="employee-email">Correo electrónico</label><input id="employee-email" name="email" type="email" autocomplete="username" inputmode="email" required><label for="employee-password">Contraseña</label><input id="employee-password" name="password" type="password" minlength="8" autocomplete="current-password" required>${captchaConfiguration.configured ? '<div class="captcha-slot" data-captcha></div>' : ''}<p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Comprobando…' : 'Acceder'}</button></form></section></main>`;
+
+  const mfaChallengeView = () => `<main class="business-app business-app--signed-out"><section class="signed-out-card"><img src="/assets/spirit-logo-header.png" alt="Spirit"><p class="business-kicker">Verificación en dos pasos</p><h1>Confirma que eres tú.</h1><p>Introduce el código temporal de tu aplicación autenticadora para acceder al modo cafetería.</p><form class="business-login-form" data-business-form="mfa" novalidate><label for="employee-mfa-code">Código de 6 dígitos</label><input id="employee-mfa-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" placeholder="000000" required><p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Verificando…' : 'Verificar y acceder'}</button></form><button class="business-secondary" type="button" data-business-action="logout">Cancelar</button></section></main>`;
+
+  const mfaEnrollmentView = () => `<main class="business-app business-app--signed-out"><section class="signed-out-card signed-out-card--mfa"><img src="/assets/spirit-logo-header.png" alt="Spirit"><p class="business-kicker">Protección obligatoria del equipo</p><h1>Activa el doble factor.</h1><p>Escanea este QR con una aplicación autenticadora y confirma el código generado.</p><img class="business-mfa-qr" src="${escapeHTML(state.mfaEnrollment?.qrCode || '')}" alt="QR para configurar la autenticación en dos pasos"><details class="business-mfa-secret"><summary>No puedo escanear el QR</summary><code>${escapeHTML(state.mfaEnrollment?.secret || '')}</code></details><form class="business-login-form" data-business-form="mfa" novalidate><label for="employee-mfa-code">Código de 6 dígitos</label><input id="employee-mfa-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" placeholder="000000" required><p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Activando…' : 'Activar MFA y acceder'}</button></form><button class="business-secondary" type="button" data-business-action="logout">Cancelar</button></section></main>`;
 
   const authStateView = (title, copy, action = 'retry-auth', actionLabel = 'Volver a comprobar') => `<main class="business-app business-app--signed-out"><section class="signed-out-card"><img src="/assets/spirit-logo-header.png" alt="Spirit"><p class="business-kicker">Modo cafetería</p><h1>${escapeHTML(title)}</h1><p>${escapeHTML(copy)}</p><button class="business-primary" type="button" data-business-action="${action}">${escapeHTML(actionLabel)}</button><button class="business-secondary" type="button" data-business-action="logout">Cerrar sesión</button></section></main>`;
   const unauthorizedView = () => authStateView('Acceso no autorizado.', state.error || 'Tu cuenta no tiene una membresía activa para este negocio.');
@@ -115,18 +134,28 @@ if (isBusinessRoute) {
 
   function render() {
     stopScannerIfLeaving();
-    const views = { checking: loadingView, home: homeView, preview: previewView, success: successView, scanner: scannerView, signedOut: signedOutView, unauthorized: unauthorizedView, expired: expiredView, networkError: networkErrorView };
+    const views = { checking: loadingView, home: homeView, preview: previewView, success: successView, scanner: scannerView, signedOut: signedOutView, mfaChallenge: mfaChallengeView, mfaEnrollment: mfaEnrollmentView, unauthorized: unauthorizedView, expired: expiredView, networkError: networkErrorView };
     app.innerHTML = views[state.view]();
     bind();
     if (state.view === 'scanner') startScanner();
   }
 
   function readableError(error) {
-    if (error instanceof StampSessionError) return error.message;
+    if (error instanceof StampSessionError || error instanceof MfaServiceError) return error.message;
     if (error?.code === 'invalid_credentials') return 'El correo o la contraseña no son correctos.';
     if (error?.code === 'email_not_confirmed') return 'Confirma tu correo antes de iniciar sesión.';
     if (error instanceof EmployeeAuthorizationError || error?.message) return error.message;
     return 'Ha ocurrido un error inesperado. Inténtalo de nuevo.';
+  }
+
+  async function recordBusinessFailure(eventType, error) {
+    reportSecurityError(eventType, error);
+    if (!state.employee?.businessId) return;
+    try {
+      await reportBusinessSecurityFailure(state.employee.businessId, eventType, error?.code || 'unexpected');
+    } catch (reportError) {
+      reportSecurityError('security-alert-delivery', reportError);
+    }
   }
 
   async function loadAuthorizedHome(employee) {
@@ -140,6 +169,27 @@ if (isBusinessRoute) {
       state.error = readableError(error);
       state.view = 'signedOut';
     }
+    render();
+  }
+
+  async function requireBusinessMfa(employee) {
+    state.employee = employee;
+    state.error = '';
+    const mfa = await getBusinessMfaState();
+    if (mfa.verified) {
+      await loadAuthorizedHome(employee);
+      return;
+    }
+    if (mfa.factor) {
+      state.mfaFactorId = mfa.factor.id;
+      state.mfaEnrollment = null;
+      state.view = 'mfaChallenge';
+      render();
+      return;
+    }
+    state.mfaEnrollment = await beginBusinessMfaEnrollment();
+    state.mfaFactorId = state.mfaEnrollment.factorId;
+    state.view = 'mfaEnrollment';
     render();
   }
 
@@ -175,7 +225,7 @@ if (isBusinessRoute) {
         render();
         return;
       }
-      await loadAuthorizedHome(employee);
+      await requireBusinessMfa(employee);
     } catch (error) {
       routeAuthorizationError(error);
       render();
@@ -185,17 +235,42 @@ if (isBusinessRoute) {
   async function submitEmployeeLogin(form) {
     if (state.loading) return;
     const data = new FormData(form);
+    const captchaToken = readCaptchaToken(form);
+    if (captchaConfiguration.configured && !captchaToken) {
+      state.error = 'Completa la comprobación de seguridad.';
+      render();
+      return;
+    }
     state.loading = true;
     state.error = '';
     render();
     try {
-      const employee = await signInEmployee(data.get('email'), data.get('password'));
-      await loadAuthorizedHome(employee);
+      const employee = await signInEmployee(data.get('email'), data.get('password'), captchaToken);
+      await requireBusinessMfa(employee);
     } catch (error) {
       routeAuthorizationError(error);
       if (state.view === 'unauthorized') return render();
       state.view = error?.code === 'network_error' ? 'networkError' : 'signedOut';
       render();
+    } finally {
+      state.loading = false;
+      render();
+    }
+  }
+
+  async function submitMfa(form) {
+    if (state.loading || !state.mfaFactorId) return;
+    state.loading = true;
+    state.error = '';
+    render();
+    try {
+      const data = new FormData(form);
+      await verifyBusinessMfa(state.mfaFactorId, data.get('code'));
+      await loadAuthorizedHome(state.employee);
+    } catch (error) {
+      state.error = readableError(error);
+      state.view = state.mfaEnrollment ? 'mfaEnrollment' : 'mfaChallenge';
+      reportSecurityError('business-mfa', error);
     } finally {
       state.loading = false;
       render();
@@ -219,6 +294,7 @@ if (isBusinessRoute) {
       state.view = 'preview';
     } catch (error) {
       state.error = readableError(error);
+      await recordBusinessFailure('validation_failure', error);
       if (error?.code === 'expired') state.view = 'expired';
     } finally {
       state.loading = false;
@@ -239,6 +315,7 @@ if (isBusinessRoute) {
       state.view = 'success';
     } catch (error) {
       state.error = readableError(error);
+      await recordBusinessFailure('redemption_failure', error);
       if (error?.code === 'expired') state.view = 'expired';
     } finally {
       state.confirming = false;
@@ -348,12 +425,14 @@ if (isBusinessRoute) {
             return;
           } catch (error) {
             state.error = readableError(error);
+            await recordBusinessFailure('validation_failure', error);
             state.scannerMessage = '';
             renderScannerMessages();
             setTimeout(() => { scannerBusy = false; }, 900);
           }
         }
-      } catch {
+      } catch (error) {
+        reportSecurityError('qr-decoder', error);
         state.error = 'Error inesperado al leer el QR. Vuelve a intentarlo.';
         renderScannerMessages();
       }
@@ -420,9 +499,19 @@ if (isBusinessRoute) {
   }
 
   function bind() {
+    document.querySelectorAll('[data-captcha]').forEach((element) => {
+      mountCaptcha(element).catch((error) => {
+        reportSecurityError('business-captcha-render', error);
+        state.error = 'No se ha podido cargar la comprobación de seguridad.';
+      });
+    });
     document.querySelector('[data-business-form="login"]')?.addEventListener('submit', (event) => {
       event.preventDefault();
       submitEmployeeLogin(event.currentTarget);
+    });
+    document.querySelector('[data-business-form="mfa"]')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      submitMfa(event.currentTarget);
     });
     document.querySelector('[data-business-form="code"]')?.addEventListener('submit', (event) => {
       event.preventDefault();

@@ -23,13 +23,15 @@ test('el bootstrap separa cliente y cafetería', async () => {
 test('la caché PWA prioriza la versión de red', async () => {
   const worker = await readFile(projectFile('sw.js'), 'utf8');
 
-  assert.match(worker, /spirit-shell-v26/);
+  assert.match(worker, /spirit-shell-v27/);
+  assert.match(worker, /'\/startup\.js'/);
   assert.match(worker, /fetch\(event\.request, \{ cache: 'no-store' \}\)/);
 });
 
 test('cliente y empleados se instalan como PWAs independientes', async () => {
-  const [html, customerManifest, businessManifest] = await Promise.all([
+  const [html, startup, customerManifest, businessManifest] = await Promise.all([
     readFile(projectFile('index.html'), 'utf8'),
+    readFile(projectFile('startup.js'), 'utf8'),
     readFile(projectFile('manifest.webmanifest'), 'utf8').then(JSON.parse),
     readFile(projectFile('business/manifest.webmanifest'), 'utf8').then(JSON.parse)
   ]);
@@ -40,18 +42,20 @@ test('cliente y empleados se instalan como PWAs independientes', async () => {
   assert.equal(businessManifest.start_url, '/cafeteria');
   assert.equal(businessManifest.scope, '/cafeteria');
   assert.notEqual(customerManifest.id, businessManifest.id);
-  assert.match(html, /isBusinessRoute \? '\/business\/manifest\.webmanifest' : '\/manifest\.webmanifest'/);
+  assert.match(html, /src="\/startup\.js"/);
+  assert.match(startup, /isBusinessRoute \? '\/business\/manifest\.webmanifest' : '\/manifest\.webmanifest'/);
 });
 
 test('la aplicación conserva rutas absolutas para estilos y recursos', async () => {
-  const [html, app, styles] = await Promise.all([
+  const [html, startup, app, styles] = await Promise.all([
     readFile(projectFile('index.html'), 'utf8'),
+    readFile(projectFile('startup.js'), 'utf8'),
     readFile(projectFile('app.js'), 'utf8'),
     readFile(projectFile('styles.css'), 'utf8')
   ]);
 
   assert.match(html, /href="\/styles\.css"/);
-  assert.match(html, /'\/manifest\.webmanifest'/);
+  assert.match(startup, /'\/manifest\.webmanifest'/);
   assert.doesNotMatch(html, /(?:src|href)="assets\//);
   assert.doesNotMatch(app, /(?:src=|image:)['"]assets\//);
   assert.doesNotMatch(styles, /url\(['"]?assets\//);

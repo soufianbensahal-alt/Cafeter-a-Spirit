@@ -40,17 +40,19 @@ export async function getCustomerContext(authenticatedUser) {
   });
 }
 
-export async function signInCustomer(email, password) {
-  const { user } = await signInWithEmail(email, password);
+export async function signInCustomer(email, password, captchaToken) {
+  const { user } = await signInWithEmail(email, password, captchaToken);
   return getCustomerContext(user);
 }
 
-export async function signUpCustomer({ email, password, displayName }) {
+export async function signUpCustomer({ email, password, displayName, captchaToken, consent }) {
   const data = await signUpWithEmail({
     email,
     password,
     displayName,
-    redirectTo: getEmailConfirmationUrl()
+    redirectTo: getEmailConfirmationUrl(),
+    captchaToken,
+    consent
   });
   return {
     confirmationRequired: !data.session,
@@ -70,13 +72,14 @@ export async function updateCustomerProfile(displayName) {
   return getCustomerContext(user);
 }
 
-export const requestCustomerPasswordReset = (email) => sendPasswordReset(
+export const requestCustomerPasswordReset = (email, captchaToken) => sendPasswordReset(
   email,
-  getPasswordResetUrl()
+  getPasswordResetUrl(),
+  captchaToken
 );
 
-export const updateCustomerPassword = (email, currentPassword, nextPassword) => (
-  reauthenticateAndUpdatePassword(email, currentPassword, nextPassword)
+export const updateCustomerPassword = (email, currentPassword, nextPassword, captchaToken) => (
+  reauthenticateAndUpdatePassword(email, currentPassword, nextPassword, captchaToken)
 );
 
 export const completeCustomerPasswordRecovery = (tokenHash, nextPassword) => (

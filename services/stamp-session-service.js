@@ -42,6 +42,7 @@ const toServiceError = (error) => {
     'customer_card_not_available',
     'no_rewards_available',
     'creation_rate_limited',
+    'rate_limited',
     'code_generation_failed',
     'invalid_session_type'
   ].find((code) => message.includes(code));
@@ -51,6 +52,7 @@ const toServiceError = (error) => {
     customer_card_not_available: 'Tu tarjeta Spirit todavía no está activa.',
     no_rewards_available: 'Todavía no tienes un café gratuito disponible.',
     creation_rate_limited: 'Has generado varias solicitudes. Espera unos minutos antes de intentarlo de nuevo.',
+    rate_limited: STATUS_MESSAGES.rate_limited,
     code_generation_failed: 'No se ha podido generar un código seguro. Inténtalo de nuevo.',
     invalid_session_type: 'La solicitud no corresponde con esta operación.'
   };
@@ -299,6 +301,16 @@ export async function confirmRewardRedemptionSession(stampSessionId) {
   } catch (error) {
     throw toServiceError(error);
   }
+}
+
+export async function reportBusinessSecurityFailure(businessId, eventType, eventCode) {
+  const { data, error } = await requireSupabase().rpc('report_business_security_failure', {
+    p_business_id: businessId,
+    p_event_type: eventType,
+    p_event_code: String(eventCode || 'unknown').slice(0, 80)
+  });
+  if (error) throw toServiceError(error);
+  return data === true;
 }
 
 export async function getBusinessStampHistory(businessId, options = {}) {

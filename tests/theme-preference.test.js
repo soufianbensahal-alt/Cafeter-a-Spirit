@@ -131,9 +131,9 @@ test('usuarios existentes conservan light o dark y valores inválidos usan syste
 });
 
 test('la carga inicial resuelve system antes de renderizar y tiene fallback claro', async () => {
-  const index = await read('index.html');
-  assert.match(index, /\['system', 'light', 'dark'\]\.includes\(savedTheme\)/);
-  assert.match(index, /preference === 'system'/);
-  assert.match(index, /typeof matchMedia === 'function'/);
-  assert.match(index, /document\.documentElement\.dataset\.theme = theme/);
+  const startup = await read('startup.js');
+  assert.match(startup, /\['system', 'light', 'dark'\]\.includes\(savedTheme\)/);
+  assert.match(startup, /preference === 'system'/);
+  assert.match(startup, /typeof matchMedia === 'function'/);
+  assert.match(startup, /document\.documentElement\.dataset\.theme = theme/);
 });

@@ -2,6 +2,7 @@ import {
   createIsolatedSupabaseClient,
   requireSupabase
 } from './supabase-client.js';
+import { reportSecurityError } from './security-observer.js';
 
 export class AuthServiceError extends Error {
   constructor(code, message, cause) {
@@ -23,11 +24,12 @@ const authError = (error, fallbackCode = 'auth_error') => {
   return new AuthServiceError(error?.code || fallbackCode, error?.message || 'No se ha podido completar la autenticación.', error);
 };
 
-export async function signInWithEmail(email, password) {
+export async function signInWithEmail(email, password, captchaToken) {
   try {
     const { data, error } = await requireSupabase().auth.signInWithPassword({
       email: String(email || '').trim().toLowerCase(),
-      password
+      password,
+      options: captchaToken ? { captchaToken } : undefined
     });
     if (error) throw error;
     if (!data.user) throw new AuthServiceError('invalid_session', 'No se ha podido validar la sesión.');
@@ -37,14 +39,19 @@ export async function signInWithEmail(email, password) {
   }
 }
 
-export async function signUpWithEmail({ email, password, displayName, redirectTo }) {
+export async function signUpWithEmail({ email, password, displayName, redirectTo, captchaToken, consent }) {
   try {
     const { data, error } = await requireSupabase().auth.signUp({
       email: String(email || '').trim().toLowerCase(),
       password,
       options: {
-        data: { display_name: String(displayName || '').trim() },
-        emailRedirectTo: redirectTo
+        data: {
+          display_name: String(displayName || '').trim(),
+          privacy_consent: consent?.accepted === true,
+          privacy_policy_version: String(consent?.version || '')
+        },
+        emailRedirectTo: redirectTo,
+        captchaToken: captchaToken || undefined
       }
     });
     if (error) throw error;
@@ -84,11 +91,11 @@ export async function signOutCurrentSession() {
   }
 }
 
-export async function sendPasswordReset(email, redirectTo) {
+export async function sendPasswordReset(email, redirectTo, captchaToken) {
   try {
     const { error } = await requireSupabase().auth.resetPasswordForEmail(
       String(email || '').trim().toLowerCase(),
-      { redirectTo }
+      { redirectTo, captchaToken: captchaToken || undefined }
     );
     if (error) throw error;
   } catch (error) {
@@ -258,22 +265,24 @@ export const createPasswordRecoveryCompleter = (
     if (recoverySessionCreated) {
       try {
         await recoveryClient.auth.signOut({ scope: 'local' });
-      } catch {}
+      } catch (cleanupError) {
+        reportSecurityError('password-recovery-signout', cleanupError);
+      }
     }
   }
 };
 
 export const completePasswordRecovery = createPasswordRecoveryCompleter();
 
-export async function reauthenticateAndUpdatePassword(email, currentPassword, nextPassword) {
-  await signInWithEmail(email, currentPassword);
+export async function reauthenticateAndUpdatePassword(email, currentPassword, nextPassword, captchaToken) {
+  await signInWithEmail(email, currentPassword, captchaToken);
   return updatePassword(nextPassword);
 }
 
-export function subscribeToAuthChanges(handler) {
+export function subscribeToAuthChanges(handler, onError = reportSecurityError.bind(null, 'auth-state-change')) {
   const { data } = requireSupabase().auth.onAuthStateChange((event, session) => {
     queueMicrotask(() => {
-      Promise.resolve(handler(event, session?.user || null)).catch(() => {});
+      Promise.resolve(handler(event, session?.user || null)).catch(onError);
     });
   });
   return () => data.subscription.unsubscribe();

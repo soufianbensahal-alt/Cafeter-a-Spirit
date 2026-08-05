@@ -219,6 +219,11 @@ body.business-mode #toast { display: none; }
 .business-login-form input { width: 100%; min-height: 58px; border: 1px solid var(--business-line); border-radius: 18px; background: rgba(255,255,255,.72); padding: 0 16px; color: var(--business-ink); outline: none; transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease; }
 .business-login-form input:focus { border-color: #695c2c; background: white; box-shadow: 0 0 0 4px rgba(105,92,44,.13); }
 .business-login-form .business-message { margin: 2px 3px; text-align: left; }
+.business-login-form .captcha-slot { width: 100%; min-height: 65px; overflow: hidden; }
+.signed-out-card--mfa { width: min(100%, 500px); }
+.business-mfa-qr { display: block; width: min(230px, 75vw); height: auto; margin: 20px auto; padding: 10px; border-radius: 24px; background: #fff; }
+.business-mfa-secret { margin: 0 auto 16px; color: var(--business-muted); font-size: 13px; }
+.business-mfa-secret code { display: block; margin-top: 8px; padding: 10px; border-radius: 10px; overflow-wrap: anywhere; background: rgba(238,207,98,.16); color: var(--business-ink); }
 
 @media (min-width: 700px) {
   .business-app { padding-top: max(32px, env(safe-area-inset-top)); }
