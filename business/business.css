@@ -10,6 +10,10 @@ body.business-mode {
   color: var(--business-ink);
 }
 
+html[data-theme="dark"] body.business-mode {
+  color: var(--business-ink);
+}
+
 body.business-mode #toast { display: none; }
 
 .business-app {
