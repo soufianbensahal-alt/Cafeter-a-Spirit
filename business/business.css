@@ -9,7 +9,6 @@ body.business-mode {
   background: var(--business-bg);
   color: var(--business-ink);
 }
-
 html[data-theme="dark"] body.business-mode {
   color: var(--business-ink);
 }
@@ -60,8 +59,6 @@ body.business-mode #toast { display: none; }
 
 .employee-avatar, .customer-avatar { border-radius: 50%; display: grid; place-items: center; background: var(--business-ink); color: #fffaf0; font-weight: 800; }
 .employee-avatar { width: 44px; height: 44px; font-size: 13px; }
-.employee-avatar { overflow: hidden; }
-.employee-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center; }
 .employee-strip > div:nth-child(2) { display: grid; gap: 2px; min-width: 0; }
 .employee-strip span { color: var(--business-muted); font-size: 11px; }
 .employee-strip strong { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }

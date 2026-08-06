@@ -14,11 +14,6 @@ import {
   updateCustomerProfile
 } from './services/customer-service.js';
 import {
-  removeOwnAvatar,
-  uploadOwnAvatar,
-  versionedAvatarUrl
-} from './services/avatar-service.js';
-import {
   createStampRequest,
   createRewardRedemptionRequest,
   createOwnCustomerMembership,
@@ -117,14 +112,14 @@ const copy = {
     rewardsEyebrow: 'Tienes {count} sellos', rewardsTitle: 'Algo bueno<br>te espera.', rewardsCopy: 'Canjea tus sellos en caja y disfruta de tu momento Spirit.', available: 'Disponibles', madeNow: 'Preparado al momento con mucho mimo.', stamps: 'sellos',
     historyEyebrow: 'Tus momentos Spirit', historyTitle: 'Cada visita<br>cuenta.', movements: 'Movimientos', visitStamp: 'Sello por visita', redeemedCoffee: 'Café gratuito canjeado', oneRewardRemaining: '{count} recompensa restante', rewardsRemaining: '{count} recompensas restantes', loadMore: 'Cargar más', noMovements: 'Aún no hay movimientos', noMovementsCopy: '¡Ven a por tu primer sello! Tu historia Spirit empieza con un café.',
     profileEyebrow: 'Tu espacio', profileTitle: 'Muy tú.<br>Muy Spirit.', completeProfile: 'Completa tu nombre para personalizar Spirit', yourAccount: 'Tu cuenta', settings: 'Ajustes', personalData: 'Datos personales', notifications: 'Notificaciones', notificationsCopy: 'Recordatorio de accesos rápidos cada 2 días', notificationsEnabled: 'Notificaciones activadas', notificationsDisabled: 'Notificaciones desactivadas', notificationsDenied: 'Activa las notificaciones de Spirit desde los ajustes del dispositivo.', notificationsUnsupported: 'Este dispositivo no admite notificaciones web.', notificationsInstallIOS: 'En iPhone o iPad, añade Spirit a la pantalla de inicio para activar las notificaciones.', notificationsError: 'No se han podido configurar las notificaciones. Inténtalo de nuevo.', keepSession: 'Mantener sesión iniciada', keepSessionCopy: 'Recordar esta cuenta al volver a abrir Spirit', appearance: 'Apariencia', appearanceEyebrow: 'Preferencias', appearanceTitle: 'Apariencia de la aplicación', systemTheme: 'Sistema', lightTheme: 'Claro', darkTheme: 'Oscuro', language: 'Idioma', spanish: 'Castellano', catalan: 'Catalán', inviteFriend: 'Invita a un amigo', logout: 'Cerrar sesión', dangerZone: 'Zona peligrosa', dangerZoneCopy: 'Estas acciones afectan de forma permanente a tu cuenta.', deleteAccount: 'Eliminar cuenta', deleteAccountTitle: 'Eliminar tu cuenta', deleteAccountWarning: 'Esta acción eliminará permanentemente tu cuenta Spirit, tu perfil, tu tarjeta, tus sellos, tus recompensas y los datos asociados. No se puede deshacer.', deleteAccountInstruction: 'Escribe ELIMINAR para confirmar.', deleteAccountConfirmation: 'ELIMINAR', cancel: 'Cancelar', deleteMyAccount: 'Eliminar mi cuenta', deletingAccount: 'Eliminando cuenta…', accountDeletedSuccess: 'Tu cuenta ha sido eliminada correctamente.', accountDeletionError: 'No se ha podido eliminar la cuenta. Inténtalo de nuevo.', accountDeletionSessionError: 'Tu sesión ya no es válida. Vuelve a iniciar sesión antes de eliminar la cuenta.',
-    personalEyebrow: 'Tu cuenta', personalTitle: 'Datos personales', changePhoto: 'Fotografía de perfil', gallery: 'Galería', camera: 'Cámara', removePhoto: 'Eliminar foto', photoUpdated: 'Foto de perfil actualizada', photoRemoved: 'Foto de perfil eliminada', firstName: 'Nombre', lastName: 'Apellidos', email: 'Correo electrónico', emailReadOnly: 'Gestionado por tu cuenta', changePassword: 'Cambiar contraseña', save: 'Guardar', close: 'Cerrar',
+    personalEyebrow: 'Tu cuenta', personalTitle: 'Datos personales', firstName: 'Nombre', lastName: 'Apellidos', email: 'Correo electrónico', emailReadOnly: 'Gestionado por tu cuenta', changePassword: 'Cambiar contraseña', save: 'Guardar', close: 'Cerrar',
     passwordEyebrow: 'Seguridad', passwordTitle: 'Cambiar contraseña', currentPassword: 'Contraseña actual', newPassword: 'Nueva contraseña', confirmPassword: 'Confirmar contraseña', passwordLength: 'Usa al menos 12 caracteres, con mayúscula, minúscula, número y símbolo.', passwordMismatch: 'Las contraseñas no coinciden.', passwordIncorrect: 'La contraseña actual no es correcta.', passwordSaved: 'Contraseña actualizada',
     languageEyebrow: 'Preferencias', languageTitle: 'Idioma de la aplicación', welcome: 'Bienvenida a casa', loginTitle: 'Tu café.<br>Tus sellos.', authLabel: 'Autenticación', phone: 'Teléfono', namePlaceholder: '¿Cómo te llamas?', emailPlaceholder: 'tu@email.com', privacy: 'Acepto la política de privacidad y el tratamiento de mis datos según el RGPD.', createAccount: 'Crear mi cuenta', signIn: 'Iniciar sesión', password: 'Contraseña', forgotPassword: 'He olvidado mi contraseña', sendRecovery: 'Enviar enlace de recuperación', backToSignIn: 'Volver al acceso', repeatPassword: 'Confirmar nueva contraseña', checkSession: 'Comprobando tu sesión…', authConfirmation: 'Revisa tu correo para confirmar la cuenta antes de iniciar sesión.', recoverySent: 'Si existe una cuenta con ese correo, recibirás un enlace de recuperación.', recoveryEyebrow: 'Seguridad de tu cuenta', recoveryTitle: 'Crea una nueva<br>contraseña.', recoveryCopy: 'Introduce una contraseña segura y repítela para confirmar que está escrita correctamente.', recoveryChecking: 'Validando el enlace de recuperación…', recoveryInvalidTitle: 'El enlace ya no es válido.', recoveryInvalidCopy: 'El enlace ha caducado, ya se ha utilizado o no puede verificarse. Solicita uno nuevo para continuar.', requestAnotherRecovery: 'Solicitar otro enlace', recoveryCompleteTitle: 'Contraseña actualizada.', recoveryCompleteCopy: 'Tu nueva contraseña ya está activa. Puedes continuar con tu cuenta Spirit.', recoveryCompleteSignIn: 'Contraseña actualizada correctamente. Inicia sesión con tu nueva contraseña.', continueToSpirit: 'Continuar en Spirit', recoverySessionMissing: 'No se ha podido validar el enlace. Solicita uno nuevo.', completeRecovery: 'Guardar nueva contraseña', emailConfirmationEyebrow: 'Activa tu cuenta', emailConfirmationProcessingTitle: 'Confirmando tu correo…', emailConfirmationProcessingCopy: 'Estamos confirmando tu correo…', emailConfirmationTitle: 'Correo confirmado', emailConfirmationCopy: 'Tu cuenta de Spirit Coffee ya está activada.', emailConfirmationSecondary: 'Ahora puedes iniciar sesión con tu correo y contraseña.', emailConfirmationInvalidTitle: 'El enlace ya no es válido', emailConfirmationInvalidCopy: 'No hemos podido confirmar tu correo. El enlace puede haber caducado o ya haber sido utilizado.', emailConfirmationNetworkTitle: 'No se ha podido confirmar', emailConfirmationNetworkCopy: 'No hemos podido completar la confirmación en este momento. Inténtalo de nuevo.', emailConfirmationResend: 'Reenviar correo de confirmación', emailConfirmationResent: 'Si la cuenta sigue pendiente, recibirás un nuevo correo de confirmación.', retry: 'Reintentar', returnHome: 'Volver al inicio',
     requestStamp: 'Solicitar sello', stampRequestTitle: 'Tu código temporal', stampRequestCopy: 'Enséñale el QR o el código al equipo de Spirit.', rewardRequestTitle: 'Usar café gratuito', rewardRequestCopy: 'Enséñale este QR o código al equipo. El premio solo se descontará cuando confirmes el canje en caja.', useFreeCoffee: 'Usar café gratuito', oneCoffeeAvailable: '1 café disponible', coffeesAvailable: '{count} cafés disponibles', rewardQrAlt: 'QR temporal para canjear un café gratuito', stampQrAlt: 'QR temporal para solicitar un sello', requestSecurity: 'El código es de un solo uso, no contiene datos personales y no descuenta nada hasta la confirmación del equipo.', stampCodeLabel: 'Código de 6 dígitos', stampExpiresIn: 'Caduca en {count}', stampExpired: 'Esta solicitud ha caducado.', regenerateStamp: 'Generar uno nuevo', generatingStamp: 'Generando código seguro…', stampConfirmed: 'Sello añadido. Tu tarjeta ya está actualizada.', rewardWon: '¡Has conseguido {count} recompensa!', rewardRedeemed: 'Premio canjeado. Disfruta de tu café gratuito.', availableAtCafe: 'Disponible en cafetería', unavailableReward: 'Aún no disponible', cardUnavailable: 'Tarjeta todavía no disponible',
     invalidCredentials: 'El correo o la contraseña no son correctos.', emailNotConfirmed: 'Confirma tu correo antes de iniciar sesión.', accountExists: 'Ya existe una cuenta con este correo.', weakPassword: 'La contraseña no cumple los requisitos de seguridad.', tooManyAttempts: 'Demasiados intentos. Espera unos minutos antes de volver a probar.', networkError: 'No se ha podido conectar con Spirit. Revisa tu conexión.', operationError: 'No se ha podido completar la operación.',
     stampLoginRequired: 'Inicia sesión para generar una solicitud de sello.', loyaltyUnavailable: 'El programa de fidelización de Spirit no está disponible.', customerCardInactive: 'Tu tarjeta Spirit todavía no está activa.', noRewardsAvailable: 'Todavía no tienes un café gratuito disponible.', requestRateLimited: 'Has generado varias solicitudes. Espera unos minutos antes de intentarlo de nuevo.', secureCodeError: 'No se ha podido generar un código seguro. Inténtalo de nuevo.', wrongRequestType: 'La solicitud no corresponde con esta operación.', invalidRequestResponse: 'La respuesta de la solicitud no es válida.', requestError: 'No se ha podido completar la solicitud. Inténtalo de nuevo.',
     joinClub: 'Activar mi tarjeta', joiningClub: 'Activando tarjeta…', businessMode: 'Ir al modo cafetería',
-    shareText: 'Descubre Cafetería Spirit · Brunch and Specialty Coffee Montcada', shareCopied: 'Enlace copiado para compartir', invalidImage: 'No se ha podido procesar la imagen.'
+    shareText: 'Descubre Cafetería Spirit · Brunch and Specialty Coffee Montcada', shareCopied: 'Enlace copiado para compartir'
   },
   ca: {
     navLabel: 'Navegació principal', home: 'Inici', rewards: 'Premis', history: 'Historial', profile: 'Perfil', skip: 'Omet', continue: 'Continuar', enter: 'Entrar a Spirit',
@@ -134,25 +129,18 @@ const copy = {
     rewardsEyebrow: 'Tens {count} segells', rewardsTitle: 'Una cosa bona<br>t’espera.', rewardsCopy: 'Bescanvia els teus segells a caixa i gaudeix del teu moment Spirit.', available: 'Disponibles', madeNow: 'Preparat al moment amb molta cura.', stamps: 'segells',
     historyEyebrow: 'Els teus moments Spirit', historyTitle: 'Cada visita<br>compta.', movements: 'Moviments', visitStamp: 'Segell per visita', redeemedCoffee: 'Cafè gratuït bescanviat', oneRewardRemaining: '{count} recompensa restant', rewardsRemaining: '{count} recompenses restants', loadMore: 'Carregar-ne més', noMovements: 'Encara no hi ha moviments', noMovementsCopy: 'Vine a buscar el teu primer segell! La teva història Spirit comença amb un cafè.',
     profileEyebrow: 'El teu espai', profileTitle: 'Molt tu.<br>Molt Spirit.', completeProfile: 'Completa el teu nom per personalitzar Spirit', yourAccount: 'El teu compte', settings: 'Configuració', personalData: 'Dades personals', notifications: 'Notificacions', notificationsCopy: 'Recordatori d’accessos ràpids cada 2 dies', notificationsEnabled: 'Notificacions activades', notificationsDisabled: 'Notificacions desactivades', notificationsDenied: 'Activa les notificacions de Spirit des de la configuració del dispositiu.', notificationsUnsupported: 'Aquest dispositiu no admet notificacions web.', notificationsInstallIOS: 'A l’iPhone o l’iPad, afegeix Spirit a la pantalla d’inici per activar les notificacions.', notificationsError: 'No s’han pogut configurar les notificacions. Torna-ho a provar.', keepSession: 'Mantenir la sessió iniciada', keepSessionCopy: 'Recordar aquest compte en tornar a obrir Spirit', appearance: 'Aparença', appearanceEyebrow: 'Preferències', appearanceTitle: 'Aparença de l’aplicació', systemTheme: 'Sistema', lightTheme: 'Clar', darkTheme: 'Fosc', language: 'Idioma', spanish: 'Castellà', catalan: 'Català', inviteFriend: 'Convida un amic', logout: 'Tancar sessió', dangerZone: 'Zona perillosa', dangerZoneCopy: 'Aquestes accions afecten permanentment el teu compte.', deleteAccount: 'Eliminar el compte', deleteAccountTitle: 'Eliminar el teu compte', deleteAccountWarning: 'Aquesta acció eliminarà permanentment el teu compte Spirit, el teu perfil, la teva targeta, els teus segells, les teves recompenses i les dades associades. No es pot desfer.', deleteAccountInstruction: 'Escriu ELIMINAR per confirmar.', deleteAccountConfirmation: 'ELIMINAR', cancel: 'Cancel·lar', deleteMyAccount: 'Eliminar el meu compte', deletingAccount: 'Eliminant el compte…', accountDeletedSuccess: 'El teu compte s’ha eliminat correctament.', accountDeletionError: 'No s’ha pogut eliminar el compte. Torna-ho a provar.', accountDeletionSessionError: 'La teva sessió ja no és vàlida. Torna a iniciar sessió abans d’eliminar el compte.',
-    personalEyebrow: 'El teu compte', personalTitle: 'Dades personals', changePhoto: 'Fotografia de perfil', gallery: 'Galeria', camera: 'Càmera', removePhoto: 'Eliminar foto', photoUpdated: 'Foto de perfil actualitzada', photoRemoved: 'Foto de perfil eliminada', firstName: 'Nom', lastName: 'Cognoms', email: 'Correu electrònic', emailReadOnly: 'Gestionat pel teu compte', changePassword: 'Canviar contrasenya', save: 'Desar', close: 'Tancar',
+    personalEyebrow: 'El teu compte', personalTitle: 'Dades personals', firstName: 'Nom', lastName: 'Cognoms', email: 'Correu electrònic', emailReadOnly: 'Gestionat pel teu compte', changePassword: 'Canviar contrasenya', save: 'Desar', close: 'Tancar',
     passwordEyebrow: 'Seguretat', passwordTitle: 'Canviar contrasenya', currentPassword: 'Contrasenya actual', newPassword: 'Nova contrasenya', confirmPassword: 'Confirmar contrasenya', passwordLength: 'Utilitza almenys 12 caràcters, amb majúscula, minúscula, número i símbol.', passwordMismatch: 'Les contrasenyes no coincideixen.', passwordIncorrect: 'La contrasenya actual no és correcta.', passwordSaved: 'Contrasenya actualitzada',
     languageEyebrow: 'Preferències', languageTitle: 'Idioma de l’aplicació', welcome: 'Benvinguda a casa', loginTitle: 'El teu cafè.<br>Els teus segells.', authLabel: 'Autenticació', phone: 'Telèfon', namePlaceholder: 'Com et dius?', emailPlaceholder: 'el_teu@email.com', privacy: 'Accepto la política de privacitat i el tractament de les meves dades segons el RGPD.', createAccount: 'Crear el meu compte', signIn: 'Iniciar sessió', password: 'Contrasenya', forgotPassword: 'He oblidat la contrasenya', sendRecovery: 'Enviar enllaç de recuperació', backToSignIn: 'Tornar a l’accés', repeatPassword: 'Confirmar la nova contrasenya', checkSession: 'Comprovant la sessió…', authConfirmation: 'Revisa el correu per confirmar el compte abans d’iniciar sessió.', recoverySent: 'Si existeix un compte amb aquest correu, rebràs un enllaç de recuperació.', recoveryEyebrow: 'Seguretat del teu compte', recoveryTitle: 'Crea una nova<br>contrasenya.', recoveryCopy: 'Introdueix una contrasenya segura i repeteix-la per confirmar que està escrita correctament.', recoveryChecking: 'Validant l’enllaç de recuperació…', recoveryInvalidTitle: 'L’enllaç ja no és vàlid.', recoveryInvalidCopy: 'L’enllaç ha caducat, ja s’ha utilitzat o no es pot verificar. Sol·licita’n un de nou per continuar.', requestAnotherRecovery: 'Sol·licitar un altre enllaç', recoveryCompleteTitle: 'Contrasenya actualitzada.', recoveryCompleteCopy: 'La teva nova contrasenya ja està activa. Pots continuar amb el teu compte Spirit.', recoveryCompleteSignIn: 'Contrasenya actualitzada correctament. Inicia sessió amb la nova contrasenya.', continueToSpirit: 'Continuar a Spirit', recoverySessionMissing: 'No s’ha pogut validar l’enllaç. Sol·licita’n un de nou.', completeRecovery: 'Desar la nova contrasenya', emailConfirmationEyebrow: 'Activa el teu compte', emailConfirmationProcessingTitle: 'Confirmant el teu correu…', emailConfirmationProcessingCopy: 'Estem confirmant el teu correu…', emailConfirmationTitle: 'Correu confirmat', emailConfirmationCopy: 'El teu compte de Spirit Coffee ja està activat.', emailConfirmationSecondary: 'Ara pots iniciar sessió amb el teu correu i contrasenya.', emailConfirmationInvalidTitle: 'L’enllaç ja no és vàlid', emailConfirmationInvalidCopy: 'No hem pogut confirmar el teu correu. L’enllaç pot haver caducat o ja s’ha utilitzat.', emailConfirmationNetworkTitle: 'No s’ha pogut confirmar', emailConfirmationNetworkCopy: 'No hem pogut completar la confirmació en aquest moment. Torna-ho a provar.', emailConfirmationResend: 'Reenviar el correu de confirmació', emailConfirmationResent: 'Si el compte continua pendent, rebràs un nou correu de confirmació.', retry: 'Tornar-ho a provar', returnHome: 'Tornar a l’inici',
     requestStamp: 'Sol·licitar un segell', stampRequestTitle: 'El teu codi temporal', stampRequestCopy: 'Ensenya el QR o el codi a l’equip de Spirit.', rewardRequestTitle: 'Utilitzar el cafè gratuït', rewardRequestCopy: 'Ensenya aquest QR o codi a l’equip. El premi només es descomptarà quan confirmis el bescanvi a caixa.', useFreeCoffee: 'Utilitzar el cafè gratuït', oneCoffeeAvailable: '1 cafè gratuït disponible', coffeesAvailable: '{count} cafès gratuïts disponibles', rewardQrAlt: 'QR temporal per bescanviar un cafè gratuït', stampQrAlt: 'QR temporal per sol·licitar un segell', requestSecurity: 'El codi és d’un sol ús, no conté dades personals i no descompta res fins que l’equip ho confirma.', stampCodeLabel: 'Codi de 6 dígits', stampExpiresIn: 'Caduca en {count}', stampExpired: 'Aquesta sol·licitud ha caducat.', regenerateStamp: 'Generar-ne un de nou', generatingStamp: 'Generant un codi segur…', stampConfirmed: 'Segell afegit. La teva targeta ja està actualitzada.', rewardWon: 'Has aconseguit {count} recompensa!', rewardRedeemed: 'Premi bescanviat. Gaudeix del teu cafè gratuït.', availableAtCafe: 'Disponible a la cafeteria', unavailableReward: 'Encara no disponible', cardUnavailable: 'Targeta encara no disponible',
     invalidCredentials: 'El correu o la contrasenya no són correctes.', emailNotConfirmed: 'Confirma el correu abans d’iniciar sessió.', accountExists: 'Ja existeix un compte amb aquest correu.', weakPassword: 'La contrasenya no compleix els requisits de seguretat.', tooManyAttempts: 'Massa intents. Espera uns minuts abans de tornar-ho a provar.', networkError: 'No s’ha pogut connectar amb Spirit. Revisa la connexió.', operationError: 'No s’ha pogut completar l’operació.',
     stampLoginRequired: 'Inicia sessió per generar una sol·licitud de segell.', loyaltyUnavailable: 'El programa de fidelització de Spirit no està disponible.', customerCardInactive: 'La teva targeta Spirit encara no està activa.', noRewardsAvailable: 'Encara no tens cap cafè gratuït disponible.', requestRateLimited: 'Has generat diverses sol·licituds. Espera uns minuts abans de tornar-ho a provar.', secureCodeError: 'No s’ha pogut generar un codi segur. Torna-ho a provar.', wrongRequestType: 'La sol·licitud no correspon a aquesta operació.', invalidRequestResponse: 'La resposta de la sol·licitud no és vàlida.', requestError: 'No s’ha pogut completar la sol·licitud. Torna-ho a provar.',
     joinClub: 'Activar la meva targeta', joiningClub: 'Activant targeta…', businessMode: 'Anar al mode cafeteria',
-    shareText: 'Descobreix Cafeteria Spirit · Brunch and Specialty Coffee Montcada', shareCopied: 'Enllaç copiat per compartir', invalidImage: 'No s’ha pogut processar la imatge.'
+    shareText: 'Descobreix Cafeteria Spirit · Brunch and Specialty Coffee Montcada', shareCopied: 'Enllaç copiat per compartir'
   }
 };
 
-const defaultProfile = {
-  firstName: 'Cliente',
-  lastName: '',
-  email: '',
-  avatarUrl: '',
-  avatarUpdatedAt: '',
-  avatarLoadFailed: false
-};
+const defaultProfile = { firstName: 'Cliente', lastName: '', email: '' };
 const state = {
   screen: initialCustomerScreen({ passwordRecovery: isPasswordRecoveryRoute, emailConfirmation: emailConfirmationRoute.active, login: isLoginRoute }), afterIntro: localStorage.getItem('spirit-onboarded') ? 'login' : 'onboarding', onboarding: 0, stamps: 0,
   availableRewards: 0,
@@ -178,7 +166,6 @@ const state = {
   authLoading: false,
   authError: '',
   authNotice: '',
-  avatarLoading: false,
   emailConfirmationStatus: emailConfirmationRoute.status,
   accountDeleting: false,
   accountDeletionError: '',
@@ -208,15 +195,7 @@ const applyTheme = (preference, persist = false) => (
 );
 applyTheme(state.themePreference);
 const initials = () => `${state.profile.firstName[0] || ''}${state.profile.lastName[0] || ''}`.toUpperCase();
-const avatarSource = () => state.profile.avatarLoadFailed
-  ? ''
-  : versionedAvatarUrl(state.profile.avatarUrl, state.profile.avatarUpdatedAt);
-const avatar = (className = 'avatar') => {
-  const source = avatarSource();
-  return source
-    ? `<span class="${className}" data-avatar><img src="${escapeHTML(source)}" alt="${escapeHTML(state.profile.firstName)}"></span>`
-    : `<span class="${className}" data-avatar>${escapeHTML(initials())}</span>`;
-};
+const avatar = (className = 'avatar') => `<span class="${className}">${escapeHTML(initials())}</span>`;
 const brandLogo = (variant = 'header') => `<img class="brand-logo brand-logo--${variant}" src="/assets/spirit-logo-header.png" alt="Spirit">`;
 
 const nav = (active) => `<nav class="bottom-nav" aria-label="${t('navLabel')}">
@@ -589,10 +568,7 @@ const openStampRequest = () => openLoyaltyRequest(createStampRequest);
 const openRewardRequest = () => openLoyaltyRequest(createRewardRedemptionRequest);
 
 function personalSheet() {
-  const removePhoto = state.profile.avatarUrl
-    ? `<button class="photo-action" type="button" data-action="remove-photo">${t('removePhoto')}</button>`
-    : '';
-  return sheet(`<div class="sheet-head"><div><p class="eyebrow">${t('personalEyebrow')}</p><h2>${t('personalTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-sheet" aria-label="${t('close')}">×</button></div><form class="sheet-form" data-form="profile"><div class="photo-editor">${avatar('avatar avatar--editor')}<strong>${t('changePhoto')}</strong><div class="photo-actions"><label class="photo-action">${t('gallery')}<input type="file" accept="image/*" data-photo-input hidden></label><label class="photo-action">${t('camera')}<input type="file" accept="image/*" capture="environment" data-photo-input hidden></label>${removePhoto}</div></div><div class="field"><label for="profile-first">${t('firstName')}</label><input id="profile-first" name="firstName" value="${escapeHTML(state.profile.firstName)}" maxlength="28" autocomplete="given-name" required></div><div class="field"><label for="profile-last">${t('lastName')}</label><input id="profile-last" name="lastName" value="${escapeHTML(state.profile.lastName)}" maxlength="42" autocomplete="family-name" required></div><div class="field"><label for="profile-email">${t('email')}</label><input id="profile-email" value="${escapeHTML(state.profile.email)}" type="email" readonly aria-describedby="email-note"><small id="email-note" class="field-note">${t('emailReadOnly')}</small></div><button class="sheet-link" type="button" data-action="open-password"><span>${t('changePassword')}</span><span>›</span></button><button class="primary-button" type="submit">${t('save')}</button></form>`, 'modal--form');
+  return sheet(`<div class="sheet-head"><div><p class="eyebrow">${t('personalEyebrow')}</p><h2>${t('personalTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-sheet" aria-label="${t('close')}">×</button></div><form class="sheet-form" data-form="profile"><div class="field"><label for="profile-first">${t('firstName')}</label><input id="profile-first" name="firstName" value="${escapeHTML(state.profile.firstName)}" maxlength="28" autocomplete="given-name" required></div><div class="field"><label for="profile-last">${t('lastName')}</label><input id="profile-last" name="lastName" value="${escapeHTML(state.profile.lastName)}" maxlength="42" autocomplete="family-name" required></div><div class="field"><label for="profile-email">${t('email')}</label><input id="profile-email" value="${escapeHTML(state.profile.email)}" type="email" readonly aria-describedby="email-note"><small id="email-note" class="field-note">${t('emailReadOnly')}</small></div><button class="sheet-link" type="button" data-action="open-password"><span>${t('changePassword')}</span><span>›</span></button><button class="primary-button" type="submit">${t('save')}</button></form>`, 'modal--form');
 }
 
 function appearanceSheet() {
@@ -679,9 +655,7 @@ function applyCustomerContext(context) {
     ...defaultProfile,
     firstName: context.firstName,
     lastName: context.lastName,
-    email: context.email,
-    avatarUrl: context.avatarUrl || '',
-    avatarUpdatedAt: context.avatarUpdatedAt || ''
+    email: context.email
   };
   state.hasBusinessAccess = Boolean(context.hasBusinessAccess);
   state.needsProfileCompletion = Boolean(context.needsProfileCompletion);
@@ -1098,138 +1072,6 @@ function openSheet(markup) {
   document.querySelector('.modal input:not([type="file"]), .modal button')?.focus();
 }
 
-const avatarDebug = (...values) => {
-  if (localStorage.getItem('spirit-avatar-debug') === '1') console.log(...values);
-};
-
-function bindAvatarImages() {
-  document.querySelectorAll('[data-avatar] img:not([data-bound])').forEach((image) => {
-    image.dataset.bound = '1';
-    image.addEventListener('load', () => avatarDebug('Avatar cargado'), { once: true });
-    image.addEventListener('error', () => {
-      state.profile.avatarLoadFailed = true;
-      avatarDebug('Mostrando iniciales');
-      syncAvatarElements();
-    }, { once: true });
-  });
-}
-
-function syncAvatarElements() {
-  const source = avatarSource();
-  avatarDebug(state.profile.avatarUrl);
-  document.querySelectorAll('[data-avatar]').forEach((element) => {
-    if (!source) {
-      element.textContent = initials();
-      avatarDebug('Mostrando iniciales');
-      return;
-    }
-    const image = document.createElement('img');
-    image.src = source;
-    image.alt = state.profile.firstName;
-    element.replaceChildren(image);
-  });
-  bindAvatarImages();
-}
-
-function applyAvatarRecord(profile) {
-  state.profile.avatarUrl = String(profile?.avatar_url || '').trim();
-  state.profile.avatarUpdatedAt = profile?.updated_at || Date.now();
-  state.profile.avatarLoadFailed = false;
-  syncAvatarElements();
-}
-
-function ensureRemovePhotoAction() {
-  const actions = document.querySelector('.photo-actions');
-  if (!actions || actions.querySelector('[data-action="remove-photo"]')) return;
-  const button = document.createElement('button');
-  button.className = 'photo-action';
-  button.type = 'button';
-  button.dataset.action = 'remove-photo';
-  button.textContent = t('removePhoto');
-  actions.append(button);
-  bind();
-}
-
-async function imageToAvatar(file) {
-  if (!file?.type.startsWith('image/')) throw new Error('Invalid image');
-  const image = await new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const element = new Image();
-    element.onload = () => { URL.revokeObjectURL(url); resolve(element); };
-    element.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Invalid image')); };
-    element.src = url;
-  });
-  const size = 512;
-  const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
-  const sourceX = (image.naturalWidth - sourceSize) / 2;
-  const sourceY = (image.naturalHeight - sourceSize) / 2;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  canvas.getContext('2d').drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => blob ? resolve(blob) : reject(new Error('Invalid image')),
-      'image/jpeg',
-      .86
-    );
-  });
-}
-
-async function replaceProfileAvatar(file) {
-  if (state.avatarLoading) return;
-  state.avatarLoading = true;
-  const previous = {
-    avatarUrl: state.profile.avatarUrl,
-    avatarUpdatedAt: state.profile.avatarUpdatedAt,
-    avatarLoadFailed: state.profile.avatarLoadFailed
-  };
-  let previewUrl = '';
-  try {
-    const imageBlob = await imageToAvatar(file);
-    previewUrl = URL.createObjectURL(imageBlob);
-    state.profile.avatarUrl = previewUrl;
-    state.profile.avatarUpdatedAt = Date.now();
-    state.profile.avatarLoadFailed = false;
-    syncAvatarElements();
-    applyAvatarRecord(await uploadOwnAvatar(imageBlob));
-    ensureRemovePhotoAction();
-    showToast(t('photoUpdated'));
-  } catch (error) {
-    Object.assign(state.profile, previous);
-    syncAvatarElements();
-    showToast(readableAuthError(error) || t('invalidImage'));
-  } finally {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    state.avatarLoading = false;
-  }
-}
-
-async function removeProfileAvatar() {
-  if (state.avatarLoading) return;
-  state.avatarLoading = true;
-  const previous = {
-    avatarUrl: state.profile.avatarUrl,
-    avatarUpdatedAt: state.profile.avatarUpdatedAt,
-    avatarLoadFailed: state.profile.avatarLoadFailed
-  };
-  state.profile.avatarUrl = '';
-  state.profile.avatarUpdatedAt = Date.now();
-  state.profile.avatarLoadFailed = false;
-  syncAvatarElements();
-  try {
-    applyAvatarRecord(await removeOwnAvatar());
-    document.querySelector('[data-action="remove-photo"]')?.remove();
-    showToast(t('photoRemoved'));
-  } catch (error) {
-    Object.assign(state.profile, previous);
-    syncAvatarElements();
-    showToast(readableAuthError(error));
-  } finally {
-    state.avatarLoading = false;
-  }
-}
-
 async function shareSpirit() {
   const data = { title: 'Spirit Coffee', text: t('shareText'), url: location.href };
   const copyFallback = async () => {
@@ -1256,7 +1098,6 @@ async function shareSpirit() {
 }
 
 function bind() {
-  bindAvatarImages();
   document.querySelectorAll('[data-nav]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{clearStampRequest();state.screen=el.dataset.nav; render(); scrollTo(0,0);})});
   document.querySelectorAll('[data-action]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',async()=>{
     const action=el.dataset.action;
@@ -1286,7 +1127,6 @@ function bind() {
     if(action==='close-stamp-request'){ clearStampRequest(); }
     if(action==='regenerate-stamp'){ const requestType=state.stampRequest?.type; clearStampRequest(); requestType==='reward_redemption'?openRewardRequest():openStampRequest(); }
     if(action==='open-personal'){ openSheet(personalSheet()); }
-    if(action==='remove-photo'){ await removeProfileAvatar(); }
     if(action==='open-appearance'){ openSheet(appearanceSheet()); }
     if(action==='open-language'){ openSheet(languageSheet()); }
     if(action==='open-password'){ openSheet(passwordSheet()); }
@@ -1308,7 +1148,6 @@ function bind() {
   document.querySelectorAll('[data-theme-preference]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{applyTheme(el.dataset.themePreference,true);document.querySelector('[data-sheet-backdrop]')?.remove();render();})});
   document.querySelectorAll('[data-notifications]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',async(event)=>{if(state.notificationsLoading)return;const desired=event.currentTarget.checked;state.notificationsLoading=true;event.currentTarget.disabled=true;try{state.notifications=desired?await enablePushNotifications(state.lang):await disablePushNotifications();showToast(t(desired?'notificationsEnabled':'notificationsDisabled'));}catch(error){state.notifications=await getPushNotificationState();showToast(readablePushError(error));}finally{state.notificationsLoading=false;render();}})});
   document.querySelectorAll('[data-session-persistence]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',(event)=>{state.keepSession=setSessionPersistence(event.currentTarget.checked);event.currentTarget.checked=state.keepSession;})});
-  document.querySelectorAll('[data-photo-input]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',async(event)=>{await replaceProfileAvatar(event.currentTarget.files[0]);event.currentTarget.value='';})});
   document.querySelector('[data-form="customer-auth"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const form=e.currentTarget;const data=new FormData(form);if(form.dataset.authMode==='signup'&&!passwordMeetsPolicy(data.get('password'))){state.authError=t('passwordLength');render();return;}state.authLoading=true;state.authError='';state.authNotice='';render();try{if(form.dataset.authMode==='signup'){const result=await signUpCustomer({email:data.get('email'),password:data.get('password'),displayName:data.get('name'),consent:{accepted:data.get('privacyConsent')==='accepted',version:PRIVACY_POLICY_VERSION}});if(result.confirmationRequired){state.authMode='signin';state.authNotice=t('authConfirmation');state.screen='login';}else{applyCustomerContext(result.context);await refreshCustomerLoyaltySafely();state.screen='home';}}else{applyCustomerContext(await signInCustomer(data.get('email'),data.get('password')));await refreshCustomerLoyaltySafely();state.screen='home';}}catch(error){state.authError=readableAuthError(error);state.screen='login';}finally{state.authLoading=false;render();}});
   document.querySelector('[data-form="customer-forgot"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const form=e.currentTarget;const data=new FormData(form);state.authLoading=true;state.authError='';state.authNotice='';render();try{await requestCustomerPasswordReset(data.get('email'));state.authNotice=t('recoverySent');state.authMode='signin';}catch(error){state.authError=readableAuthError(error);}finally{state.authLoading=false;state.screen='login';render();}});
   document.querySelector('[data-form="email-confirmation-resend"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);state.authLoading=true;state.authError='';state.authNotice='';render();try{await resendCustomerEmailConfirmation(data.get('email'));state.authNotice=t('emailConfirmationResent');}catch(error){state.authError=readableAuthError(error);}finally{state.authLoading=false;render();}});

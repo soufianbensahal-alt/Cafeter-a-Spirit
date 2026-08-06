@@ -313,11 +313,6 @@ h3 { font-size: 21px; line-height: 1.16; margin: 0; letter-spacing: -.012em; }
 .sheet-close { width: 44px; height: 44px; flex: 0 0 auto; border: 1px solid var(--border-soft); border-radius: 50%; background: var(--surface-soft); display: grid; place-items: center; color: var(--ink); font-size: 27px; line-height: 1; cursor: pointer; transition: transform .2s ease, background-color .2s ease; }
 .sheet-close:active { transform: scale(.94); }
 .sheet-form { display: grid; gap: 15px; }
-.photo-editor { display: grid; justify-items: center; gap: 12px; margin-bottom: 6px; padding: 18px; border: 1px solid rgba(105,92,44,.1); border-radius: 24px; background: rgba(238,207,98,.18); }
-.avatar--editor { width: 104px; height: 104px; font-size: 38px; }
-.photo-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; }
-.photo-action { min-height: 42px; padding: 0 16px; border: 1px solid var(--border-soft); border-radius: var(--radius-pill); background: var(--surface); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; cursor: pointer; transition: transform .2s ease, background-color .2s ease; }
-.photo-action:active { transform: scale(.97); }
 .field input[readonly] { color: var(--muted); background: rgba(231,220,184,.32); cursor: default; }
 .field-note { display: block; margin: 6px 4px 0; color: var(--muted); font-size: 11px; }
 .sheet-link { min-height: 56px; width: 100%; padding: 0 16px; border: 1px solid var(--border-soft); border-radius: 18px; background: var(--surface); display: flex; align-items: center; justify-content: space-between; font-weight: 700; cursor: pointer; }
@@ -462,8 +457,6 @@ html[data-theme="dark"] .stamp-request__countdown { background: rgba(238,207,98,
 html[data-theme="dark"] .sheet-close,
 html[data-theme="dark"] .sheet-link,
 html[data-theme="dark"] .language-option { border-color: rgba(238,207,98,.16); background: #2a2822; color: #f7f0de; }
-html[data-theme="dark"] .photo-editor { border-color: rgba(238,207,98,.15); background: rgba(238,207,98,.08); }
-html[data-theme="dark"] .photo-action { border-color: rgba(238,207,98,.18); background: #2a2822; color: #f7f0de; }
 html[data-theme="dark"] .language-option--active { border-color: var(--mustard); background: rgba(238,207,98,.14); }
 html[data-theme="dark"] .code { border-color: rgba(238,207,98,.18); background: #292720; }
 html[data-theme="dark"] .toast { border-color: rgba(238,207,98,.14); background: rgba(15,14,12,.94); }

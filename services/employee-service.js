@@ -57,8 +57,6 @@ export async function getEmployeeContext(authenticatedUser) {
       userId: user.id,
       email: user.email || '',
       employeeName: contexts.displayName || user.email || 'Equipo Spirit',
-      avatarUrl: contexts.avatarUrl,
-      avatarUpdatedAt: contexts.avatarUpdatedAt,
       membershipId: selectedMembership.id,
       role: selectedMembership.role,
       businessId: business.id,
