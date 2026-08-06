@@ -27,6 +27,7 @@ import {
   isSessionPersistenceEnabled,
   setSessionPersistence
 } from '../services/session-persistence.js';
+import { displayText } from '../services/display-text.js';
 import jsQR from 'jsqr';
 
 const isBusinessRoute = /^\/cafeteria\/?$/.test(window.location.pathname);
@@ -75,7 +76,7 @@ if (isBusinessRoute) {
     clock: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'
   };
 
-  const escapeHTML = (value = '') => String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
+  const escapeHTML = (value = '') => displayText(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
   const formatTime = (timestamp) => new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' }).format(new Date(timestamp));
   const employeeInitials = () => String(state.employee?.employeeName || 'SP').split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
   const roleLabel = (role) => ({ owner: 'Propietario', manager: 'Responsable', employee: 'Empleado' })[role] || 'Empleado';
@@ -136,11 +137,10 @@ if (isBusinessRoute) {
   }
 
   function readableError(error) {
-    if (error instanceof StampSessionError || error instanceof MfaServiceError) return error.message;
+    if (error instanceof StampSessionError || error instanceof MfaServiceError) return displayText(error, 'Ha ocurrido un error inesperado. Inténtalo de nuevo.');
     if (error?.code === 'invalid_credentials') return 'El correo o la contraseña no son correctos.';
     if (error?.code === 'email_not_confirmed') return 'Confirma tu correo antes de iniciar sesión.';
-    if (error instanceof EmployeeAuthorizationError || error?.message) return error.message;
-    return 'Ha ocurrido un error inesperado. Inténtalo de nuevo.';
+    return displayText(error, 'Ha ocurrido un error inesperado. Inténtalo de nuevo.');
   }
 
   async function recordBusinessFailure(eventType, error) {

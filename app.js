@@ -61,6 +61,7 @@ import {
 } from './services/theme-preference.js';
 import { PASSWORD_MIN_LENGTH, passwordMeetsPolicy } from './services/password-policy.js';
 import { reportSecurityError } from './services/security-observer.js';
+import { displayText } from './services/display-text.js';
 
 const PRIVACY_POLICY_VERSION = '2026-08-05';
 
@@ -175,7 +176,7 @@ const state = {
 };
 const app = document.querySelector('#app');
 const t = (key, values = {}) => Object.entries(values).reduce((value, [name, replacement]) => value.replaceAll(`{${name}}`, replacement), copy[state.lang][key] || key);
-const escapeHTML = (value = '') => String(value).replace(/[&<>'"]/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+const escapeHTML = (value = '') => displayText(value).replace(/[&<>'"]/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 const localizedRewardDescription = (value = '') => (
   state.lang === 'ca' && /^caf[eé]\s+gratuito$/i.test(String(value).trim())
     ? t('freeCoffee')
@@ -601,8 +602,7 @@ const readableAuthError = (error) => {
     recovery_link_consumed: t('recoveryInvalidCopy')
   };
   return messages[error?.code]
-    || (state.lang === 'es' ? error?.message : '')
-    || t('operationError');
+    || (state.lang === 'es' ? displayText(error, t('operationError')) : t('operationError'));
 };
 
 const readableStampError = (error) => {
@@ -618,7 +618,7 @@ const readableStampError = (error) => {
     network_error: t('networkError'),
     unexpected: t('requestError')
   };
-  return messages[error?.code] || (state.lang === 'es' ? error?.message : t('requestError'));
+  return messages[error?.code] || (state.lang === 'es' ? displayText(error, t('requestError')) : t('requestError'));
 };
 
 const readablePushError = (error) => {
