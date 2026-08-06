@@ -34,6 +34,8 @@ export async function getCustomerContext(authenticatedUser) {
     userId: contexts.userId,
     email: contexts.email,
     displayName,
+    avatarUrl: contexts.avatarUrl,
+    avatarUpdatedAt: contexts.avatarUpdatedAt,
     isCustomer: contexts.isCustomer,
     hasBusinessAccess: contexts.hasBusinessAccess,
     needsProfileCompletion: contexts.needsProfileCompletion,
