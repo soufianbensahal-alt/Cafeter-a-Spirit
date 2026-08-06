@@ -3,6 +3,7 @@ import {
   getCurrentUser,
   completePasswordRecovery,
   reauthenticateAndUpdatePassword,
+  resendSignUpConfirmation,
   sendPasswordReset,
   signInWithEmail,
   signOut,
@@ -45,6 +46,13 @@ export async function signInCustomer(email, password) {
   return getCustomerContext(user);
 }
 
+export async function customerSignUpResult(data, loadContext = getCustomerContext) {
+  return {
+    confirmationRequired: !data.session,
+    context: data.session ? await loadContext(data.user) : null
+  };
+}
+
 export async function signUpCustomer({ email, password, displayName, consent }) {
   const data = await signUpWithEmail({
     email,
@@ -53,10 +61,7 @@ export async function signUpCustomer({ email, password, displayName, consent }) 
     redirectTo: getEmailConfirmationUrl(),
     consent
   });
-  return {
-    confirmationRequired: !data.session,
-    context: data.session ? await getCustomerContext(data.user) : null
-  };
+  return customerSignUpResult(data);
 }
 
 export async function updateCustomerProfile(displayName) {
@@ -85,6 +90,11 @@ export const completeCustomerPasswordRecovery = (tokenHash, nextPassword) => (
 );
 
 export const confirmCustomerEmail = (tokenHash) => verifyEmailConfirmation(tokenHash);
+
+export const resendCustomerEmailConfirmation = (email) => resendSignUpConfirmation(
+  email,
+  getEmailConfirmationUrl()
+);
 
 export {
   getCurrentUser,

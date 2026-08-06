@@ -3,6 +3,8 @@ import { supabaseAuthStorage } from './session-persistence.js';
 
 const supabaseUrl = __SUPABASE_URL__;
 const supabasePublishableKey = __SUPABASE_PUBLISHABLE_KEY__;
+const isEmailConfirmationVerificationRoute = typeof window !== 'undefined'
+  && /^\/auth\/confirm\/?$/.test(window.location.pathname);
 
 export const supabaseConfiguration = Object.freeze({
   url: supabaseUrl,
@@ -18,7 +20,7 @@ export const supabase = supabaseConfiguration.configured
       auth: {
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: true,
+        detectSessionInUrl: !isEmailConfirmationVerificationRoute,
         storage: supabaseAuthStorage
       }
     })

@@ -8,7 +8,12 @@ const {
   createEmailConfirmationVerifier
 } = await import('../services/auth-service.js');
 
-const createAuthClient = (auth) => () => ({ auth });
+const createAuthClient = (auth) => () => ({
+  auth: {
+    getSession: async () => ({ data: { session: null }, error: null }),
+    ...auth
+  }
+});
 
 test('confirma con verifyOtp y elimina la sesión temporal antes de resolver', async () => {
   const calls = [];
@@ -78,7 +83,8 @@ test('dos pestañas solo confirman una vez y ambas terminan sin sesión temporal
       signOut: async () => {
         temporarySessions -= 1;
         return { error: null };
-      }
+      },
+      getSession: async () => ({ data: { session: null }, error: null })
     }
   });
   const verify = createEmailConfirmationVerifier(createClient);
@@ -130,6 +136,25 @@ test('si no puede cerrarse la sesión temporal nunca informa de acceso confirmad
     }),
     signOut: async () => ({
       error: { code: 'request_failed', message: 'Logout request failed' }
+    })
+  }));
+
+  await assert.rejects(
+    verify('one-time-token-hash'),
+    ({ code }) => code === 'email_confirmation_cleanup_failed'
+  );
+});
+
+test('si la sesión temporal continúa activa nunca informa de acceso confirmado', async () => {
+  const verify = createEmailConfirmationVerifier(createAuthClient({
+    verifyOtp: async () => ({
+      data: { session: { access_token: 'temporary' }, user: { id: 'user-1' } },
+      error: null
+    }),
+    signOut: async () => ({ error: null }),
+    getSession: async () => ({
+      data: { session: { access_token: 'temporary' } },
+      error: null
     })
   }));
 

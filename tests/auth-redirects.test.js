@@ -10,6 +10,7 @@ test('Supabase utiliza el dominio público y permite la recuperación', async ()
   assert.match(config, /site_url = "https:\/\/www\.spiritcoffee\.es"/);
   assert.match(config, /enable_confirmations = true/);
   assert.match(config, /"https:\/\/www\.spiritcoffee\.es\/auth\/confirm"/);
+  assert.match(config, /"https:\/\/www\.spiritcoffee\.es\/email-confirmed"/);
   assert.match(config, /"https:\/\/www\.spiritcoffee\.es\/reset-password"/);
   assert.match(config, /"https:\/\/www\.spiritcoffee\.es\/\*\*"/);
 });
@@ -54,6 +55,7 @@ test('la autenticación del cliente no ofrece ni inicia acceso con Google', asyn
   assert.match(app, /data-form="customer-forgot"/);
   assert.match(authService, /auth\.signInWithPassword\(/);
   assert.match(authService, /auth\.signUp\(/);
+  assert.match(authService, /auth\.resend\(\{/);
   assert.match(authService, /auth\.resetPasswordForEmail\(/);
   assert.doesNotMatch(styles, /oauth-actions|auth-divider/);
 });
@@ -72,8 +74,9 @@ test('Vercel reescribe la recuperación hacia la SPA y no conserva callback OAut
 test('la plantilla de alta entrega el hash a la ruta propia sin consumir ConfirmationURL', async () => {
   const template = await read('../supabase/templates/confirmation.html');
 
-  assert.match(template, /\{\{ \.RedirectTo \}\}\?token_hash=\{\{ \.TokenHash \}\}&amp;type=email/);
+  assert.match(template, /https:\/\/www\.spiritcoffee\.es\/auth\/confirm\?token_hash=\{\{ \.TokenHash \}\}&amp;type=email/);
   assert.doesNotMatch(template, /ConfirmationURL/);
+  assert.doesNotMatch(template, /\.RedirectTo/);
 });
 
 test('el dominio antiguo no permanece en archivos funcionales o de configuración', async () => {

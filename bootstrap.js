@@ -17,6 +17,8 @@ if ('serviceWorker' in navigator) {
       }
     })();
     const isAuthReturn = /^\/auth\/callback\/?$/.test(window.location.pathname)
+      || /^\/auth\/confirm\/?$/.test(window.location.pathname)
+      || /^\/email-confirmed\/?$/.test(window.location.pathname)
       || hasRecoverySignal
       || isRecoveryPending;
     if (refreshing || isAuthReturn) return;

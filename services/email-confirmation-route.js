@@ -10,21 +10,14 @@ const normalizedPath = (pathname = '/') => {
 export function readEmailConfirmationRoute(location = window.location) {
   const pathname = normalizedPath(location.pathname);
   const query = new URLSearchParams(location.search || '');
-  const hash = new URLSearchParams(String(location.hash || '').replace(/^#/, ''));
-
   if (pathname === EMAIL_CONFIRMATION_VERIFY_PATH) {
     const tokenHash = String(query.get('token_hash') || '').trim();
     const type = String(query.get('type') || '').trim();
-    const implicitType = String(hash.get('type') || '').trim();
-    const implicitCallback = Boolean(hash.get('access_token'))
-      && Boolean(hash.get('refresh_token'))
-      && implicitType === 'signup';
     const shouldVerify = Boolean(tokenHash) && type === 'email';
     return Object.freeze({
       active: true,
       shouldVerify,
-      shouldConsumeSession: implicitCallback,
-      status: shouldVerify || implicitCallback ? 'processing' : 'invalid',
+      status: shouldVerify ? 'processing' : 'invalid',
       tokenHash,
       type
     });
@@ -35,7 +28,6 @@ export function readEmailConfirmationRoute(location = window.location) {
     return Object.freeze({
       active: true,
       shouldVerify: false,
-      shouldConsumeSession: false,
       status: requestedStatus === 'invalid' || requestedStatus === 'network'
         ? requestedStatus
         : 'confirmed',
@@ -47,7 +39,6 @@ export function readEmailConfirmationRoute(location = window.location) {
   return Object.freeze({
     active: false,
     shouldVerify: false,
-    shouldConsumeSession: false,
     status: '',
     tokenHash: '',
     type: ''

@@ -163,6 +163,7 @@ site_url = "https://www.spiritcoffee.es"
 additional_redirect_urls = [
   "https://www.spiritcoffee.es",
   "https://www.spiritcoffee.es/auth/confirm",
+  "https://www.spiritcoffee.es/email-confirmed",
   "https://www.spiritcoffee.es/reset-password",
   "https://www.spiritcoffee.es/**",
   "http://127.0.0.1:4173",

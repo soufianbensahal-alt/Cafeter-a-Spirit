@@ -59,6 +59,19 @@ export async function signUpWithEmail({ email, password, displayName, redirectTo
   }
 }
 
+export async function resendSignUpConfirmation(email, redirectTo) {
+  try {
+    const { error } = await requireSupabase().auth.resend({
+      type: 'signup',
+      email: String(email || '').trim().toLowerCase(),
+      options: { emailRedirectTo: redirectTo }
+    });
+    if (error) throw error;
+  } catch (error) {
+    throw authError(error, 'email_confirmation_resend_failed');
+  }
+}
+
 export async function getCurrentUser() {
   try {
     const { data, error } = await requireSupabase().auth.getUser();
@@ -198,6 +211,11 @@ export const createEmailConfirmationVerifier = (
       try {
         const { error } = await confirmationClient.auth.signOut({ scope: 'local' });
         if (error && !isMissingSession(error)) throw error;
+        const { data, error: sessionError } = await confirmationClient.auth.getSession();
+        if (sessionError && !isMissingSession(sessionError)) throw sessionError;
+        if (data?.session) {
+          throw new Error('The temporary email confirmation session is still active.');
+        }
       } catch (error) {
         throw new AuthServiceError(
           'email_confirmation_cleanup_failed',

@@ -167,7 +167,7 @@ La adhesión es idempotente y no recibe `user_id`: deriva siempre el propietario
 
 ### URLs de Auth
 
-Configura en **Authentication → URL Configuration** la URL pública de producción como **Site URL** y añade como **Redirect URLs** cada origen permitido con las rutas `/reset-password` y `/auth/confirm`. La recuperación usa una pantalla propia en `/reset-password`; las altas nuevas envían `emailRedirectTo` a `/auth/confirm`. `/email-confirmed` es una ruta interna posterior y no necesita formar parte del allowlist de Auth.
+Configura en **Authentication → URL Configuration** la URL pública de producción como **Site URL** y añade como **Redirect URLs** cada origen permitido con las rutas `/reset-password`, `/auth/confirm` y `/email-confirmed`. La recuperación usa una pantalla propia en `/reset-password`; las altas nuevas envían `emailRedirectTo` a `/auth/confirm`.
 
 Ejemplos locales:
 
@@ -185,12 +185,12 @@ En producción están permitidas `https://www.spiritcoffee.es/reset-password` y 
 La plantilla **Authentication → Emails → Confirm sign up** debe conservar todo su diseño y sustituir únicamente el destino del botón por:
 
 ```html
-<a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=email">
+<a href="https://www.spiritcoffee.es/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email">
   Confirmar correo
 </a>
 ```
 
-`{{ .RedirectTo }}` procede exclusivamente del `emailRedirectTo` calculado por la aplicación desde `window.location.origin`; no se acepta una redirección introducida por el usuario. `/auth/confirm` valida `type=email`, limpia inmediatamente el token de la barra de direcciones y ejecuta `verifyOtp` mediante un cliente Supabase aislado con `persistSession: false`. La sesión temporal devuelta por Auth se cierra con `signOut({ scope: 'local' })` antes de mostrar `/email-confirmed`. El botón de esa pantalla abre `/login`, donde el acceso sigue siendo manual con correo y contraseña.
+La plantilla alojada fija el único origen aceptado para la confirmación y no consume una redirección proporcionada por el navegador. `/auth/confirm` valida `type=email`, limpia inmediatamente el token de la barra de direcciones y ejecuta `verifyOtp` mediante un cliente Supabase aislado con `persistSession: false`, `autoRefreshToken: false` y `detectSessionInUrl: false`. El cliente principal desactiva además la detección de sesiones en URL exclusivamente en `/auth/confirm`, por lo que un callback implícito antiguo se rechaza. La sesión temporal devuelta por Auth se cierra con `signOut({ scope: 'local' })` y se comprueba con `getSession()` antes de mostrar `/email-confirmed`. El botón de esa pantalla abre `/login`, donde el acceso sigue siendo manual con correo y contraseña.
 
 El token se consume de forma atómica en Supabase Auth. Si el mismo enlace se abre en dos pestañas, solo la primera verificación puede completarse; la segunda termina en el estado de enlace utilizado o caducado. Ninguno de los clientes aislados escribe la sesión en el almacenamiento compartido de la aplicación.
 
