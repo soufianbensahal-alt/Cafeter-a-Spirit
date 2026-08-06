@@ -224,14 +224,6 @@ token_verifications = 30
 # Number of Web3 logins that can be made in a 5 minute interval per IP address.
 web3 = 30
 
-# Configure one of the supported captcha providers: `hcaptcha`, `turnstile`.
-# Activar también en el proyecto alojado cuando TURNSTILE_SITE_KEY esté desplegada
-# en Vercel. El secreto sólo pertenece a Supabase Auth, nunca al frontend.
-[auth.captcha]
-enabled = true
-provider = "turnstile"
-secret = "env(SUPABASE_AUTH_CAPTCHA_SECRET)"
-
 [auth.email]
 # Allow/disallow new user signups via email to your project.
 enable_signup = true
@@ -354,7 +346,7 @@ skip_nonce_check = false
 email_optional = false
 
 # Allow Solana wallet holders to sign in to your project via the Sign in with Solana (SIWS, EIP-4361) standard.
-# You can configure "web3" rate limit in the [auth.rate_limit] section and set up [auth.captcha] if self-hosting.
+# You can configure the "web3" rate limit in the [auth.rate_limit] section if self-hosting.
 [auth.web3.solana]
 enabled = false
 

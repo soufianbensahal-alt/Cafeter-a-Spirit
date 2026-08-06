@@ -24,11 +24,6 @@ import {
 } from '../services/mfa-service.js';
 import { reportSecurityError } from '../services/security-observer.js';
 import {
-  captchaConfiguration,
-  mountCaptcha,
-  readCaptchaToken
-} from '../services/captcha-service.js';
-import {
   isSessionPersistenceEnabled,
   setSessionPersistence
 } from '../services/session-persistence.js';
@@ -120,7 +115,7 @@ if (isBusinessRoute) {
 
   const scannerView = () => `<main class="business-app business-app--scanner"><header class="scanner-header"><div><span class="business-kicker">Modo cafetería</span><strong>Escanear QR</strong></div><button type="button" data-business-action="close-scanner" aria-label="Cerrar escáner">×</button></header><section class="scanner-card"><div class="scanner-viewport" data-camera-permission="${state.cameraPermission}"><video data-scanner-video playsinline muted aria-label="Vista de la cámara"></video><div class="scanner-guide" aria-hidden="true"><span></span><span></span><span></span><span></span></div></div><p class="scanner-instruction">Coloca el QR del cliente dentro del recuadro.</p><label class="camera-select" data-camera-controls ${state.cameras.length > 1 ? '' : 'hidden'}>Cámara<select data-camera-select aria-label="Seleccionar cámara">${state.cameras.map((camera, index) => `<option value="${escapeHTML(camera.deviceId)}" ${camera.deviceId === state.selectedCamera ? 'selected' : ''}>${escapeHTML(camera.label || `Cámara ${index + 1}`)}</option>`).join('')}</select></label><p class="business-message business-message--scanner" role="status">${escapeHTML(state.scannerMessage)}</p><p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-secondary business-secondary--light business-camera-retry" type="button" data-business-action="retry-camera" ${['denied', 'error'].includes(state.cameraPermission) ? '' : 'hidden'}>Reintentar cámara</button><button class="business-secondary business-secondary--light" type="button" data-business-action="close-scanner">Introducir código manualmente</button></section></main>`;
 
-  const signedOutView = () => `<main class="business-app business-app--signed-out"><section class="signed-out-card"><img src="/assets/spirit-logo-header.png" alt="Spirit"><p class="business-kicker">Modo cafetería</p><h1>Acceso de equipo.</h1><p>Inicia sesión con la cuenta autorizada de Cafetería Spirit.</p><form class="business-login-form" data-business-form="login" novalidate><label for="employee-email">Correo electrónico</label><input id="employee-email" name="email" type="email" autocomplete="username" inputmode="email" required><label for="employee-password">Contraseña</label><input id="employee-password" name="password" type="password" minlength="8" autocomplete="current-password" required>${captchaConfiguration.configured ? '<div class="captcha-slot" data-captcha></div>' : ''}<p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Comprobando…' : 'Acceder'}</button></form></section></main>`;
+  const signedOutView = () => `<main class="business-app business-app--signed-out"><section class="signed-out-card"><img src="/assets/spirit-logo-header.png" alt="Spirit"><p class="business-kicker">Modo cafetería</p><h1>Acceso de equipo.</h1><p>Inicia sesión con la cuenta autorizada de Cafetería Spirit.</p><form class="business-login-form" data-business-form="login" novalidate><label for="employee-email">Correo electrónico</label><input id="employee-email" name="email" type="email" autocomplete="username" inputmode="email" required><label for="employee-password">Contraseña</label><input id="employee-password" name="password" type="password" minlength="8" autocomplete="current-password" required><p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Comprobando…' : 'Acceder'}</button></form></section></main>`;
 
   const mfaChallengeView = () => `<main class="business-app business-app--signed-out"><section class="signed-out-card"><img src="/assets/spirit-logo-header.png" alt="Spirit"><p class="business-kicker">Verificación en dos pasos</p><h1>Confirma que eres tú.</h1><p>Introduce el código temporal de tu aplicación autenticadora para acceder al modo cafetería.</p><form class="business-login-form" data-business-form="mfa" novalidate><label for="employee-mfa-code">Código de 6 dígitos</label><input id="employee-mfa-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" placeholder="000000" required><p class="business-message business-message--error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Verificando…' : 'Verificar y acceder'}</button></form><button class="business-secondary" type="button" data-business-action="logout">Cancelar</button></section></main>`;
 
@@ -235,17 +230,11 @@ if (isBusinessRoute) {
   async function submitEmployeeLogin(form) {
     if (state.loading) return;
     const data = new FormData(form);
-    const captchaToken = readCaptchaToken(form);
-    if (captchaConfiguration.configured && !captchaToken) {
-      state.error = 'Completa la comprobación de seguridad.';
-      render();
-      return;
-    }
     state.loading = true;
     state.error = '';
     render();
     try {
-      const employee = await signInEmployee(data.get('email'), data.get('password'), captchaToken);
+      const employee = await signInEmployee(data.get('email'), data.get('password'));
       await requireBusinessMfa(employee);
     } catch (error) {
       routeAuthorizationError(error);
@@ -499,12 +488,6 @@ if (isBusinessRoute) {
   }
 
   function bind() {
-    document.querySelectorAll('[data-captcha]').forEach((element) => {
-      mountCaptcha(element).catch((error) => {
-        reportSecurityError('business-captcha-render', error);
-        state.error = 'No se ha podido cargar la comprobación de seguridad.';
-      });
-    });
     document.querySelector('[data-business-form="login"]')?.addEventListener('submit', (event) => {
       event.preventDefault();
       submitEmployeeLogin(event.currentTarget);

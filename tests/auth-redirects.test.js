@@ -35,7 +35,7 @@ test('el flujo real entrega las URLs dinámicas a las funciones de Auth', async 
   assert.match(customerService, /redirectTo: getEmailConfirmationUrl\(\)/);
   assert.match(customerService, /sendPasswordReset\(\s*email,\s*getPasswordResetUrl\(\)/);
   assert.match(authService, /emailRedirectTo: redirectTo/);
-  assert.match(authService, /\{ redirectTo, captchaToken:/);
+  assert.match(authService, /\{ redirectTo \}/);
 });
 
 test('la autenticación del cliente no ofrece ni inicia acceso con Google', async () => {

@@ -13,15 +13,9 @@ La aplicación y la configuración local exigen 12 caracteres, mayúscula, minú
 
 No se deben guardar listas de contraseñas filtradas en el frontend ni comprobar contraseñas mediante servicios externos desde el navegador.
 
-## 2. CAPTCHA y altas abusivas
+## 2. Altas abusivas y multicuentas
 
-Se utiliza Cloudflare Turnstile. Crea un widget para `spiritcoffee.es`, `www.spiritcoffee.es` y los dominios de desarrollo que realmente se utilicen.
-
-- En Vercel configura `TURNSTILE_SITE_KEY` con la clave pública.
-- En Supabase configura Turnstile en **Authentication → Bot and Abuse Protection → CAPTCHA** con la clave secreta.
-- Para desarrollo local, exporta `SUPABASE_AUTH_CAPTCHA_SECRET`; nunca la añadas a `.env.local` si ese archivo pudiera versionarse.
-
-La protección se aplica a registro, login, recuperación y reautenticación de contraseña del cliente, y al login del equipo. Supabase sigue garantizando la unicidad por correo normalizado. CAPTCHA, confirmación de correo y límites de alta reducen multicuentas automatizadas, pero no prueban que una persona física tenga una sola cuenta. Para esa garantía haría falta una señal adicional verificada, como teléfono, y una política legal/operativa específica.
+La mitigación conserva la confirmación de correo, la unicidad del correo normalizado y los límites de alta e inicio de sesión de Supabase. Estas medidas reducen automatizaciones básicas, pero no prueban que una persona física tenga una sola cuenta. Para esa garantía haría falta una señal adicional verificada, como teléfono, y una política legal/operativa específica.
 
 ## 3. MFA del equipo
 
@@ -53,13 +47,12 @@ El registro técnico no sustituye una política de privacidad válida ni convier
 
 1. Validar y publicar la política de privacidad.
 2. Configurar la política de contraseñas y protección de contraseñas filtradas en Supabase.
-3. Crear Turnstile y configurar claves en Vercel/Supabase.
-4. Activar TOTP en Supabase.
-5. Desplegar frontend, CSP y cabeceras.
-6. Enrolar y probar al menos dos cuentas autorizadas del equipo en AAL2.
-7. Aplicar la migración SQL.
-8. Verificar login, recuperación, alta, sello, canje y outbox.
-9. Configurar el consumidor de `security_alerts` y las alertas de Auth.
+3. Activar TOTP en Supabase.
+4. Desplegar frontend, CSP y cabeceras.
+5. Enrolar y probar al menos dos cuentas autorizadas del equipo en AAL2.
+6. Aplicar la migración SQL.
+7. Verificar login, recuperación, alta, sello, canje y outbox.
+8. Configurar el consumidor de `security_alerts` y las alertas de Auth.
 
 ## 7. Reversión operativa
 

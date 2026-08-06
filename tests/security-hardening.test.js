@@ -19,22 +19,38 @@ test('la política local y del cliente exige una contraseña robusta', async () 
   assert.match(app, /passwordMeetsPolicy/);
 });
 
-test('Turnstile y MFA quedan preparados sin exponer secretos en el bundle', async () => {
-  const [config, build, captcha, mfa, env] = await Promise.all([
+test('MFA queda preparada sin exponer secretos en el bundle', async () => {
+  const [config, build, mfa, env] = await Promise.all([
     read('../supabase/config.toml'),
     read('../scripts/build.mjs'),
-    read('../services/captcha-service.js'),
     read('../services/mfa-service.js'),
     read('../.env.example')
   ]);
-  assert.match(config, /\[auth\.captcha\][\s\S]*enabled = true[\s\S]*provider = "turnstile"/);
-  assert.match(config, /secret = "env\(SUPABASE_AUTH_CAPTCHA_SECRET\)"/);
+  const removedChallengeTerms = new RegExp([
+    ['turn', 'stile'].join(''),
+    ['cap', 'tcha'].join('')
+  ].join('|'), 'i');
   assert.match(config, /\[auth\.mfa\.totp\][\s\S]*enroll_enabled = true[\s\S]*verify_enabled = true/);
-  assert.match(build, /__TURNSTILE_SITE_KEY__/);
-  assert.match(captcha, /challenges\.cloudflare\.com\/turnstile/);
   assert.match(mfa, /auth\.mfa\.(?:enroll|challenge|verify)/);
-  assert.doesNotMatch(build, /SUPABASE_AUTH_CAPTCHA_SECRET/);
-  assert.match(env, /SUPABASE_AUTH_CAPTCHA_SECRET=/);
+  assert.doesNotMatch(build, removedChallengeTerms);
+  assert.doesNotMatch(env, removedChallengeTerms);
+});
+
+test('la autenticación no conserva integración de comprobación externa', async () => {
+  const sources = await Promise.all([
+    read('../app.js'),
+    read('../business/business-view.js'),
+    read('../services/auth-service.js'),
+    read('../services/customer-service.js'),
+    read('../services/employee-service.js'),
+    read('../supabase/config.toml'),
+    read('../vercel.json')
+  ]);
+  const removedChallengeTerms = new RegExp([
+    ['turn', 'stile'].join(''),
+    ['cap', 'tcha'].join('')
+  ].join('|'), 'i');
+  for (const source of sources) assert.doesNotMatch(source, removedChallengeTerms);
 });
 
 test('MFA se exige también en SQL y los rate limits adquieren locks transaccionales', async () => {

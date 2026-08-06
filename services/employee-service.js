@@ -68,8 +68,8 @@ export async function getEmployeeContext(authenticatedUser) {
   }
 }
 
-export async function signInEmployee(email, password, captchaToken) {
-  const { user } = await signInWithEmail(email, password, captchaToken);
+export async function signInEmployee(email, password) {
+  const { user } = await signInWithEmail(email, password);
   return getEmployeeContext(user);
 }
 

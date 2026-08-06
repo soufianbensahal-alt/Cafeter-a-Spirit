@@ -29,8 +29,7 @@ await build({
   legalComments: 'none',
   define: {
     __SUPABASE_URL__: JSON.stringify(process.env.SUPABASE_URL || ''),
-    __SUPABASE_PUBLISHABLE_KEY__: JSON.stringify(process.env.SUPABASE_PUBLISHABLE_KEY || ''),
-    __TURNSTILE_SITE_KEY__: JSON.stringify(process.env.TURNSTILE_SITE_KEY || '')
+    __SUPABASE_PUBLISHABLE_KEY__: JSON.stringify(process.env.SUPABASE_PUBLISHABLE_KEY || '')
   }
 });
 

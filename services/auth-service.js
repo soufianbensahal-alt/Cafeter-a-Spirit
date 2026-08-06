@@ -24,12 +24,11 @@ const authError = (error, fallbackCode = 'auth_error') => {
   return new AuthServiceError(error?.code || fallbackCode, error?.message || 'No se ha podido completar la autenticación.', error);
 };
 
-export async function signInWithEmail(email, password, captchaToken) {
+export async function signInWithEmail(email, password) {
   try {
     const { data, error } = await requireSupabase().auth.signInWithPassword({
       email: String(email || '').trim().toLowerCase(),
-      password,
-      options: captchaToken ? { captchaToken } : undefined
+      password
     });
     if (error) throw error;
     if (!data.user) throw new AuthServiceError('invalid_session', 'No se ha podido validar la sesión.');
@@ -39,7 +38,7 @@ export async function signInWithEmail(email, password, captchaToken) {
   }
 }
 
-export async function signUpWithEmail({ email, password, displayName, redirectTo, captchaToken, consent }) {
+export async function signUpWithEmail({ email, password, displayName, redirectTo, consent }) {
   try {
     const { data, error } = await requireSupabase().auth.signUp({
       email: String(email || '').trim().toLowerCase(),
@@ -50,8 +49,7 @@ export async function signUpWithEmail({ email, password, displayName, redirectTo
           privacy_consent: consent?.accepted === true,
           privacy_policy_version: String(consent?.version || '')
         },
-        emailRedirectTo: redirectTo,
-        captchaToken: captchaToken || undefined
+        emailRedirectTo: redirectTo
       }
     });
     if (error) throw error;
@@ -91,11 +89,11 @@ export async function signOutCurrentSession() {
   }
 }
 
-export async function sendPasswordReset(email, redirectTo, captchaToken) {
+export async function sendPasswordReset(email, redirectTo) {
   try {
     const { error } = await requireSupabase().auth.resetPasswordForEmail(
       String(email || '').trim().toLowerCase(),
-      { redirectTo, captchaToken: captchaToken || undefined }
+      { redirectTo }
     );
     if (error) throw error;
   } catch (error) {
@@ -274,8 +272,8 @@ export const createPasswordRecoveryCompleter = (
 
 export const completePasswordRecovery = createPasswordRecoveryCompleter();
 
-export async function reauthenticateAndUpdatePassword(email, currentPassword, nextPassword, captchaToken) {
-  await signInWithEmail(email, currentPassword, captchaToken);
+export async function reauthenticateAndUpdatePassword(email, currentPassword, nextPassword) {
+  await signInWithEmail(email, currentPassword);
   return updatePassword(nextPassword);
 }
 
