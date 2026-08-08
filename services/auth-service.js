@@ -114,15 +114,30 @@ export async function sendPasswordReset(email, redirectTo) {
   }
 }
 
-export async function updatePassword(password) {
+export const createPasswordUpdater = (
+  getSupabase = requireSupabase
+) => async (password, currentPassword) => {
   try {
-    const { data, error } = await requireSupabase().auth.updateUser({ password });
+    const attributes = { password };
+    if (currentPassword !== undefined) {
+      attributes.current_password = currentPassword;
+    }
+
+    const { data, error } = await getSupabase().auth.updateUser(attributes);
     if (error) throw error;
+    if (!data?.user) {
+      throw new AuthServiceError(
+        'password_update_failed',
+        'No se ha podido actualizar la contraseña.'
+      );
+    }
     return data.user;
   } catch (error) {
     throw authError(error, 'password_update_failed');
   }
-}
+};
+
+export const updatePassword = createPasswordUpdater();
 
 const invalidRecoveryCodes = new Set([
   'access_denied',
@@ -290,9 +305,8 @@ export const createPasswordRecoveryCompleter = (
 
 export const completePasswordRecovery = createPasswordRecoveryCompleter();
 
-export async function reauthenticateAndUpdatePassword(email, currentPassword, nextPassword) {
-  await signInWithEmail(email, currentPassword);
-  return updatePassword(nextPassword);
+export async function reauthenticateAndUpdatePassword(_email, currentPassword, nextPassword) {
+  return updatePassword(nextPassword, currentPassword);
 }
 
 export function subscribeToAuthChanges(handler, onError = reportSecurityError.bind(null, 'auth-state-change')) {
