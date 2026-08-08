@@ -2,6 +2,15 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(40);
 
+create function pg_temp.set_test_auth(p_user_id uuid, p_session_id uuid, p_aal text default 'aal2')
+returns text language sql as $$
+  select set_config('request.jwt.claims', jsonb_build_object(
+    'sub', p_user_id,
+    'aal', p_aal,
+    'session_id', p_session_id
+  )::text, true)
+$$;
+
 insert into auth.users (id, email) values
   ('10000000-0000-4000-8000-000000000001', 'customer-one@spirit.test'),
   ('10000000-0000-4000-8000-000000000002', 'customer-two@spirit.test'),
@@ -42,6 +51,14 @@ values
   ('30000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', 'employee', true),
   ('30000000-0000-4000-8000-000000000003', '00000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000003', 'employee', false),
   ('30000000-0000-4000-8000-000000000004', '00000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000004', 'manager', true);
+
+insert into private.privileged_business_sessions (
+  session_id, business_id, user_id, expires_at
+) values
+  ('20100000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', clock_timestamp() + interval '8 hours'),
+  ('20100000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', clock_timestamp() + interval '8 hours'),
+  ('20100000-0000-4000-8000-000000000003', '00000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000003', clock_timestamp() + interval '8 hours'),
+  ('20100000-0000-4000-8000-000000000004', '00000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000004', clock_timestamp() + interval '8 hours');
 
 insert into public.customer_cards (id, customer_id, loyalty_program_id, current_stamps)
 values
@@ -139,7 +156,7 @@ select results_eq(
 );
 
 set local role authenticated;
-set local request.jwt.claim.sub = '10000000-0000-4000-8000-000000000001';
+select pg_temp.set_test_auth('10000000-0000-4000-8000-000000000001', '10100000-0000-4000-8000-000000000001', 'aal1');
 
 select results_eq('select count(*) from public.profiles', array[1::bigint], 'el cliente ve sólo su perfil');
 select results_eq('select count(*) from public.customer_cards', array[1::bigint], 'el cliente ve sólo su tarjeta');
@@ -175,7 +192,7 @@ select results_eq(
   'la lectura no duplica ni altera la tarjeta aislada del cliente'
 );
 
-set local request.jwt.claim.sub = '20000000-0000-4000-8000-000000000001';
+select pg_temp.set_test_auth('20000000-0000-4000-8000-000000000001', '20100000-0000-4000-8000-000000000001');
 
 select results_eq('select count(*) from public.business_members', array[1::bigint], 'el empleado ve sólo su pertenencia');
 select results_eq('select count(*) from public.businesses', array[1::bigint], 'el empleado ve su negocio');
@@ -227,14 +244,14 @@ select throws_ok(
   'el empleado no puede marcar sesiones como usadas'
 );
 
-set local request.jwt.claim.sub = '20000000-0000-4000-8000-000000000002';
+select pg_temp.set_test_auth('20000000-0000-4000-8000-000000000002', '20100000-0000-4000-8000-000000000002');
 
 select results_eq('select count(*) from public.business_members', array[1::bigint], 'un empleado externo sólo ve su propia pertenencia');
 select results_eq($$select count(*) from public.business_members where business_id = '00000000-0000-4000-8000-000000000001'$$, array[0::bigint], 'otro negocio no ve pertenencias de Spirit');
 select results_eq($$select count(*) from public.businesses where id = '00000000-0000-4000-8000-000000000001'$$, array[0::bigint], 'otro negocio no ve Cafetería Spirit');
 select results_eq($$select count(*) from public.stamp_transactions where business_id = '00000000-0000-4000-8000-000000000001'$$, array[0::bigint], 'otro negocio no ve transacciones de Spirit');
 
-set local request.jwt.claim.sub = '20000000-0000-4000-8000-000000000003';
+select pg_temp.set_test_auth('20000000-0000-4000-8000-000000000003', '20100000-0000-4000-8000-000000000003');
 
 select results_eq('select count(*) from public.business_members', array[1::bigint], 'el empleado inactivo ve su propia pertenencia');
 select results_eq('select count(*) from public.businesses', array[0::bigint], 'la pertenencia inactiva no abre acceso al negocio');

@@ -8,6 +8,8 @@ build/
 .vercel/
 tmp/
 spirit-intro-remotion/
+test-results/
+playwright-report/
 supabase/.branches/
 supabase/.temp/
 spirit-intro-remotion/

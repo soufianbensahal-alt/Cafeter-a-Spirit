@@ -12,6 +12,7 @@ import {
   restoreEmployeeSession,
   signInEmployee,
   signOut,
+  signOutCurrentSession,
   subscribeToAuthChanges
 } from '../services/employee-service.js';
 import { cameraConstraints, cameraPermissionFromError } from '../services/camera-rules.js';
@@ -23,6 +24,14 @@ import {
   verifyBusinessMfa
 } from '../services/mfa-service.js';
 import { reportSecurityError } from '../services/security-observer.js';
+import {
+  createPrivilegedSessionMonitor,
+  endPrivilegedBusinessSession,
+  PRIVILEGED_SESSION_ACTIVITY_KEY,
+  PrivilegedSessionError,
+  startPrivilegedBusinessSession,
+  touchPrivilegedBusinessSession
+} from '../services/privileged-session-service.js';
 import {
   isSessionPersistenceEnabled,
   setSessionPersistence
@@ -69,6 +78,7 @@ if (isBusinessRoute) {
   let manualSignOut = false;
   let lastScannedContent = '';
   let lastScannedAt = 0;
+  let privilegedSessionMonitor = null;
 
   const icons = {
     scan: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/><path d="M7 12h10"/></svg>',
@@ -137,7 +147,7 @@ if (isBusinessRoute) {
   }
 
   function readableError(error) {
-    if (error instanceof StampSessionError || error instanceof MfaServiceError) return displayText(error, 'Ha ocurrido un error inesperado. Inténtalo de nuevo.');
+    if (error instanceof StampSessionError || error instanceof MfaServiceError || error instanceof PrivilegedSessionError) return displayText(error, 'Ha ocurrido un error inesperado. Inténtalo de nuevo.');
     if (error?.code === 'invalid_credentials') return 'El correo o la contraseña no son correctos.';
     if (error?.code === 'email_not_confirmed') return 'Confirma tu correo antes de iniciar sesión.';
     return displayText(error, 'Ha ocurrido un error inesperado. Inténtalo de nuevo.');
@@ -158,13 +168,43 @@ if (isBusinessRoute) {
     render();
     try {
       state.employee = employee;
+      const privilegedSession = await startPrivilegedBusinessSession(employee.businessId);
+      startPrivilegedMonitor(privilegedSession);
       await loadHistory(true);
       state.view = 'home';
     } catch (error) {
+      stopPrivilegedMonitor();
       state.error = readableError(error);
-      state.view = 'signedOut';
+      state.view = ['expired', 'not_started', 'not_authorized'].includes(error?.code) ? 'expired' : 'signedOut';
     }
     render();
+  }
+
+  function stopPrivilegedMonitor() {
+    privilegedSessionMonitor?.stop();
+    privilegedSessionMonitor = null;
+  }
+
+  function startPrivilegedMonitor(session) {
+    stopPrivilegedMonitor();
+    privilegedSessionMonitor = createPrivilegedSessionMonitor({
+      expiresAt: session.expiresAt,
+      inactivityTimeoutMs: session.inactivityTimeoutMs,
+      activityKey: `${PRIVILEGED_SESSION_ACTIVITY_KEY}:${state.employee.userId}:${state.employee.businessId}`,
+      touch: () => touchPrivilegedBusinessSession(state.employee.businessId),
+      onExpired: async () => {
+        stopScanner();
+        if (state.employee?.businessId) {
+          try { await endPrivilegedBusinessSession(state.employee.businessId); } catch (error) { reportSecurityError('privileged-session-end', error); }
+        }
+        try { await signOutCurrentSession(); } catch (error) { reportSecurityError('privileged-session-signout', error); }
+        state.employee = null;
+        state.error = 'La sesión segura ha caducado. Vuelve a iniciar sesión.';
+        state.view = 'expired';
+        render();
+      },
+      onError: (error) => reportSecurityError('privileged-session-touch', error)
+    });
   }
 
   async function requireBusinessMfa(employee) {
@@ -537,6 +577,10 @@ if (isBusinessRoute) {
       if (action === 'logout') {
         manualSignOut = true;
         stopScanner();
+        stopPrivilegedMonitor();
+        if (state.employee?.businessId) {
+          try { await endPrivilegedBusinessSession(state.employee.businessId); } catch (error) { reportSecurityError('privileged-session-end', error); }
+        }
         try { await signOut(); } catch (error) { state.error = readableError(error); }
         state.employee = null;
         state.view = 'signedOut';
@@ -552,6 +596,7 @@ if (isBusinessRoute) {
     if (event !== 'SIGNED_OUT' || manualSignOut) return;
     const hadEmployee = Boolean(state.employee);
     stopScanner();
+    stopPrivilegedMonitor();
     state.employee = null;
     state.error = '';
     state.view = hadEmployee ? 'expired' : 'signedOut';
@@ -560,5 +605,6 @@ if (isBusinessRoute) {
 
   addEventListener('pagehide', stopScanner);
   addEventListener('beforeunload', stopScanner);
+  addEventListener('pageshow', () => { void privilegedSessionMonitor?.check(); });
   restoreAccess();
 }

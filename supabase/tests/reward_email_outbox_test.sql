@@ -37,6 +37,15 @@ values (
   true
 );
 
+insert into private.privileged_business_sessions (
+  session_id, business_id, user_id, expires_at
+) values (
+  '82100000-0000-4000-8000-000000000001',
+  '83000000-0000-4000-8000-000000000001',
+  '82000000-0000-4000-8000-000000000001',
+  clock_timestamp() + interval '8 hours'
+);
+
 insert into public.customer_cards (
   id, customer_id, loyalty_program_id, current_stamps, available_rewards
 ) values (
@@ -65,11 +74,11 @@ select is(
   'crear una tarjeta sin recompensas no encola emails'
 );
 
-select set_config(
-  'request.jwt.claim.sub',
-  '82000000-0000-4000-8000-000000000001',
-  true
-);
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', '82000000-0000-4000-8000-000000000001',
+  'aal', 'aal2',
+  'session_id', '82100000-0000-4000-8000-000000000001'
+)::text, true);
 select results_eq(
   $$select status || '|' || reward_earned from public.confirm_stamp_session('87000000-0000-4000-8000-000000000001')$$,
   array['confirmed|1'::text],

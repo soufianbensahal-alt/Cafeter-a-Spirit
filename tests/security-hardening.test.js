@@ -82,3 +82,21 @@ test('los errores del observador Auth ya no se descartan silenciosamente', async
   assert.match(auth, /reportSecurityError\('password-recovery-signout'/);
   assert.doesNotMatch(auth, /catch\(\(\) => \{\}\)/);
 });
+
+test('la fase 2 protege sesiones privilegiadas y limita fraude por empleado', async () => {
+  const [migration, view] = await Promise.all([
+    read('../supabase/migrations/20260808160607_add_privileged_sessions_and_employee_fraud_controls.sql'),
+    read('../business/business-view.js')
+  ]);
+  assert.match(migration, /create table private\.privileged_business_sessions/);
+  assert.match(migration, /interval '8 hours'/);
+  assert.match(migration, /interval '30 minutes'/);
+  assert.match(migration, /start_privileged_business_session/);
+  assert.match(migration, /touch_privileged_business_session/);
+  assert.match(migration, /end_privileged_business_session/);
+  assert.match(migration, /employee_operation_rate_limited/);
+  assert.match(migration, /employee_fraud_signal/);
+  assert.ok((migration.match(/pg_advisory_xact_lock/g) || []).length >= 2);
+  assert.match(view, /createPrivilegedSessionMonitor/);
+  assert.match(view, /signOutCurrentSession/);
+});

@@ -2,6 +2,15 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(22);
 
+create function pg_temp.set_test_auth(p_user_id uuid, p_session_id uuid, p_aal text default 'aal2')
+returns text language sql as $$
+  select set_config('request.jwt.claims', jsonb_build_object(
+    'sub', p_user_id,
+    'aal', p_aal,
+    'session_id', p_session_id
+  )::text, true)
+$$;
+
 insert into auth.users (id, email) values
   ('71000000-0000-4000-8000-000000000001', 'reward-customer@spirit.test'),
   ('71000000-0000-4000-8000-000000000002', 'reward-empty@spirit.test'),
@@ -50,6 +59,13 @@ insert into public.business_members (id, business_id, user_id, role, active) val
   ('75000000-0000-4000-8000-000000000002', '73000000-0000-4000-8000-000000000001', '72000000-0000-4000-8000-000000000002', 'manager', true),
   ('75000000-0000-4000-8000-000000000003', '73000000-0000-4000-8000-000000000002', '72000000-0000-4000-8000-000000000004', 'employee', true);
 
+insert into private.privileged_business_sessions (
+  session_id, business_id, user_id, expires_at
+) values
+  ('72100000-0000-4000-8000-000000000001', '73000000-0000-4000-8000-000000000001', '72000000-0000-4000-8000-000000000001', clock_timestamp() + interval '8 hours'),
+  ('72100000-0000-4000-8000-000000000002', '73000000-0000-4000-8000-000000000001', '72000000-0000-4000-8000-000000000002', clock_timestamp() + interval '8 hours'),
+  ('72100000-0000-4000-8000-000000000004', '73000000-0000-4000-8000-000000000002', '72000000-0000-4000-8000-000000000004', clock_timestamp() + interval '8 hours');
+
 insert into public.customer_cards (
   id, customer_id, loyalty_program_id, current_stamps, available_rewards
 ) values
@@ -69,7 +85,7 @@ insert into public.stamp_sessions (
   clock_timestamp() + interval '5 minutes'
 );
 
-select set_config('request.jwt.claim.sub', '72000000-0000-4000-8000-000000000001', true);
+select pg_temp.set_test_auth('72000000-0000-4000-8000-000000000001', '72100000-0000-4000-8000-000000000001');
 select results_eq(
   $$select status || '|' || current_stamps || '|' || available_rewards || '|' || reward_earned from public.confirm_stamp_session('77000000-0000-4000-8000-000000000001')$$,
   array['confirmed|0|1|1'::text],
@@ -81,7 +97,7 @@ select results_eq(
   'el décimo sello deja una sola transacción auditable'
 );
 
-select set_config('request.jwt.claim.sub', '71000000-0000-4000-8000-000000000002', true);
+select pg_temp.set_test_auth('71000000-0000-4000-8000-000000000002', '71100000-0000-4000-8000-000000000002', 'aal1');
 select throws_ok(
   $$select * from public.create_reward_redemption_request('76000000-0000-4000-8000-000000000002')$$,
   'P0001',
@@ -93,7 +109,7 @@ create temp table reward_request_test as
 select * from public.create_reward_redemption_request('76000000-0000-4000-8000-000000000003') with no data;
 truncate reward_request_test;
 
-select set_config('request.jwt.claim.sub', '71000000-0000-4000-8000-000000000001', true);
+select pg_temp.set_test_auth('71000000-0000-4000-8000-000000000001', '71100000-0000-4000-8000-000000000001', 'aal1');
 insert into reward_request_test
 select * from public.create_reward_redemption_request('76000000-0000-4000-8000-000000000001');
 
@@ -112,7 +128,7 @@ select ok(
   'la sesión usa token de 256 bits, código de seis dígitos y caducidad breve'
 );
 
-select set_config('request.jwt.claim.sub', '72000000-0000-4000-8000-000000000001', true);
+select pg_temp.set_test_auth('72000000-0000-4000-8000-000000000001', '72100000-0000-4000-8000-000000000001');
 select results_eq(
   $$select session_type || '|' || available_rewards from public.validate_loyalty_code('73000000-0000-4000-8000-000000000001', (select short_code from reward_request_test limit 1))$$,
   array['reward_redemption|1'::text],
@@ -149,7 +165,7 @@ select results_eq(
   'un doble clic es idempotente y no vuelve a descontar'
 );
 
-select set_config('request.jwt.claim.sub', '72000000-0000-4000-8000-000000000002', true);
+select pg_temp.set_test_auth('72000000-0000-4000-8000-000000000002', '72100000-0000-4000-8000-000000000002');
 select results_eq(
   $$select status || '|' || (select count(*) from public.stamp_transactions where customer_card_id = '76000000-0000-4000-8000-000000000001' and transaction_type = 'redemption') from public.redeem_reward_session((select id from public.stamp_sessions where token_hash = encode(extensions.digest((select token from reward_request_test limit 1), 'sha256'), 'hex')))$$,
   array['already_processed|1'::text],
@@ -164,7 +180,7 @@ insert into public.stamp_sessions (
   ('77000000-0000-4000-8000-000000000004', '76000000-0000-4000-8000-000000000003', '73000000-0000-4000-8000-000000000002', 'reward_redemption', repeat('4', 64), '710004', clock_timestamp() + interval '5 minutes', null, clock_timestamp()),
   ('77000000-0000-4000-8000-000000000005', '76000000-0000-4000-8000-000000000003', '73000000-0000-4000-8000-000000000002', 'reward_redemption', repeat('5', 64), '710005', clock_timestamp() + interval '5 minutes', null, clock_timestamp());
 
-select set_config('request.jwt.claim.sub', '72000000-0000-4000-8000-000000000001', true);
+select pg_temp.set_test_auth('72000000-0000-4000-8000-000000000001', '72100000-0000-4000-8000-000000000001');
 select results_eq(
   $$select status from public.redeem_reward_session('77000000-0000-4000-8000-000000000002')$$,
   array['expired'::text],
@@ -180,7 +196,7 @@ select results_eq(
   array['not_authorized'::text],
   'un empleado de otro negocio no puede confirmar el canje'
 );
-select set_config('request.jwt.claim.sub', '72000000-0000-4000-8000-000000000003', true);
+select pg_temp.set_test_auth('72000000-0000-4000-8000-000000000003', '72100000-0000-4000-8000-000000000003');
 select results_eq(
   $$select status from public.redeem_reward_session('77000000-0000-4000-8000-000000000005')$$,
   array['not_authorized'::text],
@@ -188,7 +204,7 @@ select results_eq(
 );
 
 set local role authenticated;
-select set_config('request.jwt.claim.sub', '71000000-0000-4000-8000-000000000001', true);
+select pg_temp.set_test_auth('71000000-0000-4000-8000-000000000001', '71100000-0000-4000-8000-000000000001', 'aal1');
 select throws_ok(
   $$update public.customer_cards set available_rewards = 99 where id = '76000000-0000-4000-8000-000000000001'$$,
   '42501',
@@ -206,7 +222,7 @@ select results_eq(
   array[1::bigint],
   'Realtime y RLS exponen el canje únicamente al cliente propietario'
 );
-select set_config('request.jwt.claim.sub', '71000000-0000-4000-8000-000000000002', true);
+select pg_temp.set_test_auth('71000000-0000-4000-8000-000000000002', '71100000-0000-4000-8000-000000000002', 'aal1');
 select results_eq(
   $$select count(*) from public.stamp_transactions where customer_card_id = '76000000-0000-4000-8000-000000000001'$$,
   array[0::bigint],
@@ -214,7 +230,7 @@ select results_eq(
 );
 reset role;
 
-select set_config('request.jwt.claim.sub', '72000000-0000-4000-8000-000000000001', true);
+select pg_temp.set_test_auth('72000000-0000-4000-8000-000000000001', '72100000-0000-4000-8000-000000000001');
 select results_eq(
   $$select (select status from public.validate_loyalty_code('73000000-0000-4000-8000-000000000001', (select short_code from reward_request_test limit 1))) || '|' || (select status from public.validate_loyalty_qr('73000000-0000-4000-8000-000000000001', 'SPIRIT:REWARD:V1:' || (select token from reward_request_test limit 1)))$$,
   array['used|used'::text],

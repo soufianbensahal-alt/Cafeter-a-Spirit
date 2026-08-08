@@ -6,7 +6,10 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "preview": "node scripts/preview.mjs",
-    "test": "node --test",
+    "test": "node --test test/*.test.js tests/*.test.js",
+    "test:sql": "supabase test db",
+    "test:concurrency": "node scripts/test-supabase-concurrency.mjs",
+    "test:e2e": "playwright test",
     "supabase": "supabase"
   },
   "dependencies": {
@@ -15,7 +18,10 @@
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.1",
     "esbuild": "0.28.1",
+    "otpauth": "^9.4.1",
+    "pg": "^8.16.3",
     "supabase": "2.109.1"
   },
   "engines": {
