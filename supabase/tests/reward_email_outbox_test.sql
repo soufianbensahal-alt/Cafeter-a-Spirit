@@ -37,15 +37,6 @@ values (
   true
 );
 
-insert into private.privileged_business_sessions (
-  session_id, business_id, user_id, expires_at
-) values (
-  '82100000-0000-4000-8000-000000000001',
-  '83000000-0000-4000-8000-000000000001',
-  '82000000-0000-4000-8000-000000000001',
-  clock_timestamp() + interval '8 hours'
-);
-
 insert into public.customer_cards (
   id, customer_id, loyalty_program_id, current_stamps, available_rewards
 ) values (

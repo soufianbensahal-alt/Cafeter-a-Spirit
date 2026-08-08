@@ -4,7 +4,6 @@ import {
   getCurrentUser,
   signInWithEmail,
   signOut,
-  signOutCurrentSession,
   subscribeToAuthChanges
 } from './auth-service.js';
 import { getUserContexts } from './user-context-service.js';
@@ -80,4 +79,4 @@ export async function restoreEmployeeSession() {
   return getEmployeeContext(user);
 }
 
-export { signOut, signOutCurrentSession, subscribeToAuthChanges };
+export { signOut, subscribeToAuthChanges };

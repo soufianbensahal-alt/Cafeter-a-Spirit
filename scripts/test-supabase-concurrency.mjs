@@ -47,9 +47,6 @@ async function setup() {
       values ($1, $2, $3, 9, 0)`, [ids.card, ids.customer, ids.program]);
     await pool.query(`insert into public.stamp_sessions (id, customer_card_id, business_id, session_type, token_hash, short_code, expires_at)
       values ($1, $2, $3, 'stamp', repeat('a', 64), '991001', clock_timestamp() + interval '90 seconds')`, [ids.stampSession, ids.card, ids.business]);
-    await pool.query(`insert into private.privileged_business_sessions (session_id, business_id, user_id, expires_at) values
-      ($1, $2, $3, clock_timestamp() + interval '8 hours'),
-      ($4, $2, $5, clock_timestamp() + interval '8 hours')`, [ids.authSession1, ids.business, ids.employee1, ids.authSession2, ids.employee2]);
     await pool.query('commit');
   } catch (error) {
     await pool.query('rollback');
