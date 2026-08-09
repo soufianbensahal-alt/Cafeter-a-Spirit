@@ -12,14 +12,19 @@ export const SIGNUP_VALIDATION_ERROR = Object.freeze({
 const text = (value) => String(value ?? '');
 
 export const validateCustomerSignup = ({
-  displayName,
+  firstName,
+  lastName,
   email,
   emailValid = true,
   password,
   passwordConfirmation,
   privacyAccepted
 }) => {
-  const requiredFieldsPresent = Boolean(text(displayName).trim() && text(email).trim());
+  const requiredFieldsPresent = Boolean(
+    text(firstName).trim()
+    && text(lastName).trim()
+    && text(email).trim()
+  );
   const passwordValid = passwordMeetsPolicy(password);
   const confirmation = text(passwordConfirmation);
   const confirmationError = !confirmation
@@ -57,7 +62,10 @@ export const submitValidatedCustomerSignup = async (values, signUp) => {
   const result = await signUp({
     email: values.email,
     password: values.password,
-    displayName: values.displayName,
+    firstName: text(values.firstName).trim().replace(/\s+/g, ' '),
+    lastName: text(values.lastName).trim().replace(/\s+/g, ' '),
+    displayName: `${text(values.firstName).trim()} ${text(values.lastName).trim()}`
+      .replace(/\s+/g, ' '),
     consent: values.consent
   });
 

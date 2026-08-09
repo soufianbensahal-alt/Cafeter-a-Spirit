@@ -9,7 +9,8 @@ import {
 } from '../services/signup-validation.js';
 
 const validSignup = (overrides = {}) => ({
-  displayName: 'Soufian Bensahal',
+  firstName: 'Soufian',
+  lastName: 'Bensahal',
   email: 'soufian@example.com',
   emailValid: true,
   password: 'SpiritCafe123!',
@@ -19,14 +20,24 @@ const validSignup = (overrides = {}) => ({
   ...overrides
 });
 
-test('la creación de cuenta renderiza dos contraseñas accesibles', async () => {
+test('la creación de cuenta renderiza nombre, apellidos y dos contraseñas accesibles', async () => {
   const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
+  assert.match(app, /<label for="signup-first-name">\$\{t\('firstName'\)\}<\/label>/);
+  assert.match(app, /id="signup-first-name" name="firstName" maxlength="28" autocomplete="given-name"/);
+  assert.match(app, /<label for="signup-last-name">\$\{t\('lastName'\)\}<\/label>/);
+  assert.match(app, /id="signup-last-name" name="lastName" maxlength="42" autocomplete="family-name"/);
   assert.match(app, /<label for="password">\$\{t\('password'\)\}<\/label><input id="password" name="password" type="password"/);
   assert.match(app, /<label for="signup-password-confirmation">\$\{t\('confirmSignupPassword'\)\}<\/label>/);
   assert.match(app, /id="signup-password-confirmation" name="passwordConfirmation" type="password"/);
   assert.match(app, /placeholder="\$\{t\('confirmSignupPasswordPlaceholder'\)\}"/);
   assert.match(app, /aria-describedby="signup-password-confirmation-error"/);
   assert.match(app, /data-signup-password-error role="alert" aria-live="polite"/);
+});
+
+test('nombre y apellidos son obligatorios para crear la cuenta', () => {
+  assert.equal(validateCustomerSignup(validSignup({ firstName: '' })).valid, false);
+  assert.equal(validateCustomerSignup(validSignup({ lastName: '' })).valid, false);
+  assert.equal(signupCanSubmit(validSignup({ lastName: '' })), false);
 });
 
 test('una confirmación vacía o distinta bloquea el registro', () => {
@@ -79,10 +90,21 @@ test('signUp recibe solo la contraseña principal y nunca la confirmación', asy
 
   assert.equal(submission.ok, true);
   assert.equal(payload.password, 'SpiritCafe123!');
+  assert.equal(payload.firstName, 'Soufian');
+  assert.equal(payload.lastName, 'Bensahal');
+  assert.equal(payload.displayName, 'Soufian Bensahal');
   assert.equal('passwordConfirmation' in payload, false);
   assert.equal('confirmation' in payload, false);
   assert.deepEqual(payload.consent, { accepted: true, version: '2026-08-05' });
   assert.equal('passwordConfirmation' in (payload.consent || {}), false);
+});
+
+test('Supabase recibe nombre y apellidos como metadatos de presentación', async () => {
+  const authService = await readFile(new URL('../services/auth-service.js', import.meta.url), 'utf8');
+  assert.match(authService, /first_name: cleanFirstName/);
+  assert.match(authService, /last_name: cleanLastName/);
+  assert.match(authService, /full_name: cleanDisplayName/);
+  assert.match(authService, /display_name: cleanDisplayName/);
 });
 
 test('la interfaz nunca interpola directamente objetos de error', async () => {

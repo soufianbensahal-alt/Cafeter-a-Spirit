@@ -52,10 +52,12 @@ export async function customerSignUpResult(data, loadContext = getCustomerContex
   };
 }
 
-export async function signUpCustomer({ email, password, displayName, consent }) {
+export async function signUpCustomer({ email, password, firstName, lastName, displayName, consent }) {
   const data = await signUpWithEmail({
     email,
     password,
+    firstName,
+    lastName,
     displayName,
     redirectTo: getEmailConfirmationUrl(),
     consent

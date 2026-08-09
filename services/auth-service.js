@@ -38,14 +38,23 @@ export async function signInWithEmail(email, password) {
   }
 }
 
-export async function signUpWithEmail({ email, password, displayName, redirectTo, consent }) {
+export async function signUpWithEmail({ email, password, firstName, lastName, displayName, redirectTo, consent }) {
   try {
+    const cleanFirstName = String(firstName || '').trim().replace(/\s+/g, ' ').slice(0, 28);
+    const cleanLastName = String(lastName || '').trim().replace(/\s+/g, ' ').slice(0, 42);
+    const cleanDisplayName = String(displayName || `${cleanFirstName} ${cleanLastName}`)
+      .trim()
+      .replace(/\s+/g, ' ')
+      .slice(0, 80);
     const { data, error } = await requireSupabase().auth.signUp({
       email: String(email || '').trim().toLowerCase(),
       password,
       options: {
         data: {
-          display_name: String(displayName || '').trim(),
+          display_name: cleanDisplayName,
+          first_name: cleanFirstName,
+          last_name: cleanLastName,
+          full_name: cleanDisplayName,
           privacy_consent: consent?.accepted === true,
           privacy_policy_version: String(consent?.version || '')
         },
