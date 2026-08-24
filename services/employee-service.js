@@ -61,7 +61,8 @@ export async function getEmployeeContext(authenticatedUser) {
       role: selectedMembership.role,
       businessId: business.id,
       businessName: business.name,
-      isCustomer: contexts.isCustomer
+      isCustomer: contexts.isCustomer,
+      keepSession: contexts.keepSession
     });
   } catch (error) {
     throw employeeError(error);
@@ -77,6 +78,18 @@ export async function restoreEmployeeSession() {
   const user = await getCurrentUser();
   if (!user) return null;
   return getEmployeeContext(user);
+}
+
+export async function updateEmployeeSessionPreference(enabled) {
+  const user = await getCurrentUser();
+  if (!user) throw new EmployeeAuthorizationError('not_authenticated', 'Inicia sesión para cambiar esta preferencia.');
+  const keepSession = Boolean(enabled);
+  const { error } = await requireSupabase()
+    .from('profiles')
+    .update({ keep_session_signed_in: keepSession })
+    .eq('id', user.id);
+  if (error) throw employeeError(error);
+  return keepSession;
 }
 
 export { signOut, subscribeToAuthChanges };

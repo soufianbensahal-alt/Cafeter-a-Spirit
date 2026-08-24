@@ -68,16 +68,29 @@ test('cerrar sesión elimina el token de ambos almacenamientos', () => {
   assert.equal(temporary.getItem(authKey), null);
 });
 
-test('cliente y cafetería muestran el mismo control de persistencia', async () => {
+test('cliente y cafetería guardan por usuario el mismo control de persistencia', async () => {
   const [customerApp, businessApp] = await Promise.all([
     readFile(new URL('../app.js', import.meta.url), 'utf8'),
     readFile(new URL('../business/business-view.js', import.meta.url), 'utf8')
   ]);
 
   assert.match(customerApp, /data-session-persistence/);
-  assert.match(customerApp, /setSessionPersistence\(event\.currentTarget\.checked\)/);
+  assert.match(customerApp, /updateCustomerSessionPreference\(input\.checked\)/);
+  assert.match(customerApp, /setSessionPersistence\(context\.keepSession !== false\)/);
   assert.match(businessApp, /data-business-session-persistence/);
-  assert.match(businessApp, /setSessionPersistence\(event\.currentTarget\.checked\)/);
+  assert.match(businessApp, /updateEmployeeSessionPreference\(input\.checked\)/);
+  assert.match(businessApp, /setSessionPersistence\(employee\.keepSession !== false\)/);
+});
+
+test('la migración guarda la preferencia con RLS ya existente y permiso de columna mínimo', async () => {
+  const migration = await readFile(
+    new URL('../supabase/migrations/20260824202334_persist_session_preference_per_user.sql', import.meta.url),
+    'utf8'
+  );
+
+  assert.match(migration, /add column keep_session_signed_in boolean not null default true/);
+  assert.match(migration, /grant update \(keep_session_signed_in\) on table public\.profiles to authenticated/);
+  assert.doesNotMatch(migration, /grant all/i);
 });
 
 test('el perfil del cliente no muestra la opción de invitar a un amigo', async () => {

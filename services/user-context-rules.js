@@ -12,6 +12,7 @@ export function deriveUserContexts({ user, profile, customerCards = [], business
     userId: user?.id || '',
     email: user?.email || '',
     displayName: displayName || emailPrefix || 'Cliente Spirit',
+    keepSession: profile?.keep_session_signed_in !== false,
     needsProfileCompletion: !providerName && (!displayName || displayName === emailPrefix),
     isCustomer: customerCards.length > 0,
     customerCards: Object.freeze(customerCards),

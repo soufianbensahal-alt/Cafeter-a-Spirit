@@ -36,8 +36,21 @@ export async function getCustomerContext(authenticatedUser) {
     isCustomer: contexts.isCustomer,
     hasBusinessAccess: contexts.hasBusinessAccess,
     needsProfileCompletion: contexts.needsProfileCompletion,
+    keepSession: contexts.keepSession,
     ...splitName(displayName)
   });
+}
+
+export async function updateCustomerSessionPreference(enabled) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('No existe una sesión activa.');
+  const keepSession = Boolean(enabled);
+  const { error } = await requireSupabase()
+    .from('profiles')
+    .update({ keep_session_signed_in: keepSession })
+    .eq('id', user.id);
+  if (error) throw error;
+  return keepSession;
 }
 
 export async function signInCustomer(email, password) {

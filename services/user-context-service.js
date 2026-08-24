@@ -9,7 +9,7 @@ export async function getUserContexts(authenticatedUser) {
   if (!user) return null;
   const supabase = requireSupabase();
   const [profileResult, cardsResult, membershipsResult] = await Promise.all([
-    supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle(),
+    supabase.from('profiles').select('display_name, keep_session_signed_in').eq('id', user.id).maybeSingle(),
     supabase.from('customer_cards').select('id, current_stamps, available_rewards, updated_at, program:loyalty_programs(id, name, stamps_required, reward_description, active)').eq('customer_id', user.id),
     supabase.from('business_members').select('id, role, active, business:businesses(id, name, active)').eq('user_id', user.id)
   ]);

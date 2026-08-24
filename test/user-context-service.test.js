@@ -14,6 +14,21 @@ test('una cuenta de empleado no se convierte implícitamente en cliente', () => 
   });
   assert.equal(contexts.isCustomer, false);
   assert.equal(contexts.hasBusinessAccess, true);
+  assert.equal(contexts.keepSession, true);
+});
+
+test('la persistencia de sesión se deriva del perfil de cada usuario', () => {
+  const persistent = deriveUserContexts({
+    user,
+    profile: { display_name: 'Sofia Spirit', keep_session_signed_in: true }
+  });
+  const temporary = deriveUserContexts({
+    user,
+    profile: { display_name: 'Sofia Spirit', keep_session_signed_in: false }
+  });
+
+  assert.equal(persistent.keepSession, true);
+  assert.equal(temporary.keepSession, false);
 });
 
 test('una misma identidad puede tener ambos contextos de forma explícita', () => {
