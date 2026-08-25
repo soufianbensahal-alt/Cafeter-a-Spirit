@@ -36,7 +36,8 @@ e2eTest('registro, confirmación de correo e inicio de sesión', async ({ page, 
   await prepare(page);
   await page.goto('/login');
   await page.getByRole('button', { name: 'Crear mi cuenta' }).first().click();
-  await page.getByLabel('Nombre').fill('Cliente E2E');
+  await page.getByLabel('Nombre').fill('Cliente');
+  await page.getByLabel('Apellidos').fill('E2E');
   await page.getByLabel('Correo electrónico').fill(email);
   await page.getByLabel('Contraseña', { exact: true }).fill(password);
   await page.getByLabel('Confirmar contraseña').fill(password);

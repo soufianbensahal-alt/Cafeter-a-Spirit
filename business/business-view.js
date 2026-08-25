@@ -29,12 +29,14 @@ import {
   setSessionPersistence
 } from '../services/session-persistence.js';
 import { displayText } from '../services/display-text.js';
+import { createLiveAnnouncer } from '../services/live-announcer.js';
 import jsQR from 'jsqr';
 
 const isBusinessRoute = /^\/cafeteria\/?$/.test(window.location.pathname);
 
 if (isBusinessRoute) {
   const app = document.querySelector('#app');
+  const announcer = createLiveAnnouncer(document.querySelector('#app-announcer'));
   document.body.classList.add('business-mode');
   document.title = 'SPIRIT · Modo cafetería';
 
@@ -129,11 +131,18 @@ if (isBusinessRoute) {
   const networkErrorView = () => authStateView('Sin conexión.', state.error || 'No se ha podido validar tu acceso. Revisa tu conexión.');
   const loadingView = () => `<main class="business-app business-app--loading"><img src="/assets/spirit-logo-header.png" alt="Spirit"><span class="business-spinner" aria-hidden="true"></span><p>Comprobando sesión y permisos…</p></main>`;
 
+  let lastAnnouncedView = '';
+
   function render() {
     stopScannerIfLeaving();
     const views = { checking: loadingView, home: homeView, preview: previewView, success: successView, scanner: scannerView, signedOut: signedOutView, mfaChallenge: mfaChallengeView, mfaEnrollment: mfaEnrollmentView, unauthorized: unauthorizedView, expired: expiredView, networkError: networkErrorView };
     app.innerHTML = views[state.view]();
     bind();
+    if (lastAnnouncedView !== state.view) {
+      lastAnnouncedView = state.view;
+      const heading = app.querySelector('h1');
+      if (heading) announcer.announce(heading.textContent);
+    }
     if (state.view === 'scanner') startScanner();
   }
 

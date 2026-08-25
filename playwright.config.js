@@ -24,6 +24,7 @@ export default defineConfig({
   projects: [
     { name: 'chromium-mobile', use: { ...devices['Pixel 7'] } },
     { name: 'webkit-mobile', use: { ...devices['iPhone 14'] } },
+    { name: 'webkit-tablet', use: { ...devices['iPad Pro 11'] } },
     { name: 'chromium-desktop', use: { ...devices['Desktop Chrome'] } }
   ],
   webServer: enabled ? {

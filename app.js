@@ -70,6 +70,11 @@ import {
 } from './services/signup-validation.js';
 import { reportSecurityError } from './services/security-observer.js';
 import { displayText } from './services/display-text.js';
+import {
+  accessibleDialogMarkup,
+  createAccessibleModalController
+} from './services/accessible-modal.js';
+import { createLiveAnnouncer } from './services/live-announcer.js';
 
 const PRIVACY_POLICY_VERSION = '2026-08-05';
 
@@ -183,6 +188,16 @@ const state = {
   menuActiveCategory: MENU_CATEGORIES[0].id
 };
 const app = document.querySelector('#app');
+const modalRoot = document.querySelector('#modal-root');
+const announcer = createLiveAnnouncer(document.querySelector('#app-announcer'));
+const modalController = createAccessibleModalController({
+  appRoot: app,
+  modalRoot,
+  canClose: ({ backdrop }) => !backdrop.querySelector('[data-delete-account-modal][data-deleting="true"]'),
+  onClose: ({ backdrop }) => {
+    if (backdrop.querySelector('[data-stamp-request-sheet]')) clearStampRequest(false);
+  }
+});
 const t = (key, values = {}) => Object.entries(values).reduce((value, [name, replacement]) => value.replaceAll(`{${name}}`, replacement), copy[state.lang][key] || key);
 const escapeHTML = (value = '') => displayText(value).replace(/[&<>'"]/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 const localizedRewardDescription = (value = '') => (
@@ -206,7 +221,7 @@ const avatar = (className = 'avatar') => `<span class="${className}">${escapeHTM
 const brandLogo = (variant = 'header') => `<img class="brand-logo brand-logo--${variant}" src="/assets/spirit-logo-header.png" alt="Spirit">`;
 
 const nav = (active) => `<nav class="bottom-nav" aria-label="${t('navLabel')}">
-  ${[['home','home','home'],['rewards','rewards','gift'],['history','history','clock'],['profile','profile','user']].map(([id,label,icon]) => `<button class="nav-item ${active===id?'nav-item--active':''}" data-nav="${id}" aria-label="${t(label)}"><span class="nav-icon">${icons[icon]}</span><span>${t(label)}</span></button>`).join('')}
+  ${[['home','home','home'],['rewards','rewards','gift'],['history','history','clock'],['profile','profile','user']].map(([id,label,icon]) => `<button class="nav-item ${active===id?'nav-item--active':''}" data-nav="${id}" aria-label="${t(label)}" ${active===id?'aria-current="page"':''}><span class="nav-icon" aria-hidden="true">${icons[icon]}</span><span>${t(label)}</span></button>`).join('')}
 </nav>`;
 
 const topbar = (withLogout = false) => `<header class="topbar topbar--centered"><div class="brand">${brandLogo('home')}</div>${withLogout ? `<button class="topbar-action" type="button" data-action="logout" aria-label="${t('logout')}">${icons.logout}</button>` : ''}</header>`;
@@ -244,7 +259,7 @@ function onboarding() {
     {title:t('onboarding3Title'), copy:t('onboarding3Copy'), image:'/assets/onboarding-spirit.jpg', alt:t('onboarding3Photo')}
   ];
   const slide = slides[state.onboarding];
-  return `<main class="app-shell onboarding-shell onboarding-shell--${state.onboarding + 1}"><section class="screen screen--onboarding"><header class="onboarding-header">${brandLogo('onboarding')}${state.onboarding < slides.length - 1 ? `<button class="skip" data-action="finish-onboarding">${t('skip')}</button>` : ''}</header><div class="onboarding-stage" data-onboarding-swipe><figure class="onboarding-photo"><img src="${slide.image}" alt="${slide.alt}"><span class="onboarding-photo__shade" aria-hidden="true"></span></figure><article class="onboarding-panel"><p class="eyebrow">Spirit Coffee Club</p><h1>${slide.title}</h1><p class="onboarding-copy">${slide.copy}</p><div class="dots" aria-label="${state.onboarding + 1} de ${slides.length}">${slides.map((_,i)=>`<span class="dot ${i===state.onboarding?'dot--active':''}" ${i===state.onboarding?'aria-current="step"':''}></span>`).join('')}</div><button class="primary-button onboarding-cta" data-action="next-onboarding">${state.onboarding===slides.length-1?t('enter'):t('continue')}</button></article></div></section></main>`;
+  return `<main class="app-shell onboarding-shell onboarding-shell--${state.onboarding + 1}"><section class="screen screen--onboarding"><header class="onboarding-header">${brandLogo('onboarding')}${state.onboarding < slides.length - 1 ? `<button class="skip" data-action="finish-onboarding">${t('skip')}</button>` : ''}</header><div class="onboarding-stage" data-onboarding-swipe><figure class="onboarding-photo"><img src="${slide.image}" alt="${slide.alt}"><span class="onboarding-photo__shade" aria-hidden="true"></span></figure><article class="onboarding-panel"><p class="eyebrow">Spirit Coffee Club</p><h1>${slide.title}</h1><p class="onboarding-copy">${slide.copy}</p><div class="dots" role="img" aria-label="${state.onboarding + 1} de ${slides.length}">${slides.map((_,i)=>`<span class="dot ${i===state.onboarding?'dot--active':''}" aria-hidden="true"></span>`).join('')}</div><button class="primary-button onboarding-cta" data-action="next-onboarding">${state.onboarding===slides.length-1?t('enter'):t('continue')}</button></article></div></section></main>`;
 }
 
 function home() {
@@ -353,7 +368,7 @@ function history() {
 
 function profile() {
   const loyaltyCount = state.loyaltyReady ? `${state.stamps} ${t('stamps')}` : t('cardUnavailable');
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('profileEyebrow')}</p><h1>${t('profileTitle')}</h1>${state.needsProfileCompletion ? `<button class="profile-completion" type="button" data-action="open-personal">${t('completeProfile')}</button>` : ''}<div class="section-head"><h2>${t('yourAccount')}</h2></div><article class="profile-card">${avatar()}<div><h3>${escapeHTML(state.profile.firstName)} ${escapeHTML(state.profile.lastName)}</h3><p>${escapeHTML(state.profile.email)} · ${loyaltyCount}</p></div></article><div class="section-head"><h2>${t('settings')}</h2></div><div class="settings-list"><button class="settings-row" data-action="open-personal"><span>${t('personalData')}</span><span>›</span></button>${state.hasBusinessAccess ? `<a class="settings-row settings-row--link" href="/cafeteria"><span>${t('businessMode')}</span><span>›</span></a>` : ''}<label class="settings-row settings-row--switch"><span class="settings-row__copy"><span>${t('notifications')}</span><small>${t('notificationsCopy')}</small></span><span class="switch"><input type="checkbox" data-notifications ${state.notifications?'checked':''} ${state.notificationsLoading?'disabled':''}><span class="switch__track" aria-hidden="true"></span></span></label><label class="settings-row settings-row--switch"><span class="settings-row__copy"><span>${t('keepSession')}</span><small>${t('keepSessionCopy')}</small></span><span class="switch"><input type="checkbox" data-session-persistence ${state.keepSession?'checked':''}><span class="switch__track" aria-hidden="true"></span></span></label><button class="settings-row" data-action="open-appearance"><span>${t('appearance')}</span><small>${t(state.themePreference==='system'?'systemTheme':state.themePreference==='dark'?'darkTheme':'lightTheme')}</small></button><button class="settings-row" data-action="open-language"><span>${t('language')}</span><small>${state.lang==='ca'?t('catalan'):t('spanish')}</small></button><button class="settings-row settings-row--danger" data-action="logout"><span>${t('logout')}</span><span>›</span></button></div><div class="section-head"><h2>Spirit Coffee</h2></div><p class="subtitle">Passeig Rocamora, 9<br>Montcada i Reixac · Barcelona</p><section class="danger-zone" aria-labelledby="danger-zone-title"><div class="section-head"><div><h2 id="danger-zone-title">${t('dangerZone')}</h2><p>${t('dangerZoneCopy')}</p></div></div><button class="danger-zone__button" type="button" data-action="open-delete-account">${t('deleteAccount')}</button></section></section>${nav('profile')}</main>`;
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('profileEyebrow')}</p><h1>${t('profileTitle')}</h1>${state.needsProfileCompletion ? `<button class="profile-completion" type="button" data-action="open-personal">${t('completeProfile')}</button>` : ''}<div class="section-head"><h2>${t('yourAccount')}</h2></div><article class="profile-card">${avatar()}<div><h3>${escapeHTML(state.profile.firstName)} ${escapeHTML(state.profile.lastName)}</h3><p>${escapeHTML(state.profile.email)} · ${loyaltyCount}</p></div></article><div class="section-head"><h2>${t('settings')}</h2></div><div class="settings-list"><button class="settings-row" data-action="open-personal"><span>${t('personalData')}</span><span aria-hidden="true">›</span></button>${state.hasBusinessAccess ? `<a class="settings-row settings-row--link" href="/cafeteria"><span>${t('businessMode')}</span><span aria-hidden="true">›</span></a>` : ''}<label class="settings-row settings-row--switch"><span class="settings-row__copy"><span>${t('notifications')}</span><small>${t('notificationsCopy')}</small></span><span class="switch"><input type="checkbox" data-notifications ${state.notifications?'checked':''} ${state.notificationsLoading?'disabled':''} aria-label="${t('notifications')}"><span class="switch__track" aria-hidden="true"></span></span></label><label class="settings-row settings-row--switch"><span class="settings-row__copy"><span>${t('keepSession')}</span><small>${t('keepSessionCopy')}</small></span><span class="switch"><input type="checkbox" data-session-persistence ${state.keepSession?'checked':''} aria-label="${t('keepSession')}"><span class="switch__track" aria-hidden="true"></span></span></label><button class="settings-row" data-action="open-appearance"><span>${t('appearance')}</span><small>${t(state.themePreference==='system'?'systemTheme':state.themePreference==='dark'?'darkTheme':'lightTheme')}</small></button><button class="settings-row" data-action="open-language"><span>${t('language')}</span><small>${state.lang==='ca'?t('catalan'):t('spanish')}</small></button><button class="settings-row settings-row--danger" data-action="logout"><span>${t('logout')}</span><span aria-hidden="true">›</span></button></div><div class="section-head"><h2>Spirit Coffee</h2></div><p class="subtitle">Passeig Rocamora, 9<br>Montcada i Reixac · Barcelona</p><section class="danger-zone" aria-labelledby="danger-zone-title"><div class="section-head"><div><h2 id="danger-zone-title">${t('dangerZone')}</h2><p>${t('dangerZoneCopy')}</p></div></div><button class="danger-zone__button" type="button" data-action="open-delete-account">${t('deleteAccount')}</button></section></section>${nav('profile')}</main>`;
 }
 
 function login() {
@@ -412,16 +427,21 @@ function authLoading() {
   return `<main class="app-shell"><section class="screen screen--gold auth-loading">${topbar()}<span class="auth-spinner" aria-hidden="true"></span><p>${t('checkSession')}</p></section></main>`;
 }
 
-const sheet = (content, className = '') => `<div class="modal-backdrop" data-sheet-backdrop><div class="modal ${className}" role="dialog" aria-modal="true">${content}</div></div>`;
+const sheet = (content, className, labelledBy, describedBy = '') => accessibleDialogMarkup({
+  content,
+  className,
+  labelledBy,
+  describedBy
+});
 function stampRequestSheet() {
   const request = state.stampRequest;
   const isReward = request?.type === 'reward_redemption';
   const title = t(isReward ? 'rewardRequestTitle' : 'stampRequestTitle');
   if (request?.expired) {
-    return sheet(`<div data-stamp-request-sheet><div class="sheet-head"><div><p class="eyebrow">Spirit Coffee Club</p><h2>${title}</h2></div><button class="sheet-close" type="button" data-action="close-stamp-request" aria-label="${t('close')}">×</button></div><div class="stamp-request stamp-request--expired"><span class="stamp-request__expired-icon" aria-hidden="true">⌛</span><p>${t('stampExpired')}</p><button class="primary-button" type="button" data-action="regenerate-stamp">${t('regenerateStamp')}</button></div></div>`, 'modal--form modal--stamp-request');
+    return sheet(`<div data-stamp-request-sheet><div class="sheet-head"><div><p class="eyebrow">Spirit Coffee Club</p><h2 id="stamp-request-title">${title}</h2></div><button class="sheet-close" type="button" data-action="close-stamp-request" aria-label="${t('close')}">×</button></div><div class="stamp-request stamp-request--expired"><span class="stamp-request__expired-icon" aria-hidden="true">⌛</span><p>${t('stampExpired')}</p><button class="primary-button" type="button" data-action="regenerate-stamp">${t('regenerateStamp')}</button></div></div>`, 'modal--form modal--stamp-request', 'stamp-request-title');
   }
   const initialCountdown = formatStampCountdown(STAMP_REQUEST_DURATION_SECONDS);
-  return sheet(`<div data-stamp-request-sheet><div class="sheet-head"><div><p class="eyebrow">Spirit Coffee Club</p><h2>${title}</h2></div><button class="sheet-close" type="button" data-action="close-stamp-request" aria-label="${t('close')}">×</button></div><div class="stamp-request"><p class="subtitle">${t(isReward ? 'rewardRequestCopy' : 'stampRequestCopy')}</p><div class="stamp-request__qr"><img src="${request.qrDataUrl}" alt="${t(isReward ? 'rewardQrAlt' : 'stampQrAlt')}"></div><span class="stamp-request__label">${t('stampCodeLabel')}</span><strong class="stamp-request__code">${escapeHTML(request.shortCode)}</strong><p class="stamp-request__countdown" role="timer" aria-live="polite">${t('stampExpiresIn',{count:`<span data-stamp-countdown>${initialCountdown}</span>`})}</p><p class="stamp-request__security">${t('requestSecurity')}</p></div></div>`, 'modal--form modal--stamp-request');
+  return sheet(`<div data-stamp-request-sheet><div class="sheet-head"><div><p class="eyebrow">Spirit Coffee Club</p><h2 id="stamp-request-title">${title}</h2></div><button class="sheet-close" type="button" data-action="close-stamp-request" aria-label="${t('close')}">×</button></div><div class="stamp-request"><p class="subtitle">${t(isReward ? 'rewardRequestCopy' : 'stampRequestCopy')}</p><div class="stamp-request__qr"><img src="${request.qrDataUrl}" alt="${t(isReward ? 'rewardQrAlt' : 'stampQrAlt')}"></div><span class="stamp-request__label">${t('stampCodeLabel')}</span><strong class="stamp-request__code">${escapeHTML(request.shortCode)}</strong><p class="stamp-request__countdown" role="timer" aria-live="off">${t('stampExpiresIn',{count:`<span data-stamp-countdown>${initialCountdown}</span>`})}</p><p class="stamp-request__security">${t('requestSecurity')}</p></div></div>`, 'modal--form modal--stamp-request', 'stamp-request-title');
 }
 
 let stampCountdownTimer = 0;
@@ -521,7 +541,7 @@ function clearStampRequest(removeSheet = true) {
   stampCountdownTimer = 0;
   state.stampRequest = null;
   state.stampRequestError = '';
-  if (removeSheet) document.querySelector('[data-sheet-backdrop]')?.remove();
+  if (removeSheet) modalController.close({ force: true, reason: 'stamp-clear' });
 }
 
 function expireStampRequest() {
@@ -529,7 +549,7 @@ function expireStampRequest() {
   clearInterval(stampCountdownTimer);
   stampCountdownTimer = 0;
   state.stampRequest = { ...state.stampRequest, expired: true };
-  document.querySelector('[data-sheet-backdrop]')?.remove();
+  modalController.close({ force: true, restoreFocus: false, reason: 'stamp-expired' });
   openSheet(stampRequestSheet());
 }
 
@@ -575,7 +595,7 @@ const openStampRequest = () => openLoyaltyRequest(createStampRequest);
 const openRewardRequest = () => openLoyaltyRequest(createRewardRedemptionRequest);
 
 function personalSheet() {
-  return sheet(`<div class="sheet-head"><div><p class="eyebrow">${t('personalEyebrow')}</p><h2>${t('personalTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-sheet" aria-label="${t('close')}">×</button></div><form class="sheet-form" data-form="profile"><div class="field"><label for="profile-first">${t('firstName')}</label><input id="profile-first" name="firstName" value="${escapeHTML(state.profile.firstName)}" maxlength="28" autocomplete="given-name" required></div><div class="field"><label for="profile-last">${t('lastName')}</label><input id="profile-last" name="lastName" value="${escapeHTML(state.profile.lastName)}" maxlength="42" autocomplete="family-name" required></div><div class="field"><label for="profile-email">${t('email')}</label><input id="profile-email" value="${escapeHTML(state.profile.email)}" type="email" readonly aria-describedby="email-note"><small id="email-note" class="field-note">${t('emailReadOnly')}</small></div><button class="sheet-link" type="button" data-action="open-password"><span>${t('changePassword')}</span><span>›</span></button><button class="primary-button" type="submit">${t('save')}</button></form>`, 'modal--form');
+  return sheet(`<div class="sheet-head"><div><p class="eyebrow">${t('personalEyebrow')}</p><h2 id="personal-dialog-title">${t('personalTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-sheet" aria-label="${t('close')}">×</button></div><form class="sheet-form" data-form="profile"><div class="field"><label for="profile-first">${t('firstName')}</label><input id="profile-first" name="firstName" value="${escapeHTML(state.profile.firstName)}" maxlength="28" autocomplete="given-name" required></div><div class="field"><label for="profile-last">${t('lastName')}</label><input id="profile-last" name="lastName" value="${escapeHTML(state.profile.lastName)}" maxlength="42" autocomplete="family-name" required></div><div class="field"><label for="profile-email">${t('email')}</label><input id="profile-email" value="${escapeHTML(state.profile.email)}" type="email" readonly aria-describedby="email-note"><small id="email-note" class="field-note">${t('emailReadOnly')}</small></div><button class="sheet-link" type="button" data-action="open-password"><span>${t('changePassword')}</span><span aria-hidden="true">›</span></button><button class="primary-button" type="submit">${t('save')}</button></form>`, 'modal--form', 'personal-dialog-title');
 }
 
 function appearanceSheet() {
@@ -584,19 +604,19 @@ function appearanceSheet() {
     ['light', 'lightTheme'],
     ['dark', 'darkTheme']
   ];
-  return sheet(`<div class="sheet-head"><div><p class="eyebrow">${t('appearanceEyebrow')}</p><h2>${t('appearanceTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-sheet" aria-label="${t('close')}">×</button></div><div class="language-options">${options.map(([value, label]) => `<button class="language-option ${state.themePreference===value?'language-option--active':''}" data-theme-preference="${value}"><span>${t(label)}</span><span>${state.themePreference===value?'✓':''}</span></button>`).join('')}</div>`, 'modal--form');
+  return sheet(`<div class="sheet-head"><div><p class="eyebrow">${t('appearanceEyebrow')}</p><h2 id="appearance-dialog-title">${t('appearanceTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-sheet" aria-label="${t('close')}">×</button></div><div class="language-options">${options.map(([value, label]) => `<button class="language-option ${state.themePreference===value?'language-option--active':''}" data-theme-preference="${value}" aria-pressed="${state.themePreference===value}"><span>${t(label)}</span><span aria-hidden="true">${state.themePreference===value?'✓':''}</span></button>`).join('')}</div>`, 'modal--form', 'appearance-dialog-title');
 }
 
 function languageSheet() {
-  return sheet(`<div class="sheet-head"><div><p class="eyebrow">${t('languageEyebrow')}</p><h2>${t('languageTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-sheet" aria-label="${t('close')}">×</button></div><div class="language-options"><button class="language-option ${state.lang==='es'?'language-option--active':''}" data-language="es"><span>${t('spanish')}</span><span>${state.lang==='es'?'✓':''}</span></button><button class="language-option ${state.lang==='ca'?'language-option--active':''}" data-language="ca"><span>${t('catalan')}</span><span>${state.lang==='ca'?'✓':''}</span></button></div>`, 'modal--form');
+  return sheet(`<div class="sheet-head"><div><p class="eyebrow">${t('languageEyebrow')}</p><h2 id="language-dialog-title">${t('languageTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-sheet" aria-label="${t('close')}">×</button></div><div class="language-options"><button class="language-option ${state.lang==='es'?'language-option--active':''}" data-language="es" aria-pressed="${state.lang==='es'}"><span>${t('spanish')}</span><span aria-hidden="true">${state.lang==='es'?'✓':''}</span></button><button class="language-option ${state.lang==='ca'?'language-option--active':''}" data-language="ca" aria-pressed="${state.lang==='ca'}"><span>${t('catalan')}</span><span aria-hidden="true">${state.lang==='ca'?'✓':''}</span></button></div>`, 'modal--form', 'language-dialog-title');
 }
 
 function passwordSheet() {
-  return sheet(`<div class="sheet-head"><div><p class="eyebrow">${t('passwordEyebrow')}</p><h2>${t('passwordTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-sheet" aria-label="${t('close')}">×</button></div><form class="sheet-form" data-form="password"><div class="field"><label for="current-password">${t('currentPassword')}</label><input id="current-password" name="currentPassword" type="password" autocomplete="current-password" required></div><div class="field"><label for="new-password">${t('newPassword')}</label><input id="new-password" name="newPassword" type="password" minlength="${PASSWORD_MIN_LENGTH}" autocomplete="new-password" aria-describedby="profile-password-note" required><small id="profile-password-note" class="field-note">${t('passwordLength')}</small></div><div class="field"><label for="confirm-password">${t('confirmPassword')}</label><input id="confirm-password" name="confirmPassword" type="password" minlength="${PASSWORD_MIN_LENGTH}" autocomplete="new-password" required></div><p class="form-error" data-password-error role="alert"></p><button class="primary-button" type="submit">${t('save')}</button></form>`, 'modal--form');
+  return sheet(`<div class="sheet-head"><div><p class="eyebrow">${t('passwordEyebrow')}</p><h2 id="password-dialog-title">${t('passwordTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-sheet" aria-label="${t('close')}">×</button></div><form class="sheet-form" data-form="password"><div class="field"><label for="current-password">${t('currentPassword')}</label><input id="current-password" name="currentPassword" type="password" autocomplete="current-password" required></div><div class="field"><label for="new-password">${t('newPassword')}</label><input id="new-password" name="newPassword" type="password" minlength="${PASSWORD_MIN_LENGTH}" autocomplete="new-password" aria-describedby="profile-password-note" required><small id="profile-password-note" class="field-note">${t('passwordLength')}</small></div><div class="field"><label for="confirm-password">${t('confirmPassword')}</label><input id="confirm-password" name="confirmPassword" type="password" minlength="${PASSWORD_MIN_LENGTH}" autocomplete="new-password" aria-describedby="password-dialog-error" required></div><p id="password-dialog-error" class="form-error" data-password-error role="alert"></p><button class="primary-button" type="submit">${t('save')}</button></form>`, 'modal--form', 'password-dialog-title');
 }
 
 function deleteAccountSheet() {
-  return sheet(`<div data-delete-account-modal><div class="sheet-head"><div><p class="eyebrow">${t('dangerZone')}</p><h2>${t('deleteAccountTitle')}</h2></div></div><p class="delete-account-warning">${t('deleteAccountWarning')}</p><form class="sheet-form" data-form="delete-account"><div class="field"><label for="delete-account-confirmation">${t('deleteAccountInstruction')}</label><input id="delete-account-confirmation" name="confirmation" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" data-delete-account-confirmation required></div><p class="form-error" data-delete-account-error role="alert">${escapeHTML(state.accountDeletionError)}</p><div class="delete-account-actions"><button class="primary-button primary-button--light" type="button" data-action="close-sheet">${t('cancel')}</button><button class="primary-button primary-button--danger" type="submit" data-delete-account-submit disabled>${t('deleteMyAccount')}</button></div></form></div>`, 'modal--form modal--danger');
+  return sheet(`<div data-delete-account-modal><div class="sheet-head"><div><p class="eyebrow">${t('dangerZone')}</p><h2 id="delete-account-dialog-title">${t('deleteAccountTitle')}</h2></div></div><p id="delete-account-dialog-description" class="delete-account-warning">${t('deleteAccountWarning')}</p><form class="sheet-form" data-form="delete-account"><div class="field"><label for="delete-account-confirmation">${t('deleteAccountInstruction')}</label><input id="delete-account-confirmation" name="confirmation" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" data-delete-account-confirmation required></div><p class="form-error" data-delete-account-error role="alert">${escapeHTML(state.accountDeletionError)}</p><div class="delete-account-actions"><button class="primary-button primary-button--light" type="button" data-action="close-sheet">${t('cancel')}</button><button class="primary-button primary-button--danger" type="submit" data-delete-account-submit disabled>${t('deleteMyAccount')}</button></div></form></div>`, 'modal--form modal--danger', 'delete-account-dialog-title', 'delete-account-dialog-description');
 }
 
 const readableAuthError = (error) => {
@@ -950,6 +970,7 @@ async function permanentlyDeleteCustomerAccount(form) {
     state.authNotice = t('accountDeletedSuccess');
     state.screen = 'login';
     window.history.replaceState({}, '', '/');
+    modalController.close({ force: true, restoreFocus: false, reason: 'account-deleted' });
     render();
     scrollTo(0, 0);
     showToast(t('accountDeletedSuccess'));
@@ -1120,12 +1141,19 @@ function bindMenuInteractions() {
   syncMenuFromScroll();
 }
 
+let lastAnnouncedScreen = '';
+
 function render() {
   document.documentElement.lang = state.lang;
   syncIntroPresentation();
   cleanupMenuInteractions();
   app.innerHTML = ({intro,onboarding,login,emailConfirmation,authLoading,home,menu,rewards,history,profile})[state.screen]();
   bind();
+  if (lastAnnouncedScreen !== state.screen) {
+    lastAnnouncedScreen = state.screen;
+    const heading = app.querySelector('h1');
+    if (heading) announcer.announce(heading.textContent);
+  }
   if (state.screen === 'home' && window.location.hash === '#quick-access') {
     requestAnimationFrame(() => {
       const quickAccessSection = document.querySelector('#quick-access');
@@ -1151,13 +1179,19 @@ function syncIntroPresentation() {
     active ? '#eecf62' : state.theme === 'dark' ? '#171612' : '#eecf62'
   );
 }
-function showToast(message) { const toast=document.querySelector('#toast'); toast.textContent=message; toast.classList.add('toast--show'); clearTimeout(showToast.timer); showToast.timer=setTimeout(()=>toast.classList.remove('toast--show'),2200); }
+function showToast(message) {
+  const text = displayText(message, t('operationError'));
+  const toast = document.querySelector('#toast');
+  toast.textContent = text;
+  toast.classList.add('toast--show');
+  announcer.announce(text);
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => toast.classList.remove('toast--show'), 2200);
+}
 
 function openSheet(markup) {
-  document.querySelector('[data-sheet-backdrop]')?.remove();
-  app.insertAdjacentHTML('beforeend', markup);
+  modalController.open(markup);
   bind();
-  document.querySelector('.modal input:not([type="file"]), .modal button')?.focus();
 }
 
 async function shareSpirit() {
@@ -1192,7 +1226,7 @@ function bind() {
     if(action==='skip-intro'){ clearTimeout(render.introFallback); finishIntro(); }
     if(action==='next-onboarding'){ if(state.onboarding<2) moveOnboarding(1); else enterSpirit(); }
     if(action==='finish-onboarding' && !onboardingTransitioning){ localStorage.setItem('spirit-onboarded','1'); state.screen='login'; render(); }
-    if(action==='close-sheet'){ document.querySelector('[data-sheet-backdrop]')?.remove(); }
+    if(action==='close-sheet'){ modalController.close({ reason: 'action' }); }
     if(action==='request-stamp'){ openStampRequest(); }
     if(action==='use-reward' && state.availableRewards > 0){ openRewardRequest(); }
     if(action==='open-menu'){ state.menuQuery='';state.menuActiveCategory=MENU_CATEGORIES[0].id;state.screen='menu';render();scrollTo(0,0); }
@@ -1230,10 +1264,9 @@ function bind() {
     if(action==='email-confirmation-retry'){ await initializeEmailConfirmation(); }
     if(action==='logout'){ await logout(); }
   })});
-  document.querySelectorAll('[data-sheet-backdrop]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',(event)=>{if(event.target===el&&!el.querySelector('[data-delete-account-modal][data-deleting="true"]')){if(el.querySelector('[data-stamp-request-sheet]'))clearStampRequest();else el.remove();}})});
   document.querySelectorAll('[data-onboarding-swipe]:not([data-bound])').forEach(el=>{el.dataset.bound='1';let startX=0;let startY=0;el.addEventListener('touchstart',(event)=>{startX=event.changedTouches[0].clientX;startY=event.changedTouches[0].clientY;},{passive:true});el.addEventListener('touchend',(event)=>{const deltaX=event.changedTouches[0].clientX-startX;const deltaY=event.changedTouches[0].clientY-startY;if(Math.abs(deltaX)>52&&Math.abs(deltaX)>Math.abs(deltaY)*1.2)moveOnboarding(deltaX<0?1:-1);},{passive:true})});
-  document.querySelectorAll('[data-language]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',async()=>{state.lang=el.dataset.language;localStorage.setItem('spirit-language',state.lang);document.querySelector('[data-sheet-backdrop]')?.remove();render();if(state.notifications){try{await synchronizePushLanguage(state.lang);}catch(error){showToast(readablePushError(error));}}})});
-  document.querySelectorAll('[data-theme-preference]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{applyTheme(el.dataset.themePreference,true);document.querySelector('[data-sheet-backdrop]')?.remove();render();})});
+  document.querySelectorAll('[data-language]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',async()=>{state.lang=el.dataset.language;localStorage.setItem('spirit-language',state.lang);modalController.close({ reason: 'selection' });render();if(state.notifications){try{await synchronizePushLanguage(state.lang);}catch(error){showToast(readablePushError(error));}}})});
+  document.querySelectorAll('[data-theme-preference]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{applyTheme(el.dataset.themePreference,true);modalController.close({ reason: 'selection' });render();})});
   document.querySelectorAll('[data-notifications]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',async(event)=>{if(state.notificationsLoading)return;const desired=event.currentTarget.checked;state.notificationsLoading=true;event.currentTarget.disabled=true;try{state.notifications=desired?await enablePushNotifications(state.lang):await disablePushNotifications();showToast(t(desired?'notificationsEnabled':'notificationsDisabled'));}catch(error){state.notifications=await getPushNotificationState();showToast(readablePushError(error));}finally{state.notificationsLoading=false;render();}})});
   document.querySelectorAll('[data-session-persistence]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',async(event)=>{const input=event.currentTarget;const previous=state.keepSession;input.disabled=true;try{const saved=await updateCustomerSessionPreference(input.checked);state.keepSession=setSessionPersistence(saved);input.checked=state.keepSession;}catch(error){state.keepSession=previous;input.checked=previous;showToast(readableAuthError(error));}finally{if(input.isConnected)input.disabled=false;}})});
   const customerAuthForm = document.querySelector('[data-form="customer-auth"]');
@@ -1307,8 +1340,8 @@ function bind() {
   document.querySelector('[data-form="customer-forgot"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const form=e.currentTarget;const data=new FormData(form);state.authLoading=true;state.authError='';state.authNotice='';render();try{await requestCustomerPasswordReset(data.get('email'));state.authNotice=t('recoverySent');state.authMode='signin';}catch(error){state.authError=readableAuthError(error);}finally{state.authLoading=false;state.screen='login';render();}});
   document.querySelector('[data-form="email-confirmation-resend"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);state.authLoading=true;state.authError='';state.authNotice='';render();try{await resendCustomerEmailConfirmation(data.get('email'));state.authNotice=t('emailConfirmationResent');}catch(error){state.authError=readableAuthError(error);}finally{state.authLoading=false;render();}});
   document.querySelector('[data-form="customer-recovery"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);const password=String(data.get('password')||'');const confirmation=String(data.get('confirmation')||'');if(!passwordMeetsPolicy(password)){state.authError=t('passwordLength');render();return;}if(password!==confirmation){state.authError=t('passwordMismatch');render();return;}const tokenHash=passwordRecoveryState.getTokenHash();if(!tokenHash){passwordRecoveryState.clear();window.history.replaceState({},'', '/');clearCustomerIdentity();state.authMode='forgot';state.authError=t('recoveryInvalidCopy');state.screen='login';render();return;}state.authLoading=true;state.authError='';render();try{await completeCustomerPasswordRecovery(tokenHash,password);passwordRecoveryState.clear();window.history.replaceState({},'', '/');clearCustomerIdentity();state.authMode='signin';state.authNotice=t('recoveryCompleteSignIn');state.screen='login';}catch(error){const invalidRecovery=['session_not_found','otp_expired','access_denied','recovery_link_invalid','recovery_link_consumed'].includes(error?.code);if(invalidRecovery){passwordRecoveryState.clear();window.history.replaceState({},'', '/');clearCustomerIdentity();state.authMode='forgot';state.authError=t('recoveryInvalidCopy');state.screen='login';}else{state.authError=readableAuthError(error);}}finally{state.authLoading=false;render();}});
-  document.querySelector('[data-form="profile"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);try{const context=await updateCustomerProfile(`${data.get('firstName')} ${data.get('lastName')}`);applyCustomerContext(context);document.querySelector('[data-sheet-backdrop]')?.remove();render();}catch(error){showToast(readableAuthError(error));}});
-  document.querySelector('[data-form="password"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const form=e.currentTarget;if(form.dataset.submitting==='true')return;const data=new FormData(form);const current=String(data.get('currentPassword')||'');const next=String(data.get('newPassword')||'');const confirmation=String(data.get('confirmPassword')||'');const error=form.querySelector('[data-password-error]');const submit=form.querySelector('[type="submit"]');error.textContent='';if(!current){error.textContent=t('currentPasswordRequired');return;}if(!passwordMeetsPolicy(next)){error.textContent=t('passwordLength');return;}if(next!==confirmation){error.textContent=t('passwordMismatch');return;}form.dataset.submitting='true';submit.disabled=true;try{await updateCustomerPassword(state.profile.email,current,next);form.reset();document.querySelector('[data-sheet-backdrop]')?.remove();showToast(t('passwordSaved'));}catch(authError){error.textContent=readablePasswordChangeError(authError);}finally{delete form.dataset.submitting;if(submit.isConnected)submit.disabled=false;}});
+  document.querySelector('[data-form="profile"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);try{const context=await updateCustomerProfile(`${data.get('firstName')} ${data.get('lastName')}`);applyCustomerContext(context);modalController.close({ reason: 'submit' });render();}catch(error){showToast(readableAuthError(error));}});
+  document.querySelector('[data-form="password"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const form=e.currentTarget;if(form.dataset.submitting==='true')return;const data=new FormData(form);const current=String(data.get('currentPassword')||'');const next=String(data.get('newPassword')||'');const confirmation=String(data.get('confirmPassword')||'');const error=form.querySelector('[data-password-error]');const submit=form.querySelector('[type="submit"]');error.textContent='';if(!current){error.textContent=t('currentPasswordRequired');return;}if(!passwordMeetsPolicy(next)){error.textContent=t('passwordLength');return;}if(next!==confirmation){error.textContent=t('passwordMismatch');return;}form.dataset.submitting='true';submit.disabled=true;try{await updateCustomerPassword(state.profile.email,current,next);form.reset();modalController.close({ reason: 'submit' });showToast(t('passwordSaved'));}catch(authError){error.textContent=readablePasswordChangeError(authError);}finally{delete form.dataset.submitting;if(submit.isConnected)submit.disabled=false;}});
   document.querySelector('[data-delete-account-confirmation]:not([data-bound])')?.addEventListener('input',(event)=>{event.currentTarget.dataset.bound='1';const submit=event.currentTarget.form?.querySelector('[data-delete-account-submit]');if(submit&&!state.accountDeleting)submit.disabled=event.currentTarget.value!==t('deleteAccountConfirmation');});
   document.querySelector('[data-form="delete-account"]')?.addEventListener('submit',async(e)=>{e.preventDefault();await permanentlyDeleteCustomerAccount(e.currentTarget);});
   bindMenuInteractions();

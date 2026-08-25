@@ -39,6 +39,23 @@ async function employeeLogin(page) {
   await expect(page.getByText('Procesa al cliente en segundos.')).toBeVisible();
 }
 
+e2eTest('el modal de perfil atrapa y restaura el foco y cierra con Escape', async ({ page }) => {
+  await customerLogin(page);
+  await page.getByRole('button', { name: 'Perfil' }).click();
+  const opener = page.getByRole('button', { name: 'Datos personales' });
+  await opener.click();
+  const dialog = page.getByRole('dialog', { name: 'Datos personales' });
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('#app')).toHaveAttribute('aria-hidden', 'true');
+  await expect(page.getByLabel('Nombre')).toBeFocused();
+  await page.getByRole('button', { name: 'Cerrar' }).focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(dialog.getByRole('button', { name: 'Guardar' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(opener).toBeFocused();
+});
+
 e2eTest('un sello confirmado una sola vez genera la recompensa', async ({ browser }) => {
   const context = await browser.newContext();
   const customer = await context.newPage();
