@@ -1,4 +1,5 @@
 import { MENU_TRANSLATIONS_CA } from './menu.ca.js';
+import { createBilingualMenuCatalog } from './menu-catalog.js';
 
 export const MENU_CATEGORIES = [
   {
@@ -219,20 +220,8 @@ export const MENU_CATEGORIES = [
   }
 ];
 
+export const MENU_CATALOG = createBilingualMenuCatalog(MENU_CATEGORIES, MENU_TRANSLATIONS_CA);
+
 export function getMenuCategories(language = 'es') {
-  if (language !== 'ca') return MENU_CATEGORIES;
-
-  return MENU_CATEGORIES.map((category) => {
-    const translation = MENU_TRANSLATIONS_CA[category.id] || {};
-    const translatedProducts = translation.products || {};
-
-    return {
-      ...category,
-      ...translation,
-      products: category.products.map((product) => ({
-        ...product,
-        ...(translatedProducts[product.name] || {})
-      }))
-    };
-  });
+  return MENU_CATALOG[language === 'ca' ? 'ca' : 'es'];
 }

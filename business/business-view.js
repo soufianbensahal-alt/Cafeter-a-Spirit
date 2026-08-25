@@ -8,7 +8,6 @@ import {
   validateStampQr
 } from '../services/stamp-session-service.js';
 import {
-  EmployeeAuthorizationError,
   restoreEmployeeSession,
   signInEmployee,
   signOut,

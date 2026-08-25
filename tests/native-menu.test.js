@@ -72,7 +72,7 @@ test('la carta se localiza al catalán sin alterar estructura, precios ni identi
   assert.equal(byId.tostadas.intro, 'En pa de xia, cruixents i saboroses des del primer mos.');
   assert.deepEqual(
     byId.tostadas.products.find(({ name }) => name === 'Salmó'),
-    { name: 'Salmó', description: 'amb formatge crema, alvocat i salmó fumat', price: '12,15 €' }
+    { name: 'Salmó', description: 'amb formatge crema, alvocat i salmó fumat', price: '12,15 €', id: 'tostadas-salmon' }
   );
   assert.equal(
     byId.cafes.products.find(({ name }) => name === 'Capuccino Caramel').description,
@@ -82,32 +82,32 @@ test('la carta se localiza al catalán sin alterar estructura, precios ni identi
 });
 
 test('la vista y la búsqueda de Carta consumen el catálogo del idioma activo', async () => {
-  const app = await read('app.js');
+  const [app, menuView] = await Promise.all([read('app.js'), read('client/menu-view.js')]);
 
   assert.match(app, /getMenuCategories\(state\.lang\)/);
-  assert.match(app, /menuCategories\.map\(menuSection\)/);
-  assert.match(app, /const groups = menuCategories\.map/);
-  assert.match(app, /menuCategories\.map\(\(category\) => `<button/);
+  assert.match(app, /renderMenuContent\(menuViewContext\(\)\)/);
+  assert.match(menuView, /const groups = categories\.map/);
+  assert.match(menuView, /categories\.map\(\(category\) => `<button/);
 });
 
 test('Carta abre internamente y elimina por completo el enlace de Canva', async () => {
-  const app = await read('app.js');
+  const [app, quickAccess] = await Promise.all([read('app.js'), read('client/quick-access.js')]);
 
   assert.doesNotMatch(app, /canva\.com\/design\/DAFuLPRj4h0/i);
-  assert.match(app, /\{name: 'Carta', subtitle: 'viewMenu', icon: 'card', action: 'open-menu'\}/);
-  assert.match(app, /data-action="close-menu"/);
+  assert.match(quickAccess, /\{ name: 'Carta', subtitle: 'viewMenu', icon: 'card', action: 'open-menu' \}/);
+  assert.match(await read('client/menu-view.js'), /data-action="close-menu"/);
   assert.match(app, /\{intro,onboarding,login,emailConfirmation,authLoading,home,menu,rewards,history,profile\}/);
 });
 
 test('la carta implementa búsqueda, agrupación, categorías y scroll-spy', async () => {
-  const app = await read('app.js');
+  const [app, menuView] = await Promise.all([read('app.js'), read('client/menu-view.js')]);
 
-  assert.match(app, /data-menu-search/);
-  assert.match(app, /normalizeMenuText/);
-  assert.match(app, /menuNoResults/);
-  assert.match(app, /menu-result-group/);
-  assert.match(app, /data-menu-category/);
-  assert.match(app, /data-menu-section/);
+  assert.match(menuView, /data-menu-search/);
+  assert.match(menuView, /normalizeMenuText/);
+  assert.match(menuView, /menuNoResults/);
+  assert.match(menuView, /menu-result-group/);
+  assert.match(menuView, /data-menu-category/);
+  assert.match(menuView, /data-menu-section/);
   assert.match(app, /syncMenuFromScroll/);
   assert.match(app, /menuScroller\.scrollTo\(\{ top: Math\.max\(0, top\), behavior: 'smooth' \}\)/);
   assert.match(app, /menuScroller\.addEventListener\('scroll', menuScrollHandler/);

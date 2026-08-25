@@ -16,16 +16,31 @@ test('el bootstrap separa cliente y cafetería', async () => {
   const bootstrap = await readFile(projectFile('bootstrap.js'), 'utf8');
 
   assert.match(bootstrap, /if \(isBusinessRoute\)/);
-  assert.match(bootstrap, /import\('\/business\/business-view\.js'\)/);
-  assert.match(bootstrap, /else \{\s*import\('\/app\.js'\)/);
+  assert.match(bootstrap, /import\('\.\/business\/business-view\.js'\)/);
+  assert.match(bootstrap, /else \{\s*import\('\.\/app\.js'\)/);
 });
 
 test('la caché PWA prioriza la versión de red', async () => {
   const worker = await readFile(projectFile('sw.js'), 'utf8');
 
-  assert.match(worker, /spirit-shell-v27/);
+  assert.match(worker, /CACHE_VERSION = 'v28'/);
+  assert.match(worker, /customer: `\$\{CACHE_PREFIX\}customer-\$\{CACHE_VERSION\}`/);
+  assert.match(worker, /business: `\$\{CACHE_PREFIX\}business-\$\{CACHE_VERSION\}`/);
   assert.match(worker, /'\/startup\.js'/);
+  assert.match(worker, /WARM_SHELL/);
   assert.match(worker, /fetch\(event\.request, \{ cache: 'no-store' \}\)/);
+});
+
+test('el build publica JS y CSS versionados por contenido', async () => {
+  const [html, startup] = await Promise.all([
+    readFile(projectFile('dist/index.html'), 'utf8'),
+    readFile(projectFile('dist/startup.js'), 'utf8')
+  ]);
+
+  assert.match(html, /\/assets\/js\/bootstrap-[A-Z0-9]+\.js/);
+  assert.match(html, /\/assets\/css\/base-[a-f0-9]+\.css/);
+  assert.match(startup, /\/assets\/css\/customer-[a-f0-9]+\.css/);
+  assert.match(startup, /\/assets\/css\/business-[a-f0-9]+\.css/);
 });
 
 test('cliente y empleados se instalan como PWAs independientes', async () => {
@@ -54,7 +69,8 @@ test('la aplicación conserva rutas absolutas para estilos y recursos', async ()
     readFile(projectFile('styles.css'), 'utf8')
   ]);
 
-  assert.match(html, /href="\/styles\.css"/);
+  assert.match(html, /href="\/base\.css"/);
+  assert.match(startup, /isBusinessRoute \? '\/business\/business\.css' : '\/styles\.css'/);
   assert.match(startup, /'\/manifest\.webmanifest'/);
   assert.doesNotMatch(html, /(?:src|href)="assets\//);
   assert.doesNotMatch(app, /(?:src=|image:)['"]assets\//);

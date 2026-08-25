@@ -75,12 +75,24 @@
       ]
     },
     {
-      "source": "/bootstrap.js",
+      "source": "/startup.js",
       "headers": [
         {
           "key": "Cache-Control",
           "value": "no-cache, must-revalidate"
         }
+      ]
+    },
+    {
+      "source": "/assets/js/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/assets/css/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {

@@ -1,41 +1,69 @@
-const CACHE_NAME = 'spirit-shell-v27';
-const APP_SHELL = [
-  '/',
-  '/index.html',
-  '/bootstrap.js',
-  '/startup.js',
-  '/styles.css',
-  '/app.js',
-  '/business/business.css',
-  '/business/business-view.js',
-  '/business/manifest.webmanifest',
-  '/manifest.webmanifest',
-  '/assets/spirit-logo-header.png',
-  '/assets/onboarding-coffee.jpg',
-  '/assets/onboarding-order.jpg',
-  '/assets/onboarding-spirit.jpg',
-  '/assets/just-eat-logo.avif',
-  '/assets/uber-eats-logo.png',
-  '/assets/glovo-logo.svg',
-  '/assets/icons/spirit-192.png',
-  '/assets/icons/spirit-512.png',
-  '/assets/icons/spirit-maskable-192.png',
-  '/assets/icons/spirit-maskable-512.png',
-  '/assets/icons/apple-touch-icon.png',
-  '/assets/icons/favicon-64.png'
-];
+const BUILD_ASSETS = self.__SPIRIT_BUILD_ASSETS__ || {
+  shared: ['/', '/index.html', '/startup.js', '/bootstrap.js', '/base.css'],
+  customer: [
+    '/styles.css',
+    '/app.js',
+    '/manifest.webmanifest',
+    '/assets/spirit-logo-header.png',
+    '/assets/onboarding-coffee.jpg',
+    '/assets/onboarding-order.jpg',
+    '/assets/onboarding-spirit.jpg',
+    '/assets/just-eat-logo.avif',
+    '/assets/uber-eats-logo.png',
+    '/assets/glovo-logo.svg'
+  ],
+  business: ['/business/business.css', '/business/business-view.js', '/business/manifest.webmanifest'],
+  runtime: []
+};
+
+const CACHE_VERSION = 'v28';
+const CACHE_PREFIX = 'spirit-';
+const CACHES = {
+  shared: `${CACHE_PREFIX}shared-${CACHE_VERSION}`,
+  customer: `${CACHE_PREFIX}customer-${CACHE_VERSION}`,
+  business: `${CACHE_PREFIX}business-${CACHE_VERSION}`
+};
+const SHARED_SHELL = [...new Set(BUILD_ASSETS.shared)];
+const CUSTOMER_SHELL = [...new Set(BUILD_ASSETS.customer)];
+const BUSINESS_SHELL = [...new Set(BUILD_ASSETS.business)];
+const RUNTIME_ASSETS = new Set(BUILD_ASSETS.runtime || []);
+const SHELL_ASSETS = new Set([...SHARED_SHELL, ...CUSTOMER_SHELL, ...BUSINESS_SHELL, ...RUNTIME_ASSETS]);
+const CUSTOMER_ASSETS = new Set(CUSTOMER_SHELL);
+const BUSINESS_ASSETS = new Set(BUSINESS_SHELL);
+
+const cacheForPath = (pathname) => {
+  if (BUSINESS_ASSETS.has(pathname) || pathname.startsWith('/business/')) return CACHES.business;
+  if (CUSTOMER_ASSETS.has(pathname)) return CACHES.customer;
+  return CACHES.shared;
+};
+
+const warmShell = async (app) => {
+  const isBusiness = app === 'business';
+  const cacheName = isBusiness ? CACHES.business : CACHES.customer;
+  const shell = isBusiness ? BUSINESS_SHELL : CUSTOMER_SHELL;
+  if (!shell.length) return;
+  await caches.open(cacheName).then((cache) => cache.addAll(shell));
+};
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
+  event.waitUntil(caches.open(CACHES.shared).then((cache) => cache.addAll(SHARED_SHELL)));
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
+  const currentCaches = new Set(Object.values(CACHES));
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys
+        .filter((key) => key.startsWith(CACHE_PREFIX) && !currentCaches.has(key))
+        .map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type !== 'WARM_SHELL') return;
+  event.waitUntil(warmShell(event.data.app));
 });
 
 self.addEventListener('fetch', (event) => {
@@ -54,14 +82,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  const isStaticResource = APP_SHELL.includes(requestUrl.pathname)
+  const isStaticResource = SHELL_ASSETS.has(requestUrl.pathname)
     || requestUrl.pathname.startsWith('/assets/');
   if (!isStaticResource) return;
 
   event.respondWith(
     fetch(event.request, { cache: 'no-store' })
       .then((response) => {
-        if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
+        if (response.ok) {
+          caches.open(cacheForPath(requestUrl.pathname))
+            .then((cache) => cache.put(event.request, response.clone()));
+        }
         return response;
       })
       .catch(() => caches.match(event.request))
@@ -83,9 +114,7 @@ self.addEventListener('push', (event) => {
     badge: payload.badge || '/assets/icons/favicon-64.png',
     tag: payload.tag || 'spirit-notification',
     renotify: false,
-    data: {
-      url: payload.url || '/#quick-access'
-    }
+    data: { url: payload.url || '/#quick-access' }
   }));
 });
 
@@ -94,10 +123,7 @@ self.addEventListener('notificationclick', (event) => {
   const targetUrl = new URL(event.notification.data?.url || '/', self.location.origin).href;
 
   event.waitUntil((async () => {
-    const windows = await self.clients.matchAll({
-      type: 'window',
-      includeUncontrolled: true
-    });
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const client = windows.find((candidate) => new URL(candidate.url).origin === self.location.origin);
     if (client) {
       if ('navigate' in client) await client.navigate(targetUrl);

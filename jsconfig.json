@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "WebWorker"],
+    "skipLibCheck": true,
+    "strict": false
+  },
+  "include": [
+    "client/**/*.js",
+    "data/**/*.js",
+    "services/**/*rules.js",
+    "services/display-text.js",
+    "services/password-policy.js",
+    "services/site-origin.js"
+  ]
+}

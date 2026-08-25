@@ -22,4 +22,10 @@
   manifest.rel = 'manifest';
   manifest.href = isBusinessRoute ? '/business/manifest.webmanifest' : '/manifest.webmanifest';
   document.head.append(manifest);
+
+  const routeStyles = document.createElement('link');
+  routeStyles.rel = 'stylesheet';
+  routeStyles.href = isBusinessRoute ? '/business/business.css' : '/styles.css';
+  routeStyles.dataset.spiritStyles = isBusinessRoute ? 'business' : 'customer';
+  document.head.append(routeStyles);
 })();

@@ -23,7 +23,18 @@ En Vercel, el modo de empleados está disponible en `/cafeteria` mediante la ree
 - Historial real de operaciones autorizado por RLS.
 - Perfil, ajustes y cierre de sesión.
 
-El sistema visual está definido mediante variables CSS en `styles.css`: paleta, espaciado, radios, sombras y tipografía.
+La base visual compartida está en `base.css`. `styles.css` contiene únicamente la experiencia cliente y `business/business.css` la experiencia del equipo; `startup.js` carga una sola hoja específica según la ruta.
+
+## Arquitectura del frontend y build
+
+- `bootstrap.js` es el único punto de entrada del navegador y carga dinámicamente cliente o cafetería.
+- `app.js` conserva la coordinación de pantallas del cliente; contenido reutilizable se separa en `client/` y las reglas de dominio permanecen en `services/`.
+- `client/icons.js` centraliza la iconografía y `client/quick-access.js` la configuración/renderizado de accesos rápidos.
+- `data/menu.js`, `data/menu.ca.js` y `data/menu-catalog.js` construyen un catálogo bilingüe validado con identificadores de producto estables, precios y orden compartidos.
+- `scripts/build.mjs` genera chunks independientes para cliente y cafetería. Los nombres de JS y CSS incluyen hash de contenido, mientras `index.html`, `startup.js`, manifiestos y `sw.js` permanecen revalidables.
+- El service worker instala sólo el shell común mínimo. Después, `bootstrap.js` solicita el calentamiento de la caché de cliente o de cafetería; las respuestas Auth/Supabase nunca forman parte de esas cachés.
+
+Las rutas y los archivos fuente sin hash se mantienen para desarrollo local. El versionado se aplica exclusivamente en `dist/`.
 
 ## Modo cafetería
 
@@ -40,7 +51,7 @@ La experiencia del cliente permanece en `/`. La interfaz operativa para empleado
 
 El historial operativo procede de `stamp_transactions`, está paginado y puede filtrarse por fecha, cliente, empleado y tipo. Muestra cliente parcialmente enmascarado, programa, empleado, resultado y progreso; nunca correos, UUID, tokens o códigos. No se almacena actividad de sellado en `localStorage`.
 
-El lector usa `getUserMedia` y la API nativa `BarcodeDetector`. El QR temporal se genera localmente con la dependencia `qrcode`; si el navegador no ofrece detección QR nativa, la aplicación mantiene disponible la introducción manual.
+El lector usa `getUserMedia` y decodificación local con `jsQR`. El QR temporal se genera localmente con la dependencia `qrcode`; si la cámara o la decodificación no están disponibles, la aplicación mantiene la introducción manual.
 
 ## Autenticación y autorización
 
@@ -66,6 +77,8 @@ La base de datos, el cliente y Supabase Auth están conectados. La fidelización
 - `@supabase/supabase-js` `2.110.6`.
 - Supabase CLI `2.109.1` como dependencia de desarrollo.
 - `esbuild` `0.28.1` para generar la distribución estática sin incorporar un framework.
+- `sharp` como herramienta de mantenimiento para optimizar imágenes sin cambiar las URLs públicas.
+- ESLint y TypeScript (`checkJs`) para comprobaciones estáticas sin migrar la aplicación a otro framework o lenguaje.
 
 El lockfile debe conservarse en Git para que instalaciones y despliegues sean reproducibles.
 
@@ -129,7 +142,7 @@ La migración `add_auth_profile_trigger` crea el perfil al insertar un usuario A
 - `stamp_sessions` no se expone directamente a los roles web.
 - `confirm_stamp_session` es el único punto de confirmación: bloquea sesión y tarjeta, valida usuario, negocio y programa, marca `used_at`, inserta una transacción y calcula recompensas atómicamente.
 
-El service worker sólo precachea el shell y recursos estáticos del mismo origen. Las navegaciones usan red con fallback al shell ya precacheado; no se guardan respuestas de navegación, Supabase, datos autenticados, tokens ni respuestas privadas.
+El service worker precachea únicamente el shell común mínimo y mantiene cachés separadas para cliente y cafetería. Las navegaciones usan red con fallback al shell; no se guardan respuestas de navegación, Supabase, datos autenticados, tokens ni respuestas privadas. Al activar una versión sólo se retiran cachés antiguas cuyo nombre pertenece a Spirit.
 
 ### Crear el primer propietario
 
@@ -244,11 +257,24 @@ El navegador no puede actualizar `available_rewards`, marcar sesiones ni inserta
 ## Pruebas
 
 ```bash
+npm run lint
+npm run typecheck
 npm test
 npm run build
+npm run check
 npx supabase test db --local
 npx supabase db lint --local --schema public --level warning
 ```
+
+`npm run check` ejecuta lint, comprobación estática, build y pruebas JavaScript. GitHub Actions reproduce esos cuatro pasos con Node.js 22 en cada push y pull request. Las pruebas SQL siguen separadas porque necesitan una base local desechable.
+
+Para recomprimir de forma explícita los recursos mantenidos por el proyecto:
+
+```bash
+npm run assets:optimize
+```
+
+El comando conserva formatos y proporciones; sólo reemplaza un archivo si el resultado es más pequeño. No se ejecuta automáticamente durante el build para evitar reescrituras inesperadas en CI.
 
 Las pruebas JavaScript cubren detección de confirmación de sello y canje, cálculo de recompensa, fallback y derivación aislada de contextos. Las pruebas pgTAP cubren Auth/RLS, aislamiento entre clientes y negocios, adhesión cliente explícita e idempotente, permisos directos, historial filtrado, publicación Realtime y permisos de las RPC. `reward_redemption_test.sql` añade 22 comprobaciones para el décimo sello, creación sin descuento, QR/código, confirmación, idempotencia, segundo empleado, caducidad, uso anterior, negocio cruzado, falta de membresía, auditoría y visibilidad del propietario. Las pruebas transaccionales remotas deben ejecutarse siempre con `ROLLBACK`; nunca necesitan `seed.sql` en producción.
 
@@ -277,5 +303,5 @@ No se incluyen usuarios ni contraseñas de prueba en el repositorio. Para una pr
 
 - La reversión de un canje no está implementada. El tipo `reversal` queda reservado, pero necesita una RPC separada, motivo obligatorio y autorización exclusiva de `owner` o `manager`.
 - La prueba de segundo empleado verifica la serialización e idempotencia desde dos identidades de equipo; una prueba de carga con conexiones verdaderamente paralelas sigue siendo recomendable antes de operar a gran escala.
-- `BarcodeDetector` no está disponible en todos los navegadores; el código manual sigue siendo el fallback.
+- El acceso a cámara depende del navegador, HTTPS y permisos del dispositivo; el código manual sigue siendo el fallback universal.
 - Postgres Changes es adecuado para el volumen actual. Si se esperan miles de clientes concurrentes, debe migrarse a Broadcast privado con autorización explícita.

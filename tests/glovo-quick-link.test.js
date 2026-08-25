@@ -5,11 +5,11 @@ import { readFile } from 'node:fs/promises';
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('Glovo aparece en accesos rápidos con el enlace solicitado', async () => {
-  const app = await read('app.js');
+  const quickAccess = await read('client/quick-access.js');
 
-  assert.match(app, /name: 'Glovo'/);
-  assert.match(app, /image: '\/assets\/glovo-logo\.svg'/);
-  assert.match(app, /https:\/\/glovoapp\.com\/es\/es\/montcada-i-reixach\/stores\/spirit-and-coffee-montacadaireixach/);
+  assert.match(quickAccess, /name: 'Glovo'/);
+  assert.match(quickAccess, /image: '\/assets\/glovo-logo\.svg'/);
+  assert.match(quickAccess, /https:\/\/glovoapp\.com\/es\/es\/montcada-i-reixach\/stores\/spirit-and-coffee-montacadaireixach/);
 });
 
 test('el logo de Glovo forma parte del shell offline de la PWA', async () => {

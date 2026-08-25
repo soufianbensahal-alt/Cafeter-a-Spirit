@@ -29,13 +29,17 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/sw.js', { updateViaCache: 'none' })
-      .then((registration) => registration.update())
+      .then(async (registration) => {
+        await registration.update();
+        const worker = registration.active || registration.waiting || registration.installing;
+        worker?.postMessage({ type: 'WARM_SHELL', app: isBusinessRoute ? 'business' : 'customer' });
+      })
       .catch(() => {});
   });
 }
 
 if (isBusinessRoute) {
-  import('/business/business-view.js');
+  import('./business/business-view.js');
 } else {
-  import('/app.js');
+  import('./app.js');
 }

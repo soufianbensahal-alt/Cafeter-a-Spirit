@@ -10,6 +10,10 @@
     "test:sql": "supabase test db",
     "test:concurrency": "node scripts/test-supabase-concurrency.mjs",
     "test:e2e": "playwright test",
+    "assets:optimize": "node scripts/optimize-assets.mjs",
+    "lint": "eslint . --max-warnings=100",
+    "typecheck": "tsc -p jsconfig.json",
+    "check": "npm run lint && npm run typecheck && npm run build && npm test",
     "supabase": "supabase"
   },
   "dependencies": {
@@ -18,11 +22,16 @@
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.55.1",
     "esbuild": "0.28.1",
+    "eslint": "^10.9.1",
+    "globals": "^17.11.0",
     "otpauth": "^9.4.1",
     "pg": "^8.16.3",
-    "supabase": "2.109.1"
+    "sharp": "^0.35.3",
+    "supabase": "2.109.1",
+    "typescript": "^7.0.2"
   },
   "engines": {
     "node": ">=20"
