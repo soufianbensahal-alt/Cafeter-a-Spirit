@@ -631,7 +631,9 @@ const readableAuthError = (error) => {
     otp_expired: t('recoverySessionMissing'),
     access_denied: t('recoverySessionMissing'),
     recovery_link_invalid: t('recoveryInvalidCopy'),
-    recovery_link_consumed: t('recoveryInvalidCopy')
+    recovery_link_consumed: t('recoveryInvalidCopy'),
+    42703: t('operationError'),
+    PGRST204: t('operationError')
   };
   return messages[error?.code]
     || (state.lang === 'es' ? displayText(error, t('operationError')) : t('operationError'));
