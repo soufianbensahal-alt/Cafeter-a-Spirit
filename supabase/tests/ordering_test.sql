@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(88);
+select plan(109);
 
 create function pg_temp.set_test_auth(p_user_id uuid, p_aal text default 'aal2')
 returns text language sql as $$
@@ -362,6 +362,174 @@ select results_eq(
   array[5::bigint],
   'los intentos fallidos persisten porque create_order no lanza excepciones'
 );
+
+-- ---------------------------------------------------------------------------
+-- get_own_ordering_context: negocio Spirit Montcada localizado por nombre.
+-- ---------------------------------------------------------------------------
+create temporary table spirit_montcada on commit drop as
+select id from public.businesses
+where lower(btrim(name)) = lower(btrim('Cafetería Spirit - Montcada'));
+grant select on spirit_montcada to authenticated;
+
+update public.business_ordering_settings
+set ordering_enabled = true, pilot_only = true
+where business_id = (select id from spirit_montcada);
+insert into public.ordering_pilot_members (business_id, user_id)
+select id, 'a1000000-0000-4000-8000-000000000001' from spirit_montcada
+on conflict do nothing;
+
+select ok(
+  (select prosecdef and proconfig @> array['search_path=""'] from pg_proc where oid = 'public.get_own_ordering_context()'::regprocedure),
+  'get_own_ordering_context es SECURITY DEFINER con search_path vacío'
+);
+
+set local role authenticated;
+select pg_temp.set_test_auth('a1000000-0000-4000-8000-000000000001', 'aal1');
+select results_eq(
+  $$select business_id, ordering_enabled, eligible from public.get_own_ordering_context()$$,
+  $$select id, true, true from spirit_montcada$$,
+  'un miembro del piloto recibe el business_id de Spirit Montcada y es elegible'
+);
+
+select pg_temp.set_test_auth('a1000000-0000-4000-8000-000000000003', 'aal1');
+select results_eq(
+  $$select business_id, ordering_enabled, eligible from public.get_own_ordering_context()$$,
+  $$select id, true, false from spirit_montcada$$,
+  'un cliente fuera del piloto no es elegible'
+);
+
+reset role;
+update public.business_ordering_settings set ordering_enabled = false
+where business_id = (select id from spirit_montcada);
+set local role authenticated;
+select pg_temp.set_test_auth('a1000000-0000-4000-8000-000000000001', 'aal1');
+select results_eq(
+  $$select ordering_enabled, eligible from public.get_own_ordering_context()$$,
+  $$values (false, true)$$,
+  'con los pedidos cerrados ordering_enabled es false'
+);
+
+reset role;
+update public.business_ordering_settings set pilot_only = false
+where business_id = (select id from spirit_montcada);
+set local role authenticated;
+select pg_temp.set_test_auth('a1000000-0000-4000-8000-000000000003', 'aal1');
+select results_eq(
+  $$select eligible from public.get_own_ordering_context()$$,
+  array[true],
+  'sin modo piloto cualquier cliente autenticado es elegible'
+);
+
+select set_config('request.jwt.claims', '{}', true);
+select is_empty(
+  $$select * from public.get_own_ordering_context()$$,
+  'sin auth.uid() no devuelve ninguna fila'
+);
+
+reset role;
+set local role anon;
+select throws_ok(
+  $$select * from public.get_own_ordering_context()$$,
+  '42501', null, 'anon no puede ejecutar get_own_ordering_context'
+);
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- Lecturas reales de la app como clientes (sin rol en el equipo ni tarjeta):
+-- products, orders y order_items propios, y aislamiento entre clientes.
+-- ---------------------------------------------------------------------------
+-- Cliente D: sin pedidos, sin tarjeta, fuera de cualquier piloto y sin rol de equipo.
+insert into auth.users (id, email) values
+  ('a1000000-0000-4000-8000-000000000004', 'order-customer-d@spirit.test');
+insert into public.businesses (id, name, active) values
+  ('a0000000-0000-4000-8000-000000000003', 'Ordering Inactive Test', false);
+insert into public.products (business_id, id, category_id, name_es, name_ca, price_cents) values
+  ('a0000000-0000-4000-8000-000000000003', 'inactivo-cafe', 'test', 'Café inactivo', 'Cafè inactiu', 200);
+
+-- Pedido de B insertado directamente para comprobar que A no lo ve.
+insert into public.orders (id, business_id, customer_id, order_number, service_date, table_label, total_cents) values
+  ('a3000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001', 'a1000000-0000-4000-8000-000000000002', 900, current_date, 'Mesa 9', 250);
+insert into public.order_items (order_id, business_id, product_id, position, quantity, unit_price_cents, product_name, line_total_cents) values
+  ('a3000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001', 'test-cafe', 1, 1, 250, 'Café test', 250);
+
+create temporary table spirit_expected_reads on commit drop as
+select
+  customer.id as customer_id,
+  (select count(*) from public.orders as o where o.customer_id = customer.id) as orders,
+  (select count(*) from public.order_items as i join public.orders as o on o.id = i.order_id where o.customer_id = customer.id) as items
+from (values ('a1000000-0000-4000-8000-000000000001'::uuid), ('a1000000-0000-4000-8000-000000000002'::uuid)) as customer(id);
+grant select on spirit_expected_reads to authenticated;
+
+select ok(
+  (select prosecdef and proconfig @> array['search_path=""'] from pg_proc where oid = 'public.is_active_business(uuid)'::regprocedure),
+  'is_active_business es SECURITY DEFINER con search_path vacío'
+);
+
+set local role authenticated;
+
+-- Cliente D: fuera del piloto, sin tarjeta, sin pedidos.
+select pg_temp.set_test_auth('a1000000-0000-4000-8000-000000000004', 'aal1');
+select results_eq(
+  $$select count(*) from public.products where business_id = 'a0000000-0000-4000-8000-000000000001'$$,
+  array[4::bigint],
+  'un cliente sin tarjeta ni rol de equipo lee los productos de un negocio activo'
+);
+select ok(
+  (select count(*) from public.products where business_id = (select id from spirit_montcada)) > 100,
+  'un cliente sin tarjeta lee la carta sincronizada de Spirit Montcada'
+);
+select results_eq(
+  $$select count(*) from public.products where business_id = 'a0000000-0000-4000-8000-000000000003'$$,
+  array[0::bigint],
+  'los productos de un negocio inactivo no son visibles'
+);
+select results_eq('select count(*) from public.orders', array[0::bigint], 'un cliente sin pedidos no ve pedidos ajenos');
+select results_eq('select count(*) from public.order_items', array[0::bigint], 'un cliente sin pedidos no ve líneas ajenas');
+
+-- Cliente A: en el piloto, con pedidos propios.
+select pg_temp.set_test_auth('a1000000-0000-4000-8000-000000000001', 'aal1');
+select results_eq(
+  'select count(*) from public.orders',
+  $$select orders from spirit_expected_reads where customer_id = 'a1000000-0000-4000-8000-000000000001' and orders > 0$$,
+  'un cliente del piloto lee todos sus pedidos'
+);
+select results_eq(
+  $$select count(*) from public.orders where customer_id is distinct from 'a1000000-0000-4000-8000-000000000001'$$,
+  array[0::bigint],
+  'un cliente del piloto no ve pedidos de otros clientes'
+);
+select results_eq(
+  'select count(*) from public.order_items',
+  $$select items from spirit_expected_reads where customer_id = 'a1000000-0000-4000-8000-000000000001' and items > 0$$,
+  'un cliente del piloto lee las líneas de sus pedidos'
+);
+select results_eq(
+  $$select count(*) from public.order_items where order_id = 'a3000000-0000-4000-8000-000000000001'$$,
+  array[0::bigint],
+  'un cliente del piloto no ve las líneas del pedido de otro cliente'
+);
+
+-- Cliente B: en el piloto, con un pedido propio.
+select pg_temp.set_test_auth('a1000000-0000-4000-8000-000000000002', 'aal1');
+select results_eq(
+  'select id from public.orders',
+  $$values ('a3000000-0000-4000-8000-000000000001'::uuid)$$,
+  'otro cliente ve exactamente su propio pedido'
+);
+select results_eq(
+  'select count(*) from public.order_items',
+  $$select items from spirit_expected_reads where customer_id = 'a1000000-0000-4000-8000-000000000002'$$,
+  'otro cliente ve solo las líneas de su pedido'
+);
+
+reset role;
+set local role anon;
+select throws_ok($$select * from public.products$$, '42501', null, 'anon no puede leer productos');
+select throws_ok(
+  $$select public.is_active_business('a0000000-0000-4000-8000-000000000001')$$,
+  '42501', null, 'anon no puede ejecutar is_active_business'
+);
+reset role;
 
 set local role anon;
 select throws_ok($$select * from public.orders$$, '42501', null, 'anon no puede leer pedidos');

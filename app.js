@@ -77,7 +77,49 @@ import {
 import { createLiveAnnouncer } from './services/live-announcer.js';
 import { CLIENT_ICONS } from './client/icons.js';
 import { renderQuickAccess } from './client/quick-access.js';
-import { renderMenuContent, renderMenuScreen } from './client/menu-view.js';
+import { renderCartBar, renderMenuContent, renderMenuScreen, renderProductOrderControl } from './client/menu-view.js';
+import { ORDER_COPY } from './client/order-copy.js';
+import {
+  renderActiveOrdersBanner,
+  renderCancelOrderContent,
+  renderCartScreen,
+  renderCheckoutContent,
+  renderOrderTrackingScreen,
+  renderOrdersScreen
+} from './client/order-view.js';
+import {
+  CART_STORAGE_KEY,
+  addToCart,
+  canCheckout,
+  cartQuantity,
+  cartTotalCents,
+  cartUnits,
+  changeQuantity,
+  emptyCart,
+  formatCents,
+  isValidOrderCode,
+  isValidTableLabel,
+  noteLength,
+  normalizeOrderCode,
+  orderErrorKey,
+  parseStoredCart,
+  removeFromCart,
+  resolveTableLabel,
+  serializeCart,
+  setCartNote,
+  toOrderItems
+} from './services/cart-rules.js';
+import {
+  OrderServiceError,
+  cancelOwnOrder,
+  createOrder,
+  getOrderableProducts,
+  getOrderingContext,
+  getOwnOrder,
+  getOwnOrders,
+  subscribeToOwnOrders
+} from './services/order-service.js';
+import { createRealtimeWithFallback, orderStatusChanged } from './services/order-monitor.js';
 
 const PRIVACY_POLICY_VERSION = '2026-08-05';
 
@@ -137,6 +179,9 @@ const copy = {
   }
 };
 
+Object.assign(copy.es, ORDER_COPY.es);
+Object.assign(copy.ca, ORDER_COPY.ca);
+
 const defaultProfile = { firstName: 'Cliente', lastName: '', email: '' };
 const state = {
   screen: initialCustomerScreen({ passwordRecovery: isPasswordRecoveryRoute, emailConfirmation: emailConfirmationRoute.active, login: isLoginRoute }), afterIntro: localStorage.getItem('spirit-onboarded') ? 'login' : 'onboarding', onboarding: 0, stamps: 0,
@@ -170,7 +215,19 @@ const state = {
   stampRequestLoading: false,
   stampRequestError: '',
   menuQuery: '',
-  menuActiveCategory: MENU_CATEGORIES[0].id
+  menuActiveCategory: MENU_CATEGORIES[0].id,
+  userId: null,
+  ordering: { context: null, products: new Map() },
+  cart: emptyCart(),
+  activeOrders: [],
+  ordersLoading: false,
+  currentOrderId: null,
+  currentOrder: null,
+  orderLoading: false,
+  checkoutSubmitting: false,
+  orderCancelling: false,
+  ordersBackTarget: 'menu',
+  orderBackTarget: 'menu'
 };
 const app = document.querySelector('#app');
 const modalRoot = document.querySelector('#modal-root');
@@ -241,7 +298,7 @@ function home() {
   const countLabel = state.loyaltyReady ? `${state.stamps}/${state.loyaltyGoal}` : '—';
   const loyaltyAction = state.customerCardId ? 'request-stamp' : 'join-loyalty';
   const loyaltyActionLabel = state.stampRequestLoading ? (state.customerCardId ? t('generatingStamp') : t('joiningClub')) : (state.customerCardId ? t('requestStamp') : t('joinClub'));
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${countLabel}</div></div><span class="reward-chip">${escapeHTML(rewardLabel)}</span></div><div class="stamps">${stamps}</div><div class="loyalty-card__footer"><div class="progress-copy">${progressLabel}</div><div class="loyalty-card__actions"><button class="loyalty-card__request" type="button" data-action="${loyaltyAction}" ${state.stampRequestLoading ? 'disabled' : ''}>${loyaltyActionLabel}</button><button class="loyalty-card__request loyalty-card__request--reward" type="button" data-action="use-reward" ${state.availableRewards < 1 || state.stampRequestLoading ? 'disabled' : ''}>${t('useFreeCoffee')}</button></div></div></article><div class="section-head" id="quick-access"><h2>${t('quickAccess')}</h2></div>${quickAccess()}</section>${nav('home')}</main>`;
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${countLabel}</div></div><span class="reward-chip">${escapeHTML(rewardLabel)}</span></div><div class="stamps">${stamps}</div><div class="loyalty-card__footer"><div class="progress-copy">${progressLabel}</div><div class="loyalty-card__actions"><button class="loyalty-card__request" type="button" data-action="${loyaltyAction}" ${state.stampRequestLoading ? 'disabled' : ''}>${loyaltyActionLabel}</button><button class="loyalty-card__request loyalty-card__request--reward" type="button" data-action="use-reward" ${state.availableRewards < 1 || state.stampRequestLoading ? 'disabled' : ''}>${t('useFreeCoffee')}</button></div></div></article>${renderActiveOrdersBanner({ count: state.activeOrders.length, translate: t })}<div class="section-head" id="quick-access"><h2>${t('quickAccess')}</h2></div>${quickAccess()}</section>${nav('home')}</main>`;
 }
 
 const menuViewContext = () => ({
@@ -251,10 +308,422 @@ const menuViewContext = () => ({
   icons,
   translate: t,
   escapeHTML,
-  brandLogo
+  brandLogo,
+  ordering: menuOrderingContext()
 });
 const menuContent = () => renderMenuContent(menuViewContext());
 const menu = () => renderMenuScreen(menuViewContext());
+
+// ---------------------------------------------------------------------------
+// Pedidos (piloto). La carta sólo muestra controles de pedido si hay sesión,
+// el usuario es elegible y los pedidos están abiertos.
+// ---------------------------------------------------------------------------
+const orderingActive = () => Boolean(
+  state.authStatus === 'authenticated'
+  && state.ordering.context?.orderingEnabled
+  && state.ordering.context?.eligible
+  && state.ordering.products.size
+);
+
+let productLookupCache = { lang: null, map: new Map() };
+function productLookup() {
+  if (productLookupCache.lang !== state.lang) {
+    productLookupCache = {
+      lang: state.lang,
+      map: new Map(getMenuCategories(state.lang).flatMap((category) => category.products.map((product) => [product.id, product])))
+    };
+  }
+  return productLookupCache.map;
+}
+const productName = (productId, fallback = '') => productLookup().get(productId)?.name || fallback || productId;
+
+function menuOrderingContext() {
+  if (!orderingActive()) return null;
+  return {
+    products: state.ordering.products,
+    quantities: new Map(state.cart.items.map((item) => [item.productId, item.quantity])),
+    units: cartUnits(state.cart),
+    totalLabel: formatCents(cartTotalCents(state.cart, state.ordering.products), state.lang)
+  };
+}
+
+function persistCart() {
+  try { sessionStorage.setItem(CART_STORAGE_KEY, serializeCart(state.cart, state.userId)); }
+  catch { /* Sin almacenamiento el carrito vive sólo en memoria. */ }
+}
+
+function restoreCart() {
+  try { state.cart = parseStoredCart(sessionStorage.getItem(CART_STORAGE_KEY), state.userId); }
+  catch { state.cart = emptyCart(); }
+}
+
+function clearCart() {
+  state.cart = emptyCart();
+  try { sessionStorage.removeItem(CART_STORAGE_KEY); }
+  catch { /* Nada que limpiar. */ }
+}
+
+function updateCartBar(ordering = menuOrderingContext()) {
+  const slot = document.querySelector('[data-cart-bar-slot]');
+  if (slot) slot.innerHTML = renderCartBar({ ordering, translate: t });
+}
+
+function refreshMenuOrdering() {
+  const ordering = menuOrderingContext();
+  if (!ordering) return;
+  const focusedId = document.activeElement?.dataset?.addProduct;
+  const lookup = productLookup();
+  document.querySelectorAll('[data-product-order]').forEach((slot) => {
+    const product = lookup.get(slot.dataset.productOrder);
+    if (product) slot.innerHTML = renderProductOrderControl(product, { ordering, translate: t, escapeHTML });
+  });
+  updateCartBar(ordering);
+  if (focusedId) document.querySelector(`[data-add-product="${CSS.escape(focusedId)}"]`)?.focus();
+}
+
+function renderPreservingFocus() {
+  const active = document.activeElement;
+  let selector = null;
+  if (active?.dataset?.action) selector = `[data-action="${CSS.escape(active.dataset.action)}"]`;
+  else if (active?.matches?.('[data-screen-heading]')) selector = '[data-screen-heading]';
+  const menuTop = state.screen === 'menu' ? document.querySelector('[data-menu-content]')?.scrollTop || 0 : 0;
+  render();
+  if (menuTop) {
+    const scroller = document.querySelector('[data-menu-content]');
+    if (scroller) scroller.scrollTop = menuTop;
+  }
+  if (selector) document.querySelector(selector)?.focus();
+}
+
+let orderingLoadSequence = 0;
+async function loadOrderingState({ repaint = false } = {}) {
+  if (state.authStatus !== 'authenticated') return;
+  const sequence = ++orderingLoadSequence;
+  const wasActive = orderingActive();
+  const checkoutBefore = state.screen === 'cart' ? canCheckout(state.cart, state.ordering.products) : null;
+  try {
+    const context = await getOrderingContext();
+    let products = new Map();
+    let activeOrders = [];
+    if (context?.eligible) {
+      [products, activeOrders] = await Promise.all([
+        context.orderingEnabled ? getOrderableProducts(context.businessId) : Promise.resolve(new Map()),
+        getOwnOrders({ activeOnly: true })
+      ]);
+    }
+    if (sequence !== orderingLoadSequence || state.authStatus !== 'authenticated') return;
+    state.ordering = { context, products };
+    state.activeOrders = activeOrders;
+  } catch {
+    // Sin contexto de pedidos la carta sigue siendo informativa.
+    if (sequence !== orderingLoadSequence) return;
+  }
+  syncOrderMonitor();
+  if (!repaint) return;
+  if (state.screen === 'menu') {
+    if (wasActive !== orderingActive()) renderPreservingFocus();
+    else refreshMenuOrdering();
+  } else if (state.screen === 'cart') {
+    if (wasActive !== orderingActive() || checkoutBefore !== canCheckout(state.cart, state.ordering.products)) renderPreservingFocus();
+  } else if (state.screen === 'home') {
+    renderPreservingFocus();
+  }
+}
+
+function focusScreenHeading() {
+  document.querySelector('[data-screen-heading]')?.focus();
+}
+
+function goToOrderScreen(screen) {
+  state.screen = screen;
+  render();
+  scrollTo(0, 0);
+  focusScreenHeading();
+}
+
+function openCartScreen() {
+  goToOrderScreen('cart');
+  void loadOrderingState({ repaint: true });
+}
+
+function addProductToCart(productId, name) {
+  if (!orderingActive()) return;
+  const { cart, status } = addToCart(state.cart, productId);
+  if (status === 'quantity_limit') { showToast(t('orderQuantityLimit')); return; }
+  if (status === 'line_limit') { showToast(t('orderLineLimit')); return; }
+  if (status !== 'ok') return;
+  state.cart = cart;
+  persistCart();
+  refreshMenuOrdering();
+  announcer.announce(t('orderAdded', { name: productName(productId, name) }));
+}
+
+function updateCartLine(kind, productId) {
+  const name = productName(productId);
+  if (kind === 'inc') state.cart = changeQuantity(state.cart, productId, 1);
+  else if (kind === 'dec') state.cart = changeQuantity(state.cart, productId, -1);
+  else state.cart = removeFromCart(state.cart, productId);
+  persistCart();
+  render();
+  const count = cartQuantity(state.cart, productId);
+  const preferred = count ? document.querySelector(`[data-cart-${kind === 'remove' ? 'dec' : kind}="${CSS.escape(productId)}"]`) : null;
+  const fallback = count ? document.querySelector(`[data-cart-dec="${CSS.escape(productId)}"]`) : null;
+  const target = preferred && !preferred.disabled ? preferred : fallback;
+  if (target) target.focus();
+  else focusScreenHeading();
+  announcer.announce(count ? t('cartQuantity', { name, count }) : t('cartRemoved', { name }));
+}
+
+const cartScreen = () => renderCartScreen({
+  cart: state.cart,
+  products: state.ordering.products,
+  productName,
+  orderingOpen: orderingActive(),
+  closedKey: state.ordering.context && !state.ordering.context.eligible ? 'orderErrorNotInPilot' : 'orderErrorClosed',
+  translate: t,
+  escapeHTML,
+  icons,
+  lang: state.lang
+});
+
+const orderTracking = () => renderOrderTrackingScreen({
+  order: state.currentOrder,
+  loading: state.orderLoading,
+  offline: navigator.onLine === false,
+  productName,
+  translate: t,
+  escapeHTML,
+  icons,
+  lang: state.lang
+});
+
+const orders = () => renderOrdersScreen({
+  orders: state.activeOrders,
+  loading: state.ordersLoading,
+  translate: t,
+  escapeHTML,
+  icons,
+  lang: state.lang
+});
+
+const orderListSignature = (list) => list.map((order) => `${order.id}:${order.status}:${order.updatedAt}`).join('|');
+
+async function reconcileOrders() {
+  if (state.authStatus !== 'authenticated') return;
+  const currentId = state.currentOrderId;
+  const [active, current] = await Promise.all([
+    getOwnOrders({ activeOnly: true }),
+    currentId ? getOwnOrder(currentId) : Promise.resolve(null)
+  ]);
+  if (state.authStatus !== 'authenticated') return;
+  const listChanged = orderListSignature(active) !== orderListSignature(state.activeOrders) || state.ordersLoading;
+  state.activeOrders = active;
+  state.ordersLoading = false;
+  let currentChanged = false;
+  if (currentId && currentId === state.currentOrderId) {
+    const previous = state.currentOrder;
+    currentChanged = state.orderLoading || orderStatusChanged(previous, current) || (!current && Boolean(previous));
+    if (previous && current && previous.status !== current.status) {
+      announcer.announce(t('orderStatusAnnouncement', { number: current.number, status: t(`orderStatus_${current.status}`) }));
+    }
+    state.currentOrder = current;
+    state.orderLoading = false;
+  }
+  if ((state.screen === 'orderTracking' && currentChanged) || (['orders', 'home'].includes(state.screen) && listChanged)) {
+    renderPreservingFocus();
+  }
+  syncOrderMonitor();
+}
+
+async function refreshOrdersSafely() {
+  try {
+    await reconcileOrders();
+  } catch (error) {
+    // Sin conexión se conserva el estado de carga: el evento online vuelve a consultar.
+    if (error?.code === 'network_error') {
+      if (state.screen === 'orderTracking') renderPreservingFocus();
+      return;
+    }
+    const wasLoading = state.orderLoading || state.ordersLoading;
+    state.orderLoading = false;
+    state.ordersLoading = false;
+    if (wasLoading && ['orderTracking', 'orders'].includes(state.screen)) renderPreservingFocus();
+  }
+}
+
+const orderMonitor = createRealtimeWithFallback({
+  subscribe: ({ onChange, onStatus }) => subscribeToOwnOrders(state.userId, { onChange, onStatus }),
+  reconcile: reconcileOrders
+});
+
+function syncOrderMonitor() {
+  const needed = state.authStatus === 'authenticated'
+    && Boolean(state.userId)
+    && (state.activeOrders.length > 0 || ['orderTracking', 'orders'].includes(state.screen));
+  if (needed && !orderMonitor.isRunning()) orderMonitor.start();
+  else if (!needed && orderMonitor.isRunning()) orderMonitor.stop();
+}
+
+function openOrdersScreen() {
+  modalController.close({ force: true, restoreFocus: false, reason: 'navigate' });
+  if (['menu', 'home'].includes(state.screen)) state.ordersBackTarget = state.screen;
+  state.ordersLoading = true;
+  goToOrderScreen('orders');
+  void refreshOrdersSafely();
+}
+
+function openOrderTracking(orderId, backTarget) {
+  state.currentOrderId = orderId;
+  state.currentOrder = state.activeOrders.find((order) => order.id === orderId) || null;
+  state.orderLoading = !state.currentOrder;
+  state.orderBackTarget = backTarget;
+  goToOrderScreen('orderTracking');
+  void refreshOrdersSafely();
+}
+
+function setCheckoutFieldError(input, message) {
+  if (!input) return;
+  input.setAttribute('aria-invalid', message ? 'true' : 'false');
+  const error = input.closest('.field')?.querySelector('.field-error');
+  if (error) error.textContent = message;
+}
+
+function checkoutSheet() {
+  return sheet(renderCheckoutContent({
+    cart: state.cart,
+    products: state.ordering.products,
+    translate: t,
+    lang: state.lang,
+    submitting: state.checkoutSubmitting
+  }), 'modal--form modal--checkout', 'checkout-dialog-title');
+}
+
+async function handleCheckoutFailure(status, form) {
+  const message = t(orderErrorKey(status));
+  const submit = form.querySelector('[data-checkout-submit]');
+  const formError = form.querySelector('[data-checkout-error]');
+  const restoreSubmit = () => {
+    if (!submit?.isConnected) return;
+    submit.disabled = false;
+    submit.textContent = t('checkoutSubmit');
+  };
+
+  if (status === 'invalid_code') {
+    restoreSubmit();
+    const codeInput = form.querySelector('[data-checkout-code]');
+    codeInput.value = '';
+    setCheckoutFieldError(codeInput, message);
+    codeInput.focus();
+    return;
+  }
+  if (status === 'invalid_table_label') {
+    restoreSubmit();
+    const tableInput = form.querySelector('[data-checkout-table]');
+    setCheckoutFieldError(tableInput, message);
+    tableInput.focus();
+    return;
+  }
+  if (['ordering_closed', 'ordering_unavailable', 'not_in_pilot', 'product_unavailable'].includes(status)) {
+    modalController.close({ force: true, restoreFocus: false, reason: 'order-error' });
+    await loadOrderingState();
+    state.screen = 'cart';
+    render();
+    focusScreenHeading();
+    announcer.announce(message, { assertive: true });
+    return;
+  }
+  restoreSubmit();
+  if (formError) {
+    formError.innerHTML = status === 'active_order_limit'
+      ? `${escapeHTML(message)} <button class="text-btn checkout-orders-link" type="button" data-action="open-orders">${t('orderViewMyOrders')}</button>`
+      : escapeHTML(message);
+    bind();
+  }
+}
+
+async function submitCheckout(form) {
+  if (state.checkoutSubmitting) return;
+  const codeInput = form.querySelector('[data-checkout-code]');
+  const tableInput = form.querySelector('[data-checkout-table]');
+  const pickup = Boolean(form.querySelector('[data-checkout-pickup]')?.checked);
+  const submit = form.querySelector('[data-checkout-submit]');
+  const formError = form.querySelector('[data-checkout-error]');
+  const code = normalizeOrderCode(codeInput.value);
+  codeInput.value = code;
+  if (formError) formError.textContent = '';
+  setCheckoutFieldError(codeInput, '');
+  setCheckoutFieldError(tableInput, '');
+
+  let firstInvalid = null;
+  if (!isValidOrderCode(code)) {
+    setCheckoutFieldError(codeInput, t('checkoutCodeInvalid'));
+    firstInvalid = codeInput;
+  }
+  if (!pickup && !isValidTableLabel(tableInput.value)) {
+    setCheckoutFieldError(tableInput, t('checkoutTableInvalid'));
+    firstInvalid ??= tableInput;
+  }
+  if (firstInvalid) {
+    firstInvalid.focus();
+    return;
+  }
+  if (!orderingActive() || !canCheckout(state.cart, state.ordering.products)) {
+    await handleCheckoutFailure(orderingActive() ? 'product_unavailable' : 'ordering_closed', form);
+    return;
+  }
+
+  state.checkoutSubmitting = true;
+  submit.disabled = true;
+  submit.textContent = t('checkoutSending');
+  let result;
+  try {
+    result = await createOrder({
+      businessId: state.ordering.context.businessId,
+      code,
+      tableLabel: resolveTableLabel({ pickup, table: tableInput.value }),
+      items: toOrderItems(state.cart),
+      note: state.cart.note.trim()
+    });
+  } catch (error) {
+    result = { status: error instanceof OrderServiceError ? error.code : 'unexpected' };
+  } finally {
+    state.checkoutSubmitting = false;
+  }
+
+  if (result.status !== 'ok') {
+    await handleCheckoutFailure(result.status, form);
+    return;
+  }
+  clearCart();
+  modalController.close({ force: true, restoreFocus: false, reason: 'order-created' });
+  state.currentOrderId = result.orderId;
+  state.currentOrder = null;
+  state.orderLoading = true;
+  state.orderBackTarget = 'menu';
+  goToOrderScreen('orderTracking');
+  announcer.announce(t('orderSent', { number: result.orderNumber }), { assertive: true });
+  await refreshOrdersSafely();
+}
+
+async function confirmCancelOrder(button) {
+  if (state.orderCancelling || !state.currentOrderId) return;
+  state.orderCancelling = true;
+  button.disabled = true;
+  let message;
+  try {
+    const status = await cancelOwnOrder(state.currentOrderId);
+    message = status === 'ok' ? t('orderCancelled') : status === 'invalid_transition' ? t('orderCancelTooLate') : t('orderErrorGeneric');
+  } catch (error) {
+    message = t(orderErrorKey(error?.code));
+  } finally {
+    state.orderCancelling = false;
+  }
+  modalController.close({ force: true, restoreFocus: false, reason: 'order-cancel' });
+  await refreshOrdersSafely();
+  if (state.screen === 'orderTracking') render();
+  focusScreenHeading();
+  showToast(message);
+}
 
 function rewards() {
   if (!state.loyaltyReady) return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('yourCard')}</p><h1>${t('rewardsTitle')}</h1><div class="empty"><div><div class="empty__icon">☕</div><h2>${t('cardUnavailable')}</h2></div></div></section>${nav('rewards')}</main>`;
@@ -681,10 +1150,25 @@ function applyCustomerContext(context) {
   state.authStatus = 'authenticated';
   state.afterIntro = 'home';
   localStorage.setItem('spirit-seen', '1');
+  if (context.userId && state.userId !== context.userId) {
+    state.userId = context.userId;
+    restoreCart();
+    void loadOrderingState({ repaint: true });
+  }
 }
 
 function clearCustomerIdentity() {
   stopStampMonitoring();
+  orderMonitor.stop();
+  orderingLoadSequence += 1;
+  clearCart();
+  state.userId = null;
+  state.ordering = { context: null, products: new Map() };
+  state.activeOrders = [];
+  state.currentOrderId = null;
+  state.currentOrder = null;
+  state.orderLoading = false;
+  state.ordersLoading = false;
   localStorage.removeItem('spirit-seen');
   state.profile = { ...defaultProfile };
   state.hasBusinessAccess = false;
@@ -999,6 +1483,15 @@ function bindMenuInteractions() {
   menuScroller = document.querySelector('[data-menu-content]');
   if (!menuScroller) return;
 
+  menuScroller.closest('.menu-screen')?.addEventListener('click', (event) => {
+    const add = event.target.closest?.('[data-add-product]');
+    if (add) {
+      addProductToCart(add.dataset.addProduct, add.dataset.productName);
+      return;
+    }
+    if (event.target.closest?.('[data-cart-open]')) openCartScreen();
+  });
+
   search.addEventListener('input', (event) => {
     state.menuQuery = event.currentTarget.value;
     cancelMenuNavigation();
@@ -1058,8 +1551,9 @@ function render() {
   document.documentElement.lang = state.lang;
   syncIntroPresentation();
   cleanupMenuInteractions();
-  app.innerHTML = ({intro,onboarding,login,emailConfirmation,authLoading,home,menu,rewards,history,profile})[state.screen]();
+  app.innerHTML = ({intro,onboarding,login,emailConfirmation,authLoading,home,menu,rewards,history,profile,cart:cartScreen,orders,orderTracking})[state.screen]();
   bind();
+  syncOrderMonitor();
   if (lastAnnouncedScreen !== state.screen) {
     lastAnnouncedScreen = state.screen;
     const heading = app.querySelector('h1');
@@ -1140,8 +1634,15 @@ function bind() {
     if(action==='close-sheet'){ modalController.close({ reason: 'action' }); }
     if(action==='request-stamp'){ openStampRequest(); }
     if(action==='use-reward' && state.availableRewards > 0){ openRewardRequest(); }
-    if(action==='open-menu'){ state.menuQuery='';state.menuActiveCategory=MENU_CATEGORIES[0].id;state.screen='menu';render();scrollTo(0,0); }
+    if(action==='open-menu'){ state.menuQuery='';state.menuActiveCategory=MENU_CATEGORIES[0].id;state.screen='menu';render();scrollTo(0,0);void loadOrderingState({ repaint: true }); }
     if(action==='close-menu'){ state.menuQuery='';state.screen='home';render();scrollTo(0,0); }
+    if(action==='back-to-menu'){ state.screen='menu';render();void loadOrderingState({ repaint: true }); }
+    if(action==='open-checkout'){ if(orderingActive()&&canCheckout(state.cart,state.ordering.products)) { modalController.open(checkoutSheet(), { initialFocus: '[data-checkout-code]' }); bind(); } }
+    if(action==='open-orders'){ openOrdersScreen(); }
+    if(action==='orders-back'){ state.screen=state.ordersBackTarget||'menu';render();scrollTo(0,0); }
+    if(action==='order-back'){ if(state.orderBackTarget==='orders'){ state.ordersLoading=!state.activeOrders.length;goToOrderScreen('orders');void refreshOrdersSafely(); } else { state.screen='menu';render();scrollTo(0,0); } }
+    if(action==='cancel-order'){ if(state.currentOrder?.status==='pending') openSheet(sheet(renderCancelOrderContent({ translate: t }), 'modal--form modal--danger', 'cancel-order-title', 'cancel-order-description')); }
+    if(action==='confirm-cancel-order'){ await confirmCancelOrder(el); }
     if(action==='menu-top'){ document.querySelector('[data-menu-content]')?.scrollTo({top:0,behavior:'smooth'}); }
     if(action==='join-loyalty'){
       if(state.stampRequestLoading)return;
@@ -1255,7 +1756,63 @@ function bind() {
   document.querySelector('[data-form="password"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const form=e.currentTarget;if(form.dataset.submitting==='true')return;const data=new FormData(form);const current=String(data.get('currentPassword')||'');const next=String(data.get('newPassword')||'');const confirmation=String(data.get('confirmPassword')||'');const error=form.querySelector('[data-password-error]');const submit=form.querySelector('[type="submit"]');error.textContent='';if(!current){error.textContent=t('currentPasswordRequired');return;}if(!passwordMeetsPolicy(next)){error.textContent=t('passwordLength');return;}if(next!==confirmation){error.textContent=t('passwordMismatch');return;}form.dataset.submitting='true';submit.disabled=true;try{await updateCustomerPassword(state.profile.email,current,next);form.reset();modalController.close({ reason: 'submit' });showToast(t('passwordSaved'));}catch(authError){error.textContent=readablePasswordChangeError(authError);}finally{delete form.dataset.submitting;if(submit.isConnected)submit.disabled=false;}});
   document.querySelector('[data-delete-account-confirmation]:not([data-bound])')?.addEventListener('input',(event)=>{event.currentTarget.dataset.bound='1';const submit=event.currentTarget.form?.querySelector('[data-delete-account-submit]');if(submit&&!state.accountDeleting)submit.disabled=event.currentTarget.value!==t('deleteAccountConfirmation');});
   document.querySelector('[data-form="delete-account"]')?.addEventListener('submit',async(e)=>{e.preventDefault();await permanentlyDeleteCustomerAccount(e.currentTarget);});
+  bindOrderInteractions();
   bindMenuInteractions();
+}
+
+function bindOrderInteractions() {
+  document.querySelectorAll('[data-cart-inc]:not([data-bound]),[data-cart-dec]:not([data-bound]),[data-cart-remove]:not([data-bound])').forEach((el) => {
+    el.dataset.bound = '1';
+    el.addEventListener('click', () => {
+      const kind = el.dataset.cartInc ? 'inc' : el.dataset.cartDec ? 'dec' : 'remove';
+      updateCartLine(kind, el.dataset.cartInc || el.dataset.cartDec || el.dataset.cartRemove);
+    });
+  });
+  document.querySelectorAll('[data-cart-note]:not([data-bound])').forEach((el) => {
+    el.dataset.bound = '1';
+    el.addEventListener('input', () => {
+      state.cart = setCartNote(state.cart, el.value);
+      if (el.value !== state.cart.note) el.value = state.cart.note;
+      persistCart();
+      const counter = document.querySelector('[data-cart-note-counter]');
+      if (counter) counter.textContent = t('cartNoteCounter', { count: noteLength(state.cart.note) });
+    });
+  });
+  document.querySelectorAll('[data-open-order]:not([data-bound])').forEach((el) => {
+    el.dataset.bound = '1';
+    el.addEventListener('click', () => openOrderTracking(el.dataset.openOrder, 'orders'));
+  });
+  document.querySelectorAll('[data-checkout-code]:not([data-bound])').forEach((el) => {
+    el.dataset.bound = '1';
+    el.addEventListener('input', () => {
+      const value = normalizeOrderCode(el.value);
+      if (value !== el.value) el.value = value;
+      if (el.getAttribute('aria-invalid') === 'true') setCheckoutFieldError(el, '');
+    });
+  });
+  document.querySelectorAll('[data-checkout-table]:not([data-bound])').forEach((el) => {
+    el.dataset.bound = '1';
+    el.addEventListener('input', () => {
+      if (el.getAttribute('aria-invalid') === 'true') setCheckoutFieldError(el, '');
+    });
+  });
+  document.querySelectorAll('[data-checkout-pickup]:not([data-bound])').forEach((el) => {
+    el.dataset.bound = '1';
+    el.addEventListener('change', () => {
+      const table = el.form?.querySelector('[data-checkout-table]');
+      if (!table) return;
+      table.disabled = el.checked;
+      table.required = !el.checked;
+      if (el.checked) setCheckoutFieldError(table, '');
+    });
+  });
+  document.querySelectorAll('[data-form="checkout"]:not([data-bound])').forEach((form) => {
+    form.dataset.bound = '1';
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      void submitCheckout(form);
+    });
+  });
 }
 
 if (!isBusinessMode) {
@@ -1323,4 +1880,15 @@ if (!isBusinessMode) {
   }
 }
 
-addEventListener('pagehide', () => clearStampRequest(false));
+addEventListener('pagehide', () => {
+  clearStampRequest(false);
+  orderMonitor.stop();
+});
+// La consulta al recuperar la red la lanza el propio orderMonitor; aquí solo
+// se repinta el aviso de «sin conexión» del seguimiento.
+addEventListener('online', () => {
+  if (state.screen === 'orderTracking') renderPreservingFocus();
+});
+addEventListener('offline', () => {
+  if (state.screen === 'orderTracking') renderPreservingFocus();
+});

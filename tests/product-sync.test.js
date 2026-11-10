@@ -52,3 +52,44 @@ test('la última migración de productos coincide con el catálogo actual', asyn
     'el catálogo cambió: genera una migración nueva con scripts/sync-products.mjs'
   );
 });
+
+// Precios: la carta muestra los de data/menu.js y el carrito/create_order los
+// de public.products. Este test enumera cada desajuste para que no puedan
+// divergir sin que nadie se entere.
+const SEED_ROW = /\(v_business_id, '((?:[^']|'')+)', '[^']*', '(?:[^']|'')*', '(?:[^']|'')*', (\d+), \d+\)/g;
+
+async function latestSeedPrices() {
+  const files = (await readdir(migrationsDir)).filter((name) => name.endsWith('.sql')).sort();
+  let latest = null;
+  for (const name of files) {
+    const content = await readFile(new URL(name, migrationsDir), 'utf8');
+    if (content.startsWith(PRODUCT_SYNC_MARKER)) latest = content;
+  }
+  assert.ok(latest, 'no existe ninguna migración generada por sync-products');
+  return new Map([...latest.matchAll(SEED_ROW)].map(([, id, cents]) => [id.replaceAll("''", "'"), Number(cents)]));
+}
+
+test('cada precio de data/menu.js coincide con la semilla de public.products', async () => {
+  const seed = await latestSeedPrices();
+  const mismatches = [];
+  for (const category of MENU_CATALOG.es) {
+    for (const product of category.products) {
+      const catalogCents = parsePriceCents(product.price);
+      if (catalogCents === null) continue;
+      if (!seed.has(product.id)) mismatches.push(`${product.id}: falta en la semilla (carta ${product.price})`);
+      else if (seed.get(product.id) !== catalogCents) mismatches.push(`${product.id}: carta ${catalogCents} ≠ semilla ${seed.get(product.id)}`);
+    }
+  }
+  assert.ok(seed.size > 100, 'la semilla se ha leído correctamente');
+  assert.deepEqual(mismatches, [], 'precios desincronizados: ejecuta scripts/sync-products.mjs y crea una migración nueva');
+});
+
+test('cada precio de data/menu.js coincide con lo que genera sync-products', () => {
+  const generated = new Map(buildProductRows().rows.map((row) => [row.id, row.priceCents]));
+  for (const category of MENU_CATALOG.es) {
+    for (const product of category.products) {
+      const catalogCents = parsePriceCents(product.price);
+      if (catalogCents !== null) assert.equal(generated.get(product.id), catalogCents, product.id);
+    }
+  }
+});

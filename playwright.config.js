@@ -1,6 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const enabled = process.env.SPIRIT_E2E === '1';
+// Opcional y solo local: SPIRIT_E2E_CHROME=1 añade un proyecto que usa el
+// Google Chrome instalado (channel 'chrome') en lugar del Chromium de Playwright.
+// Sin la variable, la lista de proyectos queda exactamente igual.
+const useInstalledChrome = process.env.SPIRIT_E2E_CHROME === '1';
 const supabaseUrl = process.env.SPIRIT_E2E_SUPABASE_URL || 'http://127.0.0.1:54321';
 const publishableKey = process.env.SPIRIT_E2E_SUPABASE_PUBLISHABLE_KEY || '';
 
@@ -25,7 +29,10 @@ export default defineConfig({
     { name: 'chromium-mobile', use: { ...devices['Pixel 7'] } },
     { name: 'webkit-mobile', use: { ...devices['iPhone 14'] } },
     { name: 'webkit-tablet', use: { ...devices['iPad Pro 11'] } },
-    { name: 'chromium-desktop', use: { ...devices['Desktop Chrome'] } }
+    { name: 'chromium-desktop', use: { ...devices['Desktop Chrome'] } },
+    ...(useInstalledChrome
+      ? [{ name: 'chrome-mobile', use: { ...devices['Pixel 7'], channel: 'chrome' } }]
+      : [])
   ],
   webServer: enabled ? {
     command: 'npm run build && npm run preview',

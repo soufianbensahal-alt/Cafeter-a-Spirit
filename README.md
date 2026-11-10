@@ -280,6 +280,18 @@ Las pruebas JavaScript cubren detección de confirmación de sello y canje, cál
 
 No se incluyen usuarios ni contraseñas de prueba en el repositorio. Para una prueba manual, crea usuarios desechables desde **Supabase Auth → Users**, configura sus filas de negocio/tarjeta desde una conexión administrativa y elimina o desactiva esos accesos al terminar.
 
+### Pruebas E2E (Playwright)
+
+Los E2E solo se ejecutan con `SPIRIT_E2E=1` contra un Supabase local desechable; `playwright.config.js` rechaza la URL de producción. `e2e/ordering-flow.spec.js` prepara el piloto de pedidos en la base local mediante `SPIRIT_E2E_DB_URL` (por defecto `postgresql://postgres:postgres@127.0.0.1:54322/postgres`) y nunca acepta un host que no sea local.
+
+> **Node 24.16:** `npx playwright install` se cuelga al descomprimir Chromium. Instala los navegadores con Node 22 sin cambiar tu versión de Node:
+>
+> ```bash
+> npx -p node@22 playwright install chromium webkit
+> ```
+
+Si no puedes instalar los navegadores de Playwright, `SPIRIT_E2E_CHROME=1` añade el proyecto opcional `chrome-mobile`, que usa el Google Chrome instalado (`--project=chrome-mobile`). Sin esa variable la lista de proyectos no cambia.
+
 ### Prueba manual con dos dispositivos
 
 1. En el dispositivo cliente, inicia sesión, abre Inicio y pulsa **Solicitar sello**.
