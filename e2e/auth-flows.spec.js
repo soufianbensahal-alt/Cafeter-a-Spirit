@@ -13,23 +13,43 @@ async function prepare(page) {
   await page.addInitScript(() => localStorage.setItem('spirit-onboarded', '1'));
 }
 
-async function latestEmailLink(request, recipient, matcher) {
+// Mailpit (Supabase CLI actual): GET /api/v1/search devuelve los mensajes más
+// recientes primero y GET /api/v1/message/{ID} el contenido HTML y texto.
+// `since` descarta correos anteriores a la acción (p. ej. el de alta cuando se
+// espera el de recuperación).
+async function messageLinks(request, id) {
+  const response = await request.get(`${mailboxUrl}/api/v1/message/${encodeURIComponent(id)}`);
+  if (!response.ok()) return [];
+  const message = await response.json();
+  const content = `${message.HTML || ''}\n${message.Text || ''}`;
+  return (content.match(/https?:\/\/[^"'<>\s]+/g) || []).map((value) => value.replace(/&amp;/g, '&'));
+}
+
+// Las plantillas enlazan al dominio público (confirmation.html lo lleva fijo):
+// se conserva solo ruta y query para abrirlo contra el preview local.
+const localPath = (link) => {
+  const url = new URL(link);
+  return `${url.pathname}${url.search}${url.hash}`;
+};
+
+async function latestEmailLink(request, recipient, matcher, { since = 0 } = {}) {
+  let found = '';
   await expect.poll(async () => {
-    const response = await request.get(`${mailboxUrl}/api/v1/mailbox/${encodeURIComponent(recipient)}`);
+    const query = encodeURIComponent(`to:"${recipient}"`);
+    const response = await request.get(`${mailboxUrl}/api/v1/search?query=${query}&limit=20`);
     if (!response.ok()) return '';
-    return JSON.stringify(await response.json());
-  }, { timeout: 15_000 }).toContain(recipient.split('@')[0]);
-  const mailbox = await (await request.get(`${mailboxUrl}/api/v1/mailbox/${encodeURIComponent(recipient)}`)).json();
-  const messages = mailbox.messages || mailbox || [];
-  for (const message of messages) {
-    const id = message.id || message.ID;
-    const detailResponse = await request.get(`${mailboxUrl}/api/v1/mailbox/${encodeURIComponent(recipient)}/${id}`);
-    const content = detailResponse.ok() ? JSON.stringify(await detailResponse.json()) : JSON.stringify(message);
-    const links = content.match(/https?:[^"'<>\\s]+/g) || [];
-    const link = links.map((value) => value.replace(/\\u0026/g, '&')).find(matcher);
-    if (link) return link;
-  }
-  throw new Error('No se encontró el enlace transaccional esperado.');
+    const { messages = [] } = await response.json();
+    for (const message of messages) {
+      if (Date.parse(message.Created) < since) continue;
+      const link = (await messageLinks(request, message.ID)).find(matcher);
+      if (link) {
+        found = link;
+        return link;
+      }
+    }
+    return '';
+  }, { timeout: 15_000, message: `Enlace transaccional para ${recipient}` }).not.toBe('');
+  return found;
 }
 
 e2eTest('registro, confirmación de correo e inicio de sesión', async ({ page, request }) => {
@@ -42,38 +62,48 @@ e2eTest('registro, confirmación de correo e inicio de sesión', async ({ page, 
   await page.getByLabel('Contraseña', { exact: true }).fill(password);
   await page.getByLabel('Confirmar contraseña').fill(password);
   await page.getByRole('checkbox').check();
+  const sentAfter = Date.now() - 2000;
   await page.getByRole('button', { name: 'Crear mi cuenta' }).last().click();
   await expect(page.getByText(/Revisa tu correo/i)).toBeVisible();
 
-  const confirmationLink = await latestEmailLink(request, email, (link) => /verify|auth\/v1/.test(link));
-  await page.goto(confirmationLink);
+  const confirmationLink = await latestEmailLink(request, email, (link) => /\/auth\/confirm\?.*token_hash=.*type=email/.test(link), { since: sentAfter });
+  await page.goto(localPath(confirmationLink));
   await expect(page.getByText('Correo confirmado')).toBeVisible();
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
   await page.getByLabel('Correo electrónico').fill(email);
   await page.getByLabel('Contraseña').fill(password);
   await page.getByRole('button', { name: 'Iniciar sesión' }).last().click();
-  await expect(page.getByText(/Hoy toca café/i)).toBeVisible();
+  // El live-announcer repite el título: se busca el <h1> por rol.
+  await expect(page.getByRole('heading', { level: 1, name: /Hoy toca café/i })).toBeVisible();
 });
 
 e2eTest('recuperación de contraseña y enlace de un solo uso', async ({ browser, request }) => {
   const context = await browser.newContext();
   const first = await context.newPage();
-  const second = await context.newPage();
   await prepare(first);
-  await prepare(second);
   await first.goto('/login');
   await first.getByRole('button', { name: 'He olvidado mi contraseña' }).click();
   await first.getByLabel('Correo electrónico').fill(email);
+  const requestedAfter = Date.now() - 2000;
   await first.getByRole('button', { name: 'Enviar enlace de recuperación' }).click();
-  const recoveryLink = await latestEmailLink(request, email, (link) => /recovery|reset-password|verify/.test(link));
-  await Promise.all([first.goto(recoveryLink), second.goto(recoveryLink)]);
+  const recoveryLink = await latestEmailLink(request, email, (link) => /token_hash=.*type=recovery/.test(link), { since: requestedAfter });
+  await first.goto(localPath(recoveryLink));
 
-  await first.getByLabel('Nueva contraseña').fill(nextPassword);
+  await first.getByLabel('Nueva contraseña', { exact: true }).fill(nextPassword);
   await first.getByLabel('Confirmar nueva contraseña').fill(nextPassword);
   await first.getByRole('button', { name: 'Guardar nueva contraseña' }).click();
   await expect(first.getByText(/Contraseña actualizada/i)).toBeVisible();
 
-  await second.reload();
-  await expect(second.getByText(/enlace.*no.*válido|caducado|utilizado/i)).toBeVisible();
-  await context.close();
+  // El token_hash se verifica al guardar. Reabrir el mismo enlace (en otro
+  // dispositivo: contexto nuevo, sin el estado de la primera pestaña) e intentar
+  // usarlo de nuevo debe ser rechazado por el servidor.
+  const otherDevice = await browser.newContext();
+  const second = await otherDevice.newPage();
+  await prepare(second);
+  await second.goto(localPath(recoveryLink));
+  await second.getByLabel('Nueva contraseña', { exact: true }).fill('Spirit-E2E-2028!');
+  await second.getByLabel('Confirmar nueva contraseña').fill('Spirit-E2E-2028!');
+  await second.getByRole('button', { name: 'Guardar nueva contraseña' }).click();
+  await expect(second.getByText('El enlace ha caducado, ya se ha utilizado o no puede verificarse.', { exact: false }).first()).toBeVisible();
+  await Promise.all([context.close(), otherDevice.close()]);
 });
