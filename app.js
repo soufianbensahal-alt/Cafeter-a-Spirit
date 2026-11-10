@@ -827,6 +827,7 @@ let stampPollingTimer = 0;
 let stampFallbackTimer = 0;
 let stopStampRealtime = null;
 let stampReconcileBusy = false;
+let stampReconcilePending = false;
 
 function applyCustomerCard(card) {
   state.loyaltyReady = true;
@@ -865,11 +866,15 @@ function stopStampMonitoring() {
   stopStampRealtime?.();
   stopStampRealtime = null;
   stampReconcileBusy = false;
+  stampReconcilePending = false;
 }
 
 async function reconcileConfirmedStamp() {
   const request = state.stampRequest;
-  if (!request?.customerCardId || request.expired || stampReconcileBusy) return;
+  if (!request?.customerCardId || request.expired) return;
+  // Un evento durante una consulta en curso no se descarta: se repite al terminar,
+  // porque la consulta en curso pudo leer la tarjeta antes de la confirmación.
+  if (stampReconcileBusy) { stampReconcilePending = true; return; }
   stampReconcileBusy = true;
   try {
     const card = await getOwnCustomerCard();
@@ -888,6 +893,10 @@ async function reconcileConfirmedStamp() {
     // El siguiente evento o ciclo de polling vuelve a consultar la fuente de verdad.
   } finally {
     stampReconcileBusy = false;
+    if (stampReconcilePending) {
+      stampReconcilePending = false;
+      reconcileConfirmedStamp();
+    }
   }
 }
 
@@ -905,6 +914,8 @@ function startStampMonitoring(request) {
       if (status === 'SUBSCRIBED') {
         clearTimeout(stampFallbackTimer);
         stampFallbackTimer = 0;
+        // Una confirmación durante la unión al canal no se reenvía: se consulta la tarjeta.
+        reconcileConfirmedStamp();
       } else if (shouldStartPolling(status)) {
         startStampPolling();
       }
