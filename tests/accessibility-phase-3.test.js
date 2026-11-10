@@ -34,7 +34,7 @@ test('el controlador centraliza Escape, trampa de foco, inert y restauración', 
   assert.match(controller, /event\.key !== 'Tab'/);
   assert.match(controller, /appRoot\.inert = true/);
   assert.match(controller, /appRoot\.inert = false/);
-  assert.match(controller, /previousFocus\.focus\(\)/);
+  assert.match(controller, /resolveFocusRestoreTarget\(previousFocus, appRoot\)\?\.focus\(\)/);
   assert.match(controller, /event\.target === backdrop/);
 });
 
