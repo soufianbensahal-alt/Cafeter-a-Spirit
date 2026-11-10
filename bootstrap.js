@@ -3,6 +3,9 @@ const passwordRecoveryPendingKey = 'spirit-password-recovery-pending';
 
 if ('serviceWorker' in navigator) {
   let refreshing = false;
+  // En la primera instalación no hay versión anterior que sustituir: recargar
+  // solo borraría lo que el usuario esté escribiendo (p. ej. el login).
+  const hadController = Boolean(navigator.serviceWorker.controller);
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
     const query = new URLSearchParams(window.location.search);
@@ -21,7 +24,7 @@ if ('serviceWorker' in navigator) {
       || /^\/email-confirmed\/?$/.test(window.location.pathname)
       || hasRecoverySignal
       || isRecoveryPending;
-    if (refreshing || isAuthReturn) return;
+    if (refreshing || isAuthReturn || !hadController) return;
     refreshing = true;
     window.location.reload();
   });
