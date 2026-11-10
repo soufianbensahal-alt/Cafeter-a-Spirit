@@ -19,7 +19,8 @@ export default [
       globals: {
         ...globals.browser,
         __SUPABASE_URL__: 'readonly',
-        __SUPABASE_PUBLISHABLE_KEY__: 'readonly'
+        __SUPABASE_PUBLISHABLE_KEY__: 'readonly',
+        __SPIRIT_E2E_HOOKS__: 'readonly'
       }
     },
     rules: sharedRules

@@ -29,9 +29,29 @@ import {
 } from '../services/session-persistence.js';
 import { displayText } from '../services/display-text.js';
 import { createLiveAnnouncer } from '../services/live-announcer.js';
+import { createBusinessOrdersPanel } from './business-orders.js';
 import jsQR from 'jsqr';
 
 const isBusinessRoute = /^\/cafeteria\/?$/.test(window.location.pathname);
+
+const BUSINESS_TABS = Object.freeze([
+  ['orders', 'Pedidos'],
+  ['loyalty', 'Fidelización'],
+  ['control', 'Panel']
+]);
+const TAB_STORAGE_KEY = 'spirit-business-tab';
+// Comodidad por dispositivo: la tablet recuerda la última pestaña.
+function readStoredTab() {
+  try {
+    const stored = localStorage.getItem(TAB_STORAGE_KEY);
+    return BUSINESS_TABS.some(([id]) => id === stored) ? stored : 'loyalty';
+  } catch {
+    return 'loyalty';
+  }
+}
+function storeTab(tab) {
+  try { localStorage.setItem(TAB_STORAGE_KEY, tab); } catch { /* sin almacenamiento */ }
+}
 
 if (isBusinessRoute) {
   const app = document.querySelector('#app');
@@ -57,7 +77,8 @@ if (isBusinessRoute) {
     cameraPermission: 'idle',
     keepSession: isSessionPersistenceEnabled(),
     mfaFactorId: '',
-    mfaEnrollment: null
+    mfaEnrollment: null,
+    tab: readStoredTab()
   };
 
   let cameraStream = null;
@@ -71,6 +92,8 @@ if (isBusinessRoute) {
   let manualSignOut = false;
   let lastScannedContent = '';
   let lastScannedAt = 0;
+  let ordersPanel = null;
+  const modalRoot = document.querySelector('#modal-root');
 
   const icons = {
     scan: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/><path d="M7 12h10"/></svg>',
@@ -87,7 +110,16 @@ if (isBusinessRoute) {
 
   const transactionList = () => `<section class="business-history" aria-labelledby="recent-title"><div class="business-section-head"><div><span class="business-kicker">Actividad</span><h2 id="recent-title">Historial del negocio</h2></div>${icons.clock}</div><form class="business-history-filters" data-business-form="history"><input name="customer" value="${escapeHTML(state.historyFilters.customer)}" placeholder="Cliente" aria-label="Filtrar por cliente"><input name="employee" value="${escapeHTML(state.historyFilters.employee)}" placeholder="Empleado" aria-label="Filtrar por empleado"><select name="type" aria-label="Tipo de operación"><option value="">Todos los tipos</option><option value="stamp" ${state.historyFilters.type === 'stamp' ? 'selected' : ''}>Sellos</option><option value="redemption" ${state.historyFilters.type === 'redemption' ? 'selected' : ''}>Canjes</option><option value="reversal" ${state.historyFilters.type === 'reversal' ? 'selected' : ''}>Reversiones</option></select><input name="from" type="date" value="${escapeHTML(state.historyFilters.from)}" aria-label="Desde"><input name="to" type="date" value="${escapeHTML(state.historyFilters.to)}" aria-label="Hasta"><button type="submit">Filtrar</button></form>${state.transactions.length ? `<ol>${state.transactions.map((item) => `<li><time datetime="${escapeHTML(item.timestamp)}">${formatTime(item.timestamp)}</time><div><strong>${escapeHTML(item.customerMasked)}</strong><span>${escapeHTML(item.result)} · ${escapeHTML(item.programName || '')}</span><small>${escapeHTML(item.employeeName || 'Equipo Spirit')}</small></div><b>${escapeHTML(item.progress)}</b></li>`).join('')}</ol>${state.historyHasMore ? '<button class="business-history-more" type="button" data-business-action="load-more-history">Cargar más</button>' : ''}` : '<p class="business-empty">No hay operaciones con estos filtros.</p>'}</section>`;
 
-  const homeView = () => `<main class="business-app">${brandHeader()}<section class="employee-strip"><div class="employee-avatar" aria-hidden="true">${escapeHTML(employeeInitials())}</div><div><span>${escapeHTML(roleLabel(state.employee?.role))}</span><strong>${escapeHTML(state.employee?.employeeName || '')}</strong></div>${state.employee?.isCustomer ? '<a class="employee-status" href="/">Vista cliente</a>' : '<span class="employee-status">Activa</span>'}</section><section class="business-profile-setting"><div><strong>Mantener sesión iniciada</strong><small>No cerrar automáticamente esta sesión</small></div><label class="business-switch"><input type="checkbox" data-business-session-persistence ${state.keepSession ? 'checked' : ''} aria-label="Mantener sesión iniciada"><span aria-hidden="true"></span></label></section><section class="business-action-card"><p class="business-kicker">Fidelización Spirit</p><h1>Procesa al cliente en segundos.</h1><p>Escanea su QR temporal o introduce el código de seis dígitos. El sistema detectará si es un sello o un canje.</p><button class="business-primary business-primary--scan" type="button" data-business-action="open-scanner">${icons.scan}<span>Escanear QR</span></button><div class="business-divider"><span>o</span></div><form class="business-code-form" data-business-form="code" novalidate><label for="business-code">Código del cliente</label><input id="business-code" name="code" type="text" value="${escapeHTML(state.code)}" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" enterkeyhint="done" placeholder="000000" aria-describedby="business-code-help business-error" ${state.loading ? 'disabled' : ''}><small id="business-code-help">Exactamente 6 dígitos · válido durante ${STAMP_REQUEST_DURATION_SECONDS} segundos</small><p class="business-message business-message--error" id="business-error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.code.length !== 6 || state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Validando…' : 'Validar código'}</button></form></section>${transactionList()}<button class="business-logout" type="button" data-business-action="logout">Cerrar sesión</button><p class="business-security-note">Acceso protegido con Supabase Auth · Validación, confirmación y recompensas se procesan de forma atómica en el servidor.</p></main>`;
+  const tabsHTML = () => `<div class="business-tabs" role="tablist" aria-label="Secciones del modo cafetería">${BUSINESS_TABS.map(([id, label]) => `<button class="business-tab" type="button" role="tab" id="business-tab-${id}" aria-controls="business-tabpanel" aria-selected="${state.tab === id}" tabindex="${state.tab === id ? '0' : '-1'}" data-business-tab="${id}">${label}${id === 'orders' ? '<span class="business-tab__count" data-orders-tab-count hidden></span>' : ''}</button>`).join('')}</div>`;
+
+  const loyaltyTab = () => `<section class="business-action-card"><p class="business-kicker">Fidelización Spirit</p><h1>Procesa al cliente en segundos.</h1><p>Escanea su QR temporal o introduce el código de seis dígitos. El sistema detectará si es un sello o un canje.</p><button class="business-primary business-primary--scan" type="button" data-business-action="open-scanner">${icons.scan}<span>Escanear QR</span></button><div class="business-divider"><span>o</span></div><form class="business-code-form" data-business-form="code" novalidate><label for="business-code">Código del cliente</label><input id="business-code" name="code" type="text" value="${escapeHTML(state.code)}" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" enterkeyhint="done" placeholder="000000" aria-describedby="business-code-help business-error" ${state.loading ? 'disabled' : ''}><small id="business-code-help">Exactamente 6 dígitos · válido durante ${STAMP_REQUEST_DURATION_SECONDS} segundos</small><p class="business-message business-message--error" id="business-error" role="alert">${escapeHTML(state.error)}</p><button class="business-primary" type="submit" ${state.code.length !== 6 || state.loading ? 'disabled' : ''}>${state.loading ? '<span class="business-spinner" aria-hidden="true"></span>Validando…' : 'Validar código'}</button></form></section>${transactionList()}`;
+  const tabContent = () => {
+    if (state.tab === 'orders') return '<section class="orders-panel" data-orders-panel aria-live="off"></section>';
+    if (state.tab === 'control') return '<section class="control-panel" data-control-panel></section>';
+    return loyaltyTab();
+  };
+
+  const homeView = () => `<main class="business-app ${state.tab === 'loyalty' ? '' : 'business-app--wide'}">${brandHeader()}<section class="employee-strip"><div class="employee-avatar" aria-hidden="true">${escapeHTML(employeeInitials())}</div><div><span>${escapeHTML(roleLabel(state.employee?.role))}</span><strong>${escapeHTML(state.employee?.employeeName || '')}</strong></div>${state.employee?.isCustomer ? '<a class="employee-status" href="/">Vista cliente</a>' : '<span class="employee-status">Activa</span>'}</section><section class="business-profile-setting"><div><strong>Mantener sesión iniciada</strong><small>No cerrar automáticamente esta sesión</small></div><label class="business-switch"><input type="checkbox" data-business-session-persistence ${state.keepSession ? 'checked' : ''} aria-label="Mantener sesión iniciada"><span aria-hidden="true"></span></label></section><section class="orders-status" data-orders-status aria-label="Avisos de pedidos"></section>${tabsHTML()}<div class="business-tabpanel" role="tabpanel" id="business-tabpanel" aria-labelledby="business-tab-${state.tab}">${tabContent()}</div><button class="business-logout" type="button" data-business-action="logout">Cerrar sesión</button><p class="business-security-note">Acceso protegido con Supabase Auth · Validación, confirmación y recompensas se procesan de forma atómica en el servidor.</p></main>`;
 
   const progress = (value, goal) => `<div class="business-progress" role="img" aria-label="${value} de ${goal} sellos"><div><strong>${value}</strong><span>/ ${goal}</span></div><div class="business-progress__track"><span style="width:${(value / goal) * 100}%"></span></div></div>`;
 
@@ -137,6 +169,7 @@ if (isBusinessRoute) {
     const views = { checking: loadingView, home: homeView, preview: previewView, success: successView, scanner: scannerView, signedOut: signedOutView, mfaChallenge: mfaChallengeView, mfaEnrollment: mfaEnrollmentView, unauthorized: unauthorizedView, expired: expiredView, networkError: networkErrorView };
     app.innerHTML = views[state.view]();
     bind();
+    if (state.view === 'home') ordersPanel?.paint({ tab: state.tab });
     if (lastAnnouncedView !== state.view) {
       lastAnnouncedView = state.view;
       const heading = app.querySelector('h1');
@@ -168,12 +201,46 @@ if (isBusinessRoute) {
     try {
       state.employee = employee;
       await loadHistory(true);
+      startOrdersPanel();
       state.view = 'home';
     } catch (error) {
       state.error = readableError(error);
       state.view = 'signedOut';
     }
     render();
+  }
+
+  function stopOrdersPanel() {
+    ordersPanel?.stop();
+    ordersPanel = null;
+  }
+
+  // El panel de pedidos (Realtime, avisos y recordatorios) funciona en
+  // cualquier pestaña: un pedido nuevo suena aunque se esté sellando.
+  function startOrdersPanel() {
+    stopOrdersPanel();
+    ordersPanel = createBusinessOrdersPanel({
+      employee: state.employee,
+      announcer,
+      appRoot: app,
+      modalRoot,
+      onSessionLost: () => {
+        stopOrdersPanel();
+        state.employee = null;
+        state.view = 'expired';
+        render();
+      }
+    });
+    ordersPanel.start();
+  }
+
+  function selectTab(tab, { focus = false } = {}) {
+    if (!BUSINESS_TABS.some(([id]) => id === tab)) return;
+    state.tab = tab;
+    state.error = '';
+    storeTab(tab);
+    render();
+    if (focus) document.querySelector(`#business-tab-${tab}`)?.focus();
   }
 
   async function requireBusinessMfa(employee) {
@@ -548,6 +615,17 @@ if (isBusinessRoute) {
         if (input.isConnected) input.disabled = false;
       }
     });
+    document.querySelectorAll('[data-business-tab]').forEach((tab) => {
+      tab.addEventListener('click', () => selectTab(tab.dataset.businessTab));
+      tab.addEventListener('keydown', (event) => {
+        const ids = BUSINESS_TABS.map(([id]) => id);
+        const index = ids.indexOf(tab.dataset.businessTab);
+        const next = { ArrowRight: index + 1, ArrowLeft: index - 1, Home: 0, End: ids.length - 1 }[event.key];
+        if (next === undefined) return;
+        event.preventDefault();
+        selectTab(ids[(next + ids.length) % ids.length], { focus: true });
+      });
+    });
     document.querySelectorAll('[data-business-action]').forEach((button) => button.addEventListener('click', async () => {
       const action = button.dataset.businessAction;
       if (action === 'open-scanner') { state.view = 'scanner'; state.error = ''; render(); }
@@ -560,6 +638,7 @@ if (isBusinessRoute) {
       if (action === 'logout') {
         manualSignOut = true;
         stopScanner();
+        stopOrdersPanel();
         try { await signOut(); } catch (error) { state.error = readableError(error); }
         state.employee = null;
         state.view = 'signedOut';
@@ -575,6 +654,7 @@ if (isBusinessRoute) {
     if (event !== 'SIGNED_OUT' || manualSignOut) return;
     const hadEmployee = Boolean(state.employee);
     stopScanner();
+    stopOrdersPanel();
     state.employee = null;
     state.error = '';
     state.view = hadEmployee ? 'expired' : 'signedOut';

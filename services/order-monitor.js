@@ -40,8 +40,14 @@ export function createRealtimeWithFallback({
   // Una petición que llega mientras otra está en curso no se descarta: se
   // repite una vez al terminar, porque la consulta en curso pudo leer antes
   // del cambio que la motivó.
-  const run = async () => {
+  //
+  // reconcile recibe { reasons }: los motivos acumulados desde la última
+  // consulta ('subscribed', 'change', 'poll', 'visible', 'online', 'refresh').
+  // El panel del equipo lo usa para no sonar en la carga ni al reconectar.
+  let queuedReasons = new Set();
+  const run = async (reason = 'refresh') => {
     if (!running) return;
+    queuedReasons.add(reason);
     if (busy) {
       rerun = true;
       return;
@@ -50,8 +56,10 @@ export function createRealtimeWithFallback({
     try {
       do {
         rerun = false;
+        const reasons = queuedReasons;
+        queuedReasons = new Set();
         try {
-          await reconcile();
+          await reconcile({ reasons });
         } catch {
           // El siguiente evento o ciclo de polling vuelve a consultar la fuente de verdad.
         }
@@ -59,6 +67,7 @@ export function createRealtimeWithFallback({
     } finally {
       busy = false;
       rerun = false;
+      queuedReasons = new Set();
     }
   };
 
@@ -70,14 +79,14 @@ export function createRealtimeWithFallback({
   const startPolling = () => {
     clearFallback();
     if (pollTimer || !running) return;
-    pollTimer = timers.setInterval(run, pollIntervalMs);
-    run();
+    pollTimer = timers.setInterval(() => run('poll'), pollIntervalMs);
+    run('poll');
   };
 
   const handleVisibility = () => {
-    if (visibilityTarget?.visibilityState === 'visible') run();
+    if (visibilityTarget?.visibilityState === 'visible') run('visible');
   };
-  const handleOnline = () => run();
+  const handleOnline = () => run('online');
 
   const addLifecycleListeners = () => {
     visibilityTarget?.addEventListener?.('visibilitychange', handleVisibility);
@@ -105,14 +114,14 @@ export function createRealtimeWithFallback({
     addLifecycleListeners();
     try {
       stopRealtime = subscribe({
-        onChange: run,
+        onChange: () => run('change'),
         onStatus: (status) => {
           if (!running) return;
           if (status === 'SUBSCRIBED') {
             clearFallback();
             timers.clearInterval(pollTimer);
             pollTimer = 0;
-            run();
+            run('subscribed');
           } else if (shouldStartPolling(status)) {
             startPolling();
           }
@@ -128,7 +137,7 @@ export function createRealtimeWithFallback({
   return {
     start,
     stop,
-    refresh: run,
+    refresh: (reason = 'refresh') => run(reason),
     isRunning: () => running,
     isPolling: () => Boolean(pollTimer)
   };

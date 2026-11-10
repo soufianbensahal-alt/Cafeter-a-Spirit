@@ -33,7 +33,9 @@ const bundleResult = await build({
   chunkNames: 'chunks/[name]-[hash]',
   define: {
     __SUPABASE_URL__: JSON.stringify(process.env.SUPABASE_URL || ''),
-    __SUPABASE_PUBLISHABLE_KEY__: JSON.stringify(process.env.SUPABASE_PUBLISHABLE_KEY || '')
+    __SUPABASE_PUBLISHABLE_KEY__: JSON.stringify(process.env.SUPABASE_PUBLISHABLE_KEY || ''),
+    // Ganchos de Playwright: solo con SPIRIT_E2E_HOOKS=1 (playwright.config.js).
+    __SPIRIT_E2E_HOOKS__: JSON.stringify(process.env.SPIRIT_E2E_HOOKS === '1')
   }
 });
 

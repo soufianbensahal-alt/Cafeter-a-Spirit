@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { supabaseAuthStorage } from './session-persistence.js';
+import { keepRealtimeTokenCurrent } from './realtime-auth.js';
 
 const supabaseUrl = __SUPABASE_URL__;
 const supabasePublishableKey = __SUPABASE_PUBLISHABLE_KEY__;
@@ -25,6 +26,28 @@ export const supabase = supabaseConfiguration.configured
       }
     })
   : null;
+
+if (supabase) keepRealtimeTokenCurrent(supabase);
+
+// Solo en builds de E2E (SPIRIT_E2E_HOOKS=1): permite forzar la renovación de
+// la sesión desde Playwright. En producción la constante es false y esbuild
+// elimina este bloque del bundle.
+// typeof: los tests de Node importan este módulo sin pasar por esbuild. Debe
+// ir en línea dentro del if para que esbuild pliegue la constante y elimine el bloque.
+if (typeof __SPIRIT_E2E_HOOKS__ !== 'undefined' && __SPIRIT_E2E_HOOKS__ && supabase && typeof window !== 'undefined') {
+  window.__spiritE2E = Object.freeze({
+    refreshSession: async () => {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error) throw error;
+      const claims = JSON.parse(atob(data.session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return { aal: claims.aal, expiresAt: data.session.expires_at };
+    },
+    realtimeTokenIsCurrent: async () => {
+      const { data } = await supabase.auth.getSession();
+      return supabase.realtime.accessTokenValue === data.session?.access_token;
+    }
+  });
+}
 
 export function requireSupabase() {
   if (!supabase) {

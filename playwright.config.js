@@ -41,7 +41,8 @@ export default defineConfig({
     env: {
       ...process.env,
       SUPABASE_URL: supabaseUrl,
-      SUPABASE_PUBLISHABLE_KEY: publishableKey
+      SUPABASE_PUBLISHABLE_KEY: publishableKey,
+      SPIRIT_E2E_HOOKS: '1'
     }
   } : undefined
 });

@@ -244,3 +244,57 @@ test('si suscribirse lanza una excepción pasa directamente a polling', async ()
   monitor.start();
   assert.equal(monitor.isPolling(), true);
 });
+
+test('reconcile recibe el motivo: SUBSCRIBED, cambio, visibilidad, red y polling', async () => {
+  const seen = [];
+  const timers = fakeTimers();
+  const visibilityTarget = Object.assign(new EventTarget(), { visibilityState: 'visible' });
+  const networkTarget = new EventTarget();
+  let handlers = null;
+  const monitor = createRealtimeWithFallback({
+    timers,
+    visibilityTarget,
+    networkTarget,
+    subscribe: (callbacks) => { handlers = callbacks; return () => {}; },
+    reconcile: async ({ reasons }) => { seen.push([...reasons]); }
+  });
+  monitor.start();
+  handlers.onStatus('SUBSCRIBED');
+  await flush();
+  handlers.onChange({});
+  await flush();
+  visibilityTarget.dispatchEvent(new Event('visibilitychange'));
+  await flush();
+  networkTarget.dispatchEvent(new Event('online'));
+  await flush();
+  handlers.onStatus('CHANNEL_ERROR');
+  await flush();
+  monitor.refresh('action');
+  await flush();
+  assert.deepEqual(seen, [['subscribed'], ['change'], ['visible'], ['online'], ['poll'], ['action']]);
+  monitor.stop();
+});
+
+test('los motivos que llegan durante una consulta se acumulan en la repetición', async () => {
+  const seen = [];
+  const pending = [];
+  const timers = fakeTimers();
+  let handlers = null;
+  const monitor = createRealtimeWithFallback({
+    timers,
+    visibilityTarget: Object.assign(new EventTarget(), { visibilityState: 'visible' }),
+    networkTarget: new EventTarget(),
+    subscribe: (callbacks) => { handlers = callbacks; return () => {}; },
+    reconcile: ({ reasons }) => { seen.push([...reasons].sort()); return new Promise((resolve) => pending.push(resolve)); }
+  });
+  monitor.start();
+  handlers.onStatus('SUBSCRIBED');
+  handlers.onChange({});
+  monitor.refresh('online');
+  pending.splice(0).forEach((resolve) => resolve());
+  await flush();
+  pending.splice(0).forEach((resolve) => resolve());
+  await flush();
+  assert.deepEqual(seen, [['subscribed'], ['change', 'online']]);
+  monitor.stop();
+});
