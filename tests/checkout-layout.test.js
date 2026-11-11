@@ -128,17 +128,18 @@ test('CSS: pie fijo con safe-area, cuerpo desplazable y modo compacto con teclad
   assert.match(rule(source, '.price--struck'), /text-decoration: line-through/);
 });
 
-test('CSS: casilla «Recoger en barra» de la marca con 44 px, foco visible y variante oscura', async () => {
+test('CSS: casilla de la marca con 44 px, foco visible y variante oscura', async () => {
   const source = await css();
-  const box = rule(source, '.checkout-pickup input[type="checkbox"]');
+  const box = rule(source, '.check input[type="checkbox"]');
   assert.match(box, /appearance: none/);
   assert.match(box, /width: 24px; height: 24px/);
   assert.match(box, /border: 2px solid/);
-  assert.match(rule(source, '.checkout-pickup input[type="checkbox"]:checked'), /background-color: var\(--mustard\)/);
-  assert.match(rule(source, '.checkout-pickup input[type="checkbox"]:focus-visible'), /outline: 3px solid/);
+  assert.match(rule(source, '.check input[type="checkbox"]:checked'), /background-color: var\(--mustard\)/);
+  assert.match(rule(source, '.check input[type="checkbox"]:focus-visible'), /outline: 3px solid/);
+  assert.match(rule(source, '.check'), /min-height: 44px/);
   assert.match(rule(source, '.checkout-pickup'), /min-height: 44px/);
-  assert.match(rule(source, 'html[data-theme="dark"] .checkout-pickup input[type="checkbox"]:checked'), /background-color: var\(--mustard\)/);
-  assert.match(rule(source, 'html[data-theme="dark"] .checkout-pickup input[type="checkbox"]'), /border-color: rgba\(247,240,222,\.62\)/);
+  assert.match(rule(source, 'html[data-theme="dark"] .check input[type="checkbox"]:checked'), /background-color: var\(--mustard\)/);
+  assert.match(rule(source, 'html[data-theme="dark"] .check input[type="checkbox"]'), /border-color: rgba\(247,240,222,\.62\)/);
 });
 
 test('app.js ajusta la confirmación al viewport visible y lo libera al cerrar', async () => {
