@@ -142,3 +142,9 @@ export function createRealtimeWithFallback({
     isPolling: () => Boolean(pollTimer)
   };
 }
+
+// La disponibilidad sólo se vigila donde se puede pedir: la carta y el
+// carrito (la confirmación se abre encima del carrito) con los pedidos activos.
+export const PRODUCT_WATCH_SCREENS = Object.freeze(['menu', 'cart']);
+export const shouldWatchProducts = ({ orderingActive, screen }) => Boolean(orderingActive)
+  && PRODUCT_WATCH_SCREENS.includes(screen);

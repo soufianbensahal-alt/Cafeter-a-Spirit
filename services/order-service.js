@@ -126,6 +126,23 @@ export const cancelOwnOrder = (orderId) => guard(async () => {
   return String(data);
 });
 
+// Disponibilidad de la carta en tiempo real. La RLS de products deja leer a
+// cualquier cliente autenticado los productos de un negocio activo, así que
+// Realtime entrega los cambios del negocio sin ser miembro del equipo.
+export function subscribeToProducts(businessId, { onChange, onStatus } = {}) {
+  const supabase = requireSupabase();
+  const channel = supabase
+    .channel(`products-${crypto.randomUUID()}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'products',
+      filter: `business_id=eq.${businessId}`
+    }, (payload) => onChange?.(payload))
+    .subscribe((status) => onStatus?.(status));
+  return () => supabase.removeChannel(channel);
+}
+
 export function subscribeToOwnOrders(customerId, { onChange, onStatus } = {}) {
   const supabase = requireSupabase();
   const channel = supabase

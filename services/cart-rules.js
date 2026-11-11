@@ -87,6 +87,30 @@ export function unavailableCartItems(cart, products) {
     .map((item) => item.productId);
 }
 
+// Firma estable de la disponibilidad para no repintar si nada ha cambiado.
+export function productsSignature(products) {
+  return [...(products?.entries() || [])]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([id, product]) => `${id}:${product.priceCents}:${product.available ? 1 : 0}:${product.inCatalog ? 1 : 0}`)
+    .join('|');
+}
+
+// Líneas del carrito cuyo estado pedible cambia entre dos lecturas de
+// public.products. Sólo cuenta productos conocidos en ambas: la primera carga
+// (mapa vacío) no anuncia nada.
+export function cartAvailabilityChanges(cart, previous, next) {
+  const soldOut = [];
+  const restored = [];
+  for (const { productId } of cart.items) {
+    if (!previous?.has(productId) || !next?.has(productId)) continue;
+    const before = isProductOrderable(previous.get(productId));
+    const after = isProductOrderable(next.get(productId));
+    if (before && !after) soldOut.push(productId);
+    else if (!before && after) restored.push(productId);
+  }
+  return Object.freeze({ soldOut: Object.freeze(soldOut), restored: Object.freeze(restored) });
+}
+
 // Total orientativo: el definitivo lo calcula create_order con public.products.
 export function cartTotalCents(cart, products) {
   return cart.items.reduce((sum, item) => {

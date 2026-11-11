@@ -592,6 +592,10 @@ html[data-theme="dark"] .toast { border-color: rgba(238,207,98,.14); background:
 .checkout-pickup { min-height: 44px; align-items: center; font-size: 15px; font-weight: 700; color: var(--ink); }
 .checkout-pickup input { width: 24px; height: 24px; }
 .checkout-orders-link { padding-left: 4px; text-decoration: underline; }
+.checkout-soldout { margin: 0; display: grid; gap: 12px; }
+.checkout-soldout p { margin: 0; }
+.checkout-soldout:focus { outline: 3px solid var(--danger); outline-offset: 2px; }
+.checkout-soldout__back { min-height: 44px; }
 
 .order-status { padding: 20px; border: 1px solid rgba(255,255,255,.56); border-radius: var(--radius-md); background: var(--surface-glass); box-shadow: var(--shadow-subtle); }
 .order-status__chip { display: inline-flex; align-items: center; min-height: 32px; padding: 0 14px; border-radius: var(--radius-pill); background: var(--mustard); color: var(--ink); font-size: 13px; font-weight: 800; }

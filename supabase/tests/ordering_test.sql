@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(109);
+select plan(110);
 
 create function pg_temp.set_test_auth(p_user_id uuid, p_aal text default 'aal2')
 returns text language sql as $$
@@ -62,6 +62,11 @@ select results_eq(
   $$select count(*) from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'orders'$$,
   array[1::bigint],
   'orders se publica en Realtime'
+);
+select results_eq(
+  $$select count(*) from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'products'$$,
+  array[1::bigint],
+  'products se publica en Realtime (agotados en la carta sin recargar)'
 );
 select ok(not has_function_privilege('anon', 'public.create_order(uuid, text, text, jsonb, text)', 'execute'), 'anon no puede crear pedidos');
 select ok(has_function_privilege('authenticated', 'public.create_order(uuid, text, text, jsonb, text)', 'execute'), 'authenticated puede invocar create_order');

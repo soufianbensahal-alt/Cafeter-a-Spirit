@@ -84,6 +84,7 @@ import {
   renderCancelOrderContent,
   renderCartScreen,
   renderCheckoutContent,
+  renderCheckoutSoldOutNotice,
   renderOrderTrackingScreen,
   renderOrdersScreen
 } from './client/order-view.js';
@@ -91,6 +92,7 @@ import {
   CART_STORAGE_KEY,
   addToCart,
   canCheckout,
+  cartAvailabilityChanges,
   cartQuantity,
   cartTotalCents,
   cartUnits,
@@ -103,11 +105,13 @@ import {
   normalizeOrderCode,
   orderErrorKey,
   parseStoredCart,
+  productsSignature,
   removeFromCart,
   resolveTableLabel,
   serializeCart,
   setCartNote,
-  toOrderItems
+  toOrderItems,
+  unavailableCartItems
 } from './services/cart-rules.js';
 import {
   OrderServiceError,
@@ -117,9 +121,10 @@ import {
   getOrderingContext,
   getOwnOrder,
   getOwnOrders,
-  subscribeToOwnOrders
+  subscribeToOwnOrders,
+  subscribeToProducts
 } from './services/order-service.js';
-import { createRealtimeWithFallback, orderStatusChanged } from './services/order-monitor.js';
+import { createRealtimeWithFallback, orderStatusChanged, shouldWatchProducts } from './services/order-monitor.js';
 
 const PRIVACY_POLICY_VERSION = '2026-08-05';
 
@@ -225,6 +230,9 @@ const state = {
   currentOrder: null,
   orderLoading: false,
   checkoutSubmitting: false,
+  // Código, mesa y «recoger en barra» escritos en la confirmación. Sólo en
+  // memoria: se conservan al volver al carrito y se borran al enviar o salir.
+  checkoutDraft: null,
   orderCancelling: false,
   ordersBackTarget: 'menu',
   orderBackTarget: 'menu'
@@ -236,8 +244,10 @@ const modalController = createAccessibleModalController({
   appRoot: app,
   modalRoot,
   canClose: ({ backdrop }) => !backdrop.querySelector('[data-delete-account-modal][data-deleting="true"]'),
-  onClose: ({ backdrop }) => {
+  onClose: ({ backdrop, reason }) => {
     if (backdrop.querySelector('[data-stamp-request-sheet]')) clearStampRequest(false);
+    const closingCheckout = backdrop.querySelector('[data-form="checkout"]');
+    if (closingCheckout) state.checkoutDraft = reason === 'order-created' ? null : readCheckoutDraft(closingCheckout);
   }
 });
 const t = (key, values = {}) => Object.entries(values).reduce((value, [name, replacement]) => value.replaceAll(`{${name}}`, replacement), copy[state.lang][key] || key);
@@ -401,6 +411,8 @@ async function loadOrderingState({ repaint = false } = {}) {
   const sequence = ++orderingLoadSequence;
   const wasActive = orderingActive();
   const checkoutBefore = state.screen === 'cart' ? canCheckout(state.cart, state.ordering.products) : null;
+  const previousProducts = state.ordering.products;
+  const previousBusinessId = state.ordering.context?.businessId || null;
   try {
     const context = await getOrderingContext();
     let products = new Map();
@@ -419,15 +431,128 @@ async function loadOrderingState({ repaint = false } = {}) {
     if (sequence !== orderingLoadSequence) return;
   }
   syncOrderMonitor();
-  if (!repaint) return;
-  if (state.screen === 'menu') {
-    if (wasActive !== orderingActive()) renderPreservingFocus();
-    else refreshMenuOrdering();
-  } else if (state.screen === 'cart') {
-    if (wasActive !== orderingActive() || checkoutBefore !== canCheckout(state.cart, state.ordering.products)) renderPreservingFocus();
-  } else if (state.screen === 'home') {
-    renderPreservingFocus();
+  syncProductMonitor();
+  const sameBusiness = Boolean(previousBusinessId) && previousBusinessId === state.ordering.context?.businessId;
+  const changes = sameBusiness && orderingActive()
+    ? cartAvailabilityChanges(state.cart, previousProducts, state.ordering.products)
+    : null;
+  if (repaint) {
+    if (state.screen === 'menu') {
+      if (wasActive !== orderingActive()) renderPreservingFocus();
+      else refreshMenuOrdering();
+    } else if (state.screen === 'cart') {
+      if (wasActive !== orderingActive() || checkoutBefore !== canCheckout(state.cart, state.ordering.products)) repaintCart();
+    } else if (state.screen === 'home') {
+      renderPreservingFocus();
+    }
   }
+  updateCheckoutAvailability();
+  if (changes) announceAvailabilityChanges(changes);
+}
+
+// ---------------------------------------------------------------------------
+// Disponibilidad en tiempo real (carta, carrito y confirmación).
+// ---------------------------------------------------------------------------
+function repaintCart() {
+  // Con la confirmación abierta el carrito queda detrás (inerte): se repinta
+  // sin mover el foco, que sigue dentro del diálogo.
+  if (modalController.isOpen()) render();
+  else renderPreservingFocus();
+}
+
+const checkoutForm = () => modalController.currentDialog()?.querySelector('[data-form="checkout"]') || null;
+const soldOutCartNames = () => (orderingActive() ? unavailableCartItems(state.cart, state.ordering.products) : [])
+  .map((productId) => productName(productId));
+
+function readCheckoutDraft(form) {
+  return {
+    code: normalizeOrderCode(form.querySelector('[data-checkout-code]')?.value),
+    table: form.querySelector('[data-checkout-table]')?.value || '',
+    pickup: Boolean(form.querySelector('[data-checkout-pickup]')?.checked)
+  };
+}
+
+// Sincroniza el aviso de agotados dentro de la confirmación: lo muestra (y le
+// da el foco) cuando algo del carrito se agota, desactiva «Enviar pedido» y lo
+// reactiva solo si se repone antes de salir. Devuelve si hay algo agotado.
+function updateCheckoutAvailability({ focus = true } = {}) {
+  const form = checkoutForm();
+  if (!form) return false;
+  const slot = form.querySelector('[data-checkout-availability]');
+  const submit = form.querySelector('[data-checkout-submit]');
+  const total = form.querySelector('[data-checkout-total]');
+  const names = soldOutCartNames();
+  const key = names.join('|');
+  const hadNotice = Boolean(slot?.querySelector('[data-checkout-soldout]'));
+  const focusWasInNotice = Boolean(slot?.contains(document.activeElement));
+  if (total) total.textContent = formatCents(cartTotalCents(state.cart, state.ordering.products), state.lang);
+  // Primero el estado del botón: un botón desactivado no puede recibir el foco.
+  if (submit && !state.checkoutSubmitting) submit.disabled = names.length > 0;
+  if (slot && (slot.dataset.names || '') !== key) {
+    slot.dataset.names = key;
+    slot.innerHTML = renderCheckoutSoldOutNotice({ names, translate: t, escapeHTML });
+    bind();
+    if (names.length && focus) slot.querySelector('[data-checkout-soldout]')?.focus();
+    else if (!names.length && hadNotice && focusWasInNotice) submit?.focus();
+  }
+  return names.length > 0;
+}
+
+function announceAvailabilityChanges({ soldOut, restored }) {
+  if (!soldOut.length && !restored.length) return;
+  const names = (ids) => ids.map((productId) => productName(productId));
+  if (checkoutForm()) {
+    // Lo agotado lo explica el aviso del diálogo, que recibe el foco.
+    if (restored.length && !soldOutCartNames().length) {
+      announcer.announce(t('checkoutRestored', { names: names(restored).join(', ') }));
+    }
+    return;
+  }
+  if (soldOut.length) {
+    announcer.announce(names(soldOut).map((name) => t('cartItemSoldOut', { name })).join(' '), { assertive: true });
+  } else {
+    announcer.announce(names(restored).map((name) => t('cartItemRestored', { name })).join(' '));
+  }
+}
+
+// Vuelve a leer public.products del negocio y aplica sólo si algo cambió.
+async function reconcileProducts() {
+  if (state.authStatus !== 'authenticated' || !orderingActive()) return;
+  const sequence = orderingLoadSequence;
+  const businessId = state.ordering.context.businessId;
+  const products = await getOrderableProducts(businessId);
+  if (sequence !== orderingLoadSequence || state.authStatus !== 'authenticated') return;
+  if (!orderingActive() || state.ordering.context?.businessId !== businessId) return;
+  const previous = state.ordering.products;
+  if (productsSignature(previous) === productsSignature(products)) return;
+  state.ordering = { ...state.ordering, products };
+  const changes = cartAvailabilityChanges(state.cart, previous, products);
+  if (state.screen === 'menu') {
+    if (orderingActive()) refreshMenuOrdering();
+    else renderPreservingFocus();
+  } else if (state.screen === 'cart') {
+    repaintCart();
+  }
+  syncProductMonitor();
+  updateCheckoutAvailability();
+  announceAvailabilityChanges(changes);
+}
+
+let watchedProductsBusinessId = null;
+const productMonitor = createRealtimeWithFallback({
+  subscribe: ({ onChange, onStatus }) => subscribeToProducts(watchedProductsBusinessId, { onChange, onStatus }),
+  reconcile: reconcileProducts
+});
+
+function syncProductMonitor() {
+  const businessId = state.authStatus === 'authenticated'
+    && shouldWatchProducts({ orderingActive: orderingActive(), screen: state.screen })
+    ? state.ordering.context.businessId
+    : null;
+  if (businessId === watchedProductsBusinessId && productMonitor.isRunning() === Boolean(businessId)) return;
+  productMonitor.stop();
+  watchedProductsBusinessId = businessId;
+  if (businessId) productMonitor.start();
 }
 
 function focusScreenHeading() {
@@ -593,7 +718,10 @@ function checkoutSheet() {
     cart: state.cart,
     products: state.ordering.products,
     translate: t,
+    escapeHTML,
     lang: state.lang,
+    draft: state.checkoutDraft,
+    soldOutNames: soldOutCartNames(),
     submitting: state.checkoutSubmitting
   }), 'modal--form modal--checkout', 'checkout-dialog-title');
 }
@@ -623,7 +751,16 @@ async function handleCheckoutFailure(status, form) {
     tableInput.focus();
     return;
   }
-  if (['ordering_closed', 'ordering_unavailable', 'not_in_pilot', 'product_unavailable'].includes(status)) {
+  if (status === 'product_unavailable') {
+    // No se cierra la confirmación: se relee la carta y el aviso del diálogo
+    // indica qué se ha agotado. El código y la mesa escritos se conservan.
+    try { await reconcileProducts(); } catch { /* Se muestra el error genérico abajo. */ }
+    restoreSubmit();
+    if (updateCheckoutAvailability()) return;
+    if (formError) formError.textContent = message;
+    return;
+  }
+  if (['ordering_closed', 'ordering_unavailable', 'not_in_pilot'].includes(status)) {
     modalController.close({ force: true, restoreFocus: false, reason: 'order-error' });
     await loadOrderingState();
     state.screen = 'cart';
@@ -675,6 +812,15 @@ async function submitCheckout(form) {
   state.checkoutSubmitting = true;
   submit.disabled = true;
   submit.textContent = t('checkoutSending');
+  // Disponibilidad recién leída justo antes de enviar. Si falla la red se
+  // envía igualmente: create_order vuelve a comprobarla en el servidor.
+  try { await reconcileProducts(); } catch { /* create_order decide. */ }
+  if (orderingActive() && unavailableCartItems(state.cart, state.ordering.products).length) {
+    state.checkoutSubmitting = false;
+    if (submit.isConnected) submit.textContent = t('checkoutSubmit');
+    updateCheckoutAvailability();
+    return;
+  }
   let result;
   try {
     result = await createOrder({
@@ -1171,8 +1317,11 @@ function applyCustomerContext(context) {
 function clearCustomerIdentity() {
   stopStampMonitoring();
   orderMonitor.stop();
+  productMonitor.stop();
+  watchedProductsBusinessId = null;
   orderingLoadSequence += 1;
   clearCart();
+  state.checkoutDraft = null;
   state.userId = null;
   state.ordering = { context: null, products: new Map() };
   state.activeOrders = [];
@@ -1565,6 +1714,7 @@ function render() {
   app.innerHTML = ({intro,onboarding,login,emailConfirmation,authLoading,home,menu,rewards,history,profile,cart:cartScreen,orders,orderTracking})[state.screen]();
   bind();
   syncOrderMonitor();
+  syncProductMonitor();
   if (lastAnnouncedScreen !== state.screen) {
     lastAnnouncedScreen = state.screen;
     const heading = app.querySelector('h1');
@@ -1648,6 +1798,7 @@ function bind() {
     if(action==='open-menu'){ state.menuQuery='';state.menuActiveCategory=MENU_CATEGORIES[0].id;state.screen='menu';render();scrollTo(0,0);void loadOrderingState({ repaint: true }); }
     if(action==='close-menu'){ state.menuQuery='';state.screen='home';render();scrollTo(0,0); }
     if(action==='back-to-menu'){ state.screen='menu';render();void loadOrderingState({ repaint: true }); }
+    if(action==='checkout-back-to-cart'){ modalController.close({ force: true, restoreFocus: false, reason: 'back-to-cart' }); state.screen='cart'; renderPreservingFocus(); focusScreenHeading(); }
     if(action==='open-checkout'){ if(orderingActive()&&canCheckout(state.cart,state.ordering.products)) { modalController.open(checkoutSheet(), { initialFocus: '[data-checkout-code]' }); bind(); } }
     if(action==='open-orders'){ openOrdersScreen(); }
     if(action==='orders-back'){ state.screen=state.ordersBackTarget||'menu';render();scrollTo(0,0); }

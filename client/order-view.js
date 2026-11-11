@@ -69,13 +69,26 @@ export function renderCartScreen({ cart, products, productName, orderingOpen = t
   </section></main>`;
 }
 
-export function renderCheckoutContent({ cart, products, translate: t, lang, pickup = false, submitting = false }) {
+// Aviso dentro de la confirmación cuando algo del carrito se agota con ella
+// abierta. names: nombres ya legibles (sin escapar) de los productos agotados.
+export function renderCheckoutSoldOutNotice({ names, translate: t, escapeHTML }) {
+  if (!names?.length) return '';
+  const list = names.map((name) => escapeHTML(name)).join(', ');
+  return `<div class="order-notice order-notice--warning checkout-soldout" tabindex="-1" data-checkout-soldout>
+    <p>${t(names.length === 1 ? 'checkoutSoldOutOne' : 'checkoutSoldOutMany', { names: list })}</p>
+    <button class="primary-button primary-button--light checkout-soldout__back" type="button" data-action="checkout-back-to-cart">${t('checkoutBackToCart')}</button>
+  </div>`;
+}
+
+export function renderCheckoutContent({ cart, products, translate: t, escapeHTML = (value) => String(value), lang, draft = null, soldOutNames = [], submitting = false }) {
   const total = formatCents(cartTotalCents(cart, products), lang);
+  const pickup = Boolean(draft?.pickup);
+  const blocked = soldOutNames.length > 0;
   return `<div class="sheet-head"><div><p class="eyebrow">${t('checkoutEyebrow')}</p><h2 id="checkout-dialog-title">${t('checkoutTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-sheet" aria-label="${t('close')}">×</button></div>
   <form class="sheet-form" data-form="checkout" novalidate>
     <div class="field">
       <label for="checkout-code">${t('checkoutCode')}</label>
-      <input id="checkout-code" class="checkout-code" name="code" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="one-time-code" enterkeyhint="next" aria-describedby="checkout-code-hint checkout-code-error" aria-invalid="false" required data-checkout-code>
+      <input id="checkout-code" class="checkout-code" name="code" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="one-time-code" enterkeyhint="next" aria-describedby="checkout-code-hint checkout-code-error" aria-invalid="false" required value="${escapeHTML(draft?.code || '')}" data-checkout-code>
       <small id="checkout-code-hint" class="field-note">${t('checkoutCodeHint')}</small>
       <small id="checkout-code-error" class="field-error" data-checkout-code-error></small>
     </div>
@@ -83,17 +96,18 @@ export function renderCheckoutContent({ cart, products, translate: t, lang, pick
       <legend>${t('checkoutWhere')}</legend>
       <div class="field">
         <label for="checkout-table">${t('checkoutTable')}</label>
-        <input id="checkout-table" name="table" type="text" maxlength="${CART_LIMITS.tableMaxLength}" autocomplete="off" placeholder="${t('checkoutTablePlaceholder')}" aria-describedby="checkout-table-error" aria-invalid="false" ${pickup ? 'disabled' : 'required'} data-checkout-table>
+        <input id="checkout-table" name="table" type="text" maxlength="${CART_LIMITS.tableMaxLength}" autocomplete="off" placeholder="${t('checkoutTablePlaceholder')}" aria-describedby="checkout-table-error" aria-invalid="false" value="${escapeHTML(draft?.table || '')}" ${pickup ? 'disabled' : 'required'} data-checkout-table>
         <small id="checkout-table-error" class="field-error" data-checkout-table-error></small>
       </div>
       <label class="check checkout-pickup"><input type="checkbox" name="pickup" value="${PICKUP_TABLE_LABEL}" ${pickup ? 'checked' : ''} data-checkout-pickup><span>${t('checkoutPickup')}</span></label>
     </fieldset>
     <div class="order-summary order-summary--compact">
-      <div class="order-summary__row"><span>${t('cartEstimatedTotal')}</span><strong>${total}</strong></div>
+      <div class="order-summary__row"><span>${t('cartEstimatedTotal')}</span><strong data-checkout-total>${total}</strong></div>
       <p class="order-summary__pay"><strong>${t('checkoutPayAtVenue')}</strong> ${t('cartEstimatedCopy')}</p>
     </div>
+    <div data-checkout-availability>${renderCheckoutSoldOutNotice({ names: soldOutNames, translate: t, escapeHTML })}</div>
     <div class="form-error" role="alert" data-checkout-error></div>
-    <button class="primary-button" type="submit" data-checkout-submit ${submitting ? 'disabled' : ''}>${submitting ? t('checkoutSending') : t('checkoutSubmit')}</button>
+    <button class="primary-button" type="submit" data-checkout-submit ${submitting || blocked ? 'disabled' : ''}>${submitting ? t('checkoutSending') : t('checkoutSubmit')}</button>
   </form>`;
 }
 
