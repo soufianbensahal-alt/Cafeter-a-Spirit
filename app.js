@@ -125,6 +125,7 @@ import {
   subscribeToProducts
 } from './services/order-service.js';
 import { createRealtimeWithFallback, orderStatusChanged, shouldWatchProducts } from './services/order-monitor.js';
+import { checkoutViewportLayout, scrollDeltaToReveal } from './services/checkout-viewport.js';
 
 const PRIVACY_POLICY_VERSION = '2026-08-05';
 
@@ -247,7 +248,10 @@ const modalController = createAccessibleModalController({
   onClose: ({ backdrop, reason }) => {
     if (backdrop.querySelector('[data-stamp-request-sheet]')) clearStampRequest(false);
     const closingCheckout = backdrop.querySelector('[data-form="checkout"]');
-    if (closingCheckout) state.checkoutDraft = reason === 'order-created' ? null : readCheckoutDraft(closingCheckout);
+    if (closingCheckout) {
+      stopCheckoutViewport();
+      state.checkoutDraft = reason === 'order-created' ? null : readCheckoutDraft(closingCheckout);
+    }
   }
 });
 const t = (key, values = {}) => Object.entries(values).reduce((value, [name, replacement]) => value.replaceAll(`{${name}}`, replacement), copy[state.lang][key] || key);
@@ -481,7 +485,9 @@ function updateCheckoutAvailability({ focus = true } = {}) {
   const slot = form.querySelector('[data-checkout-availability]');
   const submit = form.querySelector('[data-checkout-submit]');
   const total = form.querySelector('[data-checkout-total]');
+  const excluded = form.querySelector('[data-total-excluded]');
   const names = soldOutCartNames();
+  if (excluded) excluded.hidden = names.length === 0;
   const key = names.join('|');
   const hadNotice = Boolean(slot?.querySelector('[data-checkout-soldout]'));
   const focusWasInNotice = Boolean(slot?.contains(document.activeElement));
@@ -496,6 +502,68 @@ function updateCheckoutAvailability({ focus = true } = {}) {
     else if (!names.length && hadNotice && focusWasInNotice) submit?.focus();
   }
   return names.length > 0;
+}
+
+// ---------------------------------------------------------------------------
+// Confirmación con el teclado del iPhone: el diálogo se ajusta al viewport
+// visible y el campo enfocado queda entre la cabecera y el pie fijo.
+// ---------------------------------------------------------------------------
+let stopCheckoutViewportListeners = null;
+
+function revealFocusedCheckoutField() {
+  const body = modalController.currentDialog()?.querySelector('[data-checkout-body]');
+  const focused = document.activeElement;
+  if (!body || !focused || !body.contains(focused) || !focused.matches('input, textarea, select')) return;
+  const container = body.getBoundingClientRect();
+  const target = (focused.closest('.field') || focused).getBoundingClientRect();
+  const delta = scrollDeltaToReveal({
+    containerTop: container.top,
+    containerBottom: container.bottom,
+    targetTop: target.top,
+    targetBottom: target.bottom,
+    focusTop: focused.getBoundingClientRect().top
+  });
+  if (delta) body.scrollTop += delta;
+}
+
+function startCheckoutViewport() {
+  stopCheckoutViewport();
+  const dialog = modalController.currentDialog();
+  const backdrop = dialog?.closest('[data-sheet-backdrop]');
+  if (!dialog?.querySelector('[data-form="checkout"]') || !backdrop) return;
+  const viewport = window.visualViewport;
+  const update = () => {
+    const layout = checkoutViewportLayout({
+      layoutHeight: Math.max(window.innerHeight, document.documentElement.clientHeight),
+      viewportHeight: viewport?.height,
+      offsetTop: viewport?.offsetTop
+    });
+    backdrop.classList.add('modal-backdrop--viewport');
+    backdrop.classList.toggle('modal-backdrop--keyboard', layout.keyboardOpen);
+    backdrop.style.setProperty('--viewport-height', `${layout.height}px`);
+    backdrop.style.setProperty('--viewport-top', `${layout.top}px`);
+    dialog.classList.toggle('modal--keyboard', layout.keyboardOpen);
+    dialog.classList.toggle('modal--compact', layout.compact);
+    // Tras recolocar el diálogo, el campo enfocado vuelve a quedar a la vista.
+    requestAnimationFrame(revealFocusedCheckoutField);
+  };
+  const onFocusIn = () => requestAnimationFrame(revealFocusedCheckoutField);
+  viewport?.addEventListener('resize', update);
+  viewport?.addEventListener('scroll', update);
+  window.addEventListener('resize', update);
+  dialog.addEventListener('focusin', onFocusIn);
+  update();
+  stopCheckoutViewportListeners = () => {
+    viewport?.removeEventListener('resize', update);
+    viewport?.removeEventListener('scroll', update);
+    window.removeEventListener('resize', update);
+    dialog.removeEventListener('focusin', onFocusIn);
+  };
+}
+
+function stopCheckoutViewport() {
+  stopCheckoutViewportListeners?.();
+  stopCheckoutViewportListeners = null;
 }
 
 function announceAvailabilityChanges({ soldOut, restored }) {
@@ -1799,7 +1867,7 @@ function bind() {
     if(action==='close-menu'){ state.menuQuery='';state.screen='home';render();scrollTo(0,0); }
     if(action==='back-to-menu'){ state.screen='menu';render();void loadOrderingState({ repaint: true }); }
     if(action==='checkout-back-to-cart'){ modalController.close({ force: true, restoreFocus: false, reason: 'back-to-cart' }); state.screen='cart'; renderPreservingFocus(); focusScreenHeading(); }
-    if(action==='open-checkout'){ if(orderingActive()&&canCheckout(state.cart,state.ordering.products)) { modalController.open(checkoutSheet(), { initialFocus: '[data-checkout-code]' }); bind(); } }
+    if(action==='open-checkout'){ if(orderingActive()&&canCheckout(state.cart,state.ordering.products)) { modalController.open(checkoutSheet(), { initialFocus: '[data-checkout-code]' }); bind(); startCheckoutViewport(); } }
     if(action==='open-orders'){ openOrdersScreen(); }
     if(action==='orders-back'){ state.screen=state.ordersBackTarget||'menu';render();scrollTo(0,0); }
     if(action==='order-back'){ if(state.orderBackTarget==='orders'){ state.ordersLoading=!state.activeOrders.length;goToOrderScreen('orders');void refreshOrdersSafely(); } else { state.screen='menu';render();scrollTo(0,0); } }

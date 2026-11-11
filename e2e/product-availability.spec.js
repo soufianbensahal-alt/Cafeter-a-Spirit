@@ -166,11 +166,19 @@ e2eTest('el carrito marca la línea agotada, bloquea «Continuar» y se desbloqu
   await expect(customer.locator('.cart-line--unavailable')).toHaveCount(1);
   await expect(proceed).toBeDisabled();
   await expect(customer.locator('#app-announcer')).toHaveText('Latte se ha agotado. Quítalo del carrito para continuar.');
+  // La línea conserva el precio tachado y el total avisa de que no lo incluye.
+  const struck = customer.locator('.cart-line--unavailable s.cart-line__total');
+  await expect(struck).toContainText('€');
+  await expect(struck).toHaveCSS('text-decoration-line', 'line-through');
+  await expect(customer.locator('[data-cart-total]')).toHaveText(/^0,00\s€$/);
+  await expect(customer.getByText('No incluye productos agotados')).toBeVisible();
 
   await setLatteAvailable(true);
   await expect(proceed).toBeEnabled(LIVE);
   await expect(customer.locator('.cart-line--unavailable')).toHaveCount(0);
   await expect(customer.locator('#app-announcer')).toHaveText('Latte vuelve a estar disponible.');
+  await expect(customer.locator('s.cart-line__total')).toHaveCount(0);
+  await expect(customer.getByText('No incluye productos agotados')).toHaveCount(0);
   await expectNoReload(customer);
 });
 
@@ -191,11 +199,17 @@ e2eTest('con la confirmación abierta, avisa dentro, bloquea el envío y conserv
   await expect(dialog).toBeVisible();
   await expect(submit).toBeDisabled();
   await expect(dialog.getByLabel('Código del local')).toHaveValue(ORDER_CODE);
+  // El pie fijo sigue a la vista con la nota del total.
+  const excluded = dialog.locator('[data-checkout-footer] [data-total-excluded]');
+  await expect(excluded).toBeVisible();
+  await expect(excluded).toHaveText('No incluye productos agotados');
+  await expect(submit).toBeInViewport();
 
   // Repuesto antes de salir: se reactiva el envío.
   await setLatteAvailable(true);
   await expect(notice).toHaveCount(0, LIVE);
   await expect(submit).toBeEnabled();
+  await expect(excluded).toBeHidden();
   await expect(submit).toBeFocused();
 
   // Se agota otra vez y el cliente vuelve al carrito desde el aviso.

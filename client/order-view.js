@@ -21,6 +21,14 @@ const screenHeader = ({ action, label, icons, eyebrow, title, extra = '' }) => `
 <p class="eyebrow">${eyebrow}</p>
 <h1 tabindex="-1" data-screen-heading>${title}</h1>`;
 
+// Precio de carta aunque el producto esté agotado: se muestra tachado para que
+// la línea no pierda la referencia. null si no hay precio válido.
+export function listedPriceCents(product) {
+  return product?.inCatalog && Number.isInteger(product.priceCents) && product.priceCents > 0 ? product.priceCents : null;
+}
+
+const struckPrice = (text, t, className) => `<s class="${className} price--struck">${text}<span class="sr-only"> ${t('cartExcludedFromTotal')}</span></s>`;
+
 const emptyState = ({ title, copy, action = '', label = '' }) => `<div class="empty order-empty"><div><div class="empty__icon" aria-hidden="true">☕</div><h2>${title}</h2><p>${copy}</p>${action ? `<button class="primary-button" type="button" data-action="${action}">${label}</button>` : ''}</div></div>`;
 
 export function renderCartScreen({ cart, products, productName, orderingOpen = true, closedKey = 'orderErrorClosed', translate: t, escapeHTML, icons, lang }) {
@@ -33,12 +41,21 @@ export function renderCartScreen({ cart, products, productName, orderingOpen = t
     const product = products.get(item.productId);
     const name = escapeHTML(productName(item.productId));
     const orderable = isProductOrderable(product);
-    const unit = orderable ? formatCents(product.priceCents, lang) : '';
-    const lineTotal = orderable ? formatCents(product.priceCents * item.quantity, lang) : '';
-    return `<li class="cart-line ${unavailable.has(item.productId) ? 'cart-line--unavailable' : ''}">
+    const soldOut = unavailable.has(item.productId);
+    const priceCents = orderable || soldOut ? listedPriceCents(product) : null;
+    const unit = priceCents ? formatCents(priceCents, lang) : '';
+    const lineTotalText = priceCents ? formatCents(priceCents * item.quantity, lang) : '';
+    const unitHTML = !unit ? '' : orderable
+      ? `<p class="cart-line__unit">${unit}</p>`
+      : `<p class="cart-line__unit">${struckPrice(unit, t, 'cart-line__unit-price')}</p>`;
+    const lineTotal = !lineTotalText ? '' : orderable
+      ? `<strong class="cart-line__total">${lineTotalText}</strong>`
+      : struckPrice(lineTotalText, t, 'cart-line__total');
+    return `<li class="cart-line ${soldOut ? 'cart-line--unavailable' : ''}">
       <div class="cart-line__info">
         <h2 class="cart-line__name">${name}</h2>
-        ${orderable ? `<p class="cart-line__unit">${unit}</p>` : orderingOpen ? `<p class="cart-line__warning">${t('cartUnavailable')}</p>` : ''}
+        ${unitHTML}
+        ${!orderable && orderingOpen ? `<p class="cart-line__warning">${t('cartUnavailable')}</p>` : ''}
       </div>
       <div class="cart-line__controls">
         <div class="stepper" role="group" aria-label="${t('cartQuantity', { name, count: item.quantity })}">
@@ -48,7 +65,7 @@ export function renderCartScreen({ cart, products, productName, orderingOpen = t
         </div>
         <button class="cart-line__remove" type="button" data-cart-remove="${escapeHTML(item.productId)}" aria-label="${t('cartRemove', { name })}">${icons.close}</button>
       </div>
-      ${lineTotal ? `<strong class="cart-line__total">${lineTotal}</strong>` : ''}
+      ${lineTotal}
     </li>`;
   }).join('');
   const total = formatCents(cartTotalCents(cart, products), lang);
@@ -63,6 +80,7 @@ export function renderCartScreen({ cart, products, productName, orderingOpen = t
     </div>
     <div class="order-summary">
       <div class="order-summary__row"><span>${t('cartEstimatedTotal')}</span><strong data-cart-total>${total}</strong></div>
+      ${unavailable.size ? `<p class="order-summary__excluded" data-total-excluded>${t('cartTotalExcludesSoldOut')}</p>` : ''}
       <p class="order-summary__copy">${t('cartEstimatedCopy')} ${t('checkoutPayAtVenue')}</p>
     </div>
     <button class="primary-button order-cta" type="button" data-action="open-checkout" ${ready ? '' : 'disabled'}>${t('cartContinue')}</button>
@@ -85,7 +103,8 @@ export function renderCheckoutContent({ cart, products, translate: t, escapeHTML
   const pickup = Boolean(draft?.pickup);
   const blocked = soldOutNames.length > 0;
   return `<div class="sheet-head"><div><p class="eyebrow">${t('checkoutEyebrow')}</p><h2 id="checkout-dialog-title">${t('checkoutTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-sheet" aria-label="${t('close')}">×</button></div>
-  <form class="sheet-form" data-form="checkout" novalidate>
+  <form class="sheet-form checkout-form" data-form="checkout" novalidate>
+    <div class="checkout-body" data-checkout-body>
     <div class="field">
       <label for="checkout-code">${t('checkoutCode')}</label>
       <input id="checkout-code" class="checkout-code" name="code" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="one-time-code" enterkeyhint="next" aria-describedby="checkout-code-hint checkout-code-error" aria-invalid="false" required value="${escapeHTML(draft?.code || '')}" data-checkout-code>
@@ -101,13 +120,17 @@ export function renderCheckoutContent({ cart, products, translate: t, escapeHTML
       </div>
       <label class="check checkout-pickup"><input type="checkbox" name="pickup" value="${PICKUP_TABLE_LABEL}" ${pickup ? 'checked' : ''} data-checkout-pickup><span>${t('checkoutPickup')}</span></label>
     </fieldset>
-    <div class="order-summary order-summary--compact">
-      <div class="order-summary__row"><span>${t('cartEstimatedTotal')}</span><strong data-checkout-total>${total}</strong></div>
-      <p class="order-summary__pay"><strong>${t('checkoutPayAtVenue')}</strong> ${t('cartEstimatedCopy')}</p>
-    </div>
+    <p class="order-summary__pay checkout-pay"><strong>${t('checkoutPayAtVenue')}</strong> ${t('cartEstimatedCopy')}</p>
     <div data-checkout-availability>${renderCheckoutSoldOutNotice({ names: soldOutNames, translate: t, escapeHTML })}</div>
-    <div class="form-error" role="alert" data-checkout-error></div>
-    <button class="primary-button" type="submit" data-checkout-submit ${submitting || blocked ? 'disabled' : ''}>${submitting ? t('checkoutSending') : t('checkoutSubmit')}</button>
+    </div>
+    <div class="checkout-footer" data-checkout-footer>
+      <div class="checkout-footer__summary" data-checkout-summary>
+        <div class="order-summary__row"><span>${t('cartEstimatedTotal')}</span><strong data-checkout-total>${total}</strong></div>
+        <p class="order-summary__excluded" data-total-excluded ${blocked ? '' : 'hidden'}>${t('cartTotalExcludesSoldOut')}</p>
+      </div>
+      <div class="form-error" role="alert" data-checkout-error></div>
+      <button class="primary-button" type="submit" data-checkout-submit ${submitting || blocked ? 'disabled' : ''}>${submitting ? t('checkoutSending') : t('checkoutSubmit')}</button>
+    </div>
   </form>`;
 }
 
