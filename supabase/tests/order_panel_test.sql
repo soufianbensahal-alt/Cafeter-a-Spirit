@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(26);
 
 create function pg_temp.set_test_auth(p_user_id uuid, p_aal text default 'aal2')
 returns text language sql as $$
@@ -54,6 +54,27 @@ insert into public.order_items (order_id, business_id, product_id, position, qua
   ('b3000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000001', 'panel-cafe', 1, 1, 250, 'Café panel', 250),
   ('b3000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000001', 'panel-cafe', 1, 1, 250, 'Café panel', 250),
   ('b3000000-0000-4000-8000-000000000004', 'b0000000-0000-4000-8000-000000000001', 'panel-cafe', 1, 1, 250, 'Café panel', 250);
+
+-- ---------------------------------------------------------------------------
+-- Ticket digital: el panel calcula el precio unitario como line_total /
+-- quantity. Es exacto sólo mientras exista este CHECK en order_items.
+-- ---------------------------------------------------------------------------
+select ok(
+  exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.order_items'::regclass
+      and contype = 'c'
+      and pg_get_constraintdef(oid) ~ 'line_total_cents = \(unit_price_cents \* quantity\)'
+  ),
+  'order_items exige line_total_cents = unit_price_cents * quantity (base del unitario del ticket)'
+);
+select throws_ok(
+  $$insert into public.order_items (order_id, business_id, position, product_id, product_name, quantity, unit_price_cents, line_total_cents)
+    select id, business_id, 99, 'ticket-check', 'Latte', 2, 250, 499 from public.orders where id = 'b3000000-0000-4000-8000-000000000001'$$,
+  '23514',
+  null,
+  'una línea con total distinto de unitario × cantidad se rechaza'
+);
 
 -- ---------------------------------------------------------------------------
 -- Permisos de la función.

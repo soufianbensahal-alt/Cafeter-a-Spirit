@@ -26,6 +26,17 @@ import { createOrderAlertDevice } from '../services/order-alert-device.js';
 import { accessibleDialogMarkup, createAccessibleModalController } from '../services/accessible-modal.js';
 import { displayText } from '../services/display-text.js';
 import { PICKUP_TABLE_LABEL } from '../services/cart-rules.js';
+import {
+  PRINTER_ICON,
+  renderKitchenTicket,
+  renderOrderTicket,
+  renderOrderTicketBody,
+  ticketTranslator
+} from './order-ticket.js';
+
+// El panel está en castellano; ORDER_TICKET_COPY ya incluye el catalán.
+const TICKET_LANG = 'es';
+const ticketText = ticketTranslator(TICKET_LANG);
 
 // Panel de pedidos del equipo. Pinta en contenedores que business-view deja en
 // la pantalla principal ([data-orders-status], [data-orders-panel],
@@ -112,10 +123,26 @@ export function createBusinessOrdersPanel({
   state.alerts = device.status();
 
   let modalOrderId = null;
+  // Ticket abierto (independiente de modalOrderId, que es el del rechazo y se
+  // cierra solo si el pedido deja de estar pendiente).
+  let ticketOrderId = null;
   const modal = createAccessibleModalController({
     appRoot,
     modalRoot,
-    onClose: () => { modalOrderId = null; }
+    onClose: ({ reason }) => {
+      modalOrderId = null;
+      const closedTicket = ticketOrderId;
+      ticketOrderId = null;
+      // Si la tarjeta se repintó con el ticket abierto, el botón que lo abrió
+      // ya no está en el DOM: se devuelve el foco a su sustituto.
+      if (closedTicket && reason !== 'replace') {
+        setTimeout(() => {
+          const active = document.activeElement;
+          if (active && active !== document.body && !active.matches('h1, main')) return;
+          appRoot.querySelector(`[data-focus-key="ticket-${CSS.escape(closedTicket)}"]`)?.focus();
+        }, 0);
+      }
+    }
   });
 
   let messageTimer = 0;
@@ -312,12 +339,20 @@ export function createBusinessOrdersPanel({
 
   const statusLabel = { pending: 'Sin atender', accepted: 'Aceptado', preparing: 'En preparación', served: 'Servido', cancelled: 'Cancelado por el cliente', rejected: 'Rechazado' };
 
+  // Comanda imprimible sólo mientras el pedido está en curso (Nuevos y En
+  // preparación). Botón pequeño, arriba y lejos de las acciones de estado.
+  const PRINTABLE_STATUSES = new Set(['pending', 'accepted', 'preparing']);
+  const printToolHTML = (order) => (PRINTABLE_STATUSES.has(order.status)
+    ? `<button class="order-tool" type="button" data-orders-action="print" data-order-id="${escapeHTML(order.id)}" data-focus-key="print-${escapeHTML(order.id)}" aria-label="${escapeHTML(ticketText('printOrder', { number: order.number }))}">${PRINTER_ICON}</button>`
+    : '');
+
   const ticketHTML = (order, { compact = false } = {}) => {
     const fresh = state.freshIds.has(order.id);
     const classes = ['order-ticket', `order-ticket--${order.status}`, fresh ? 'order-ticket--fresh' : '', compact ? 'order-ticket--compact' : ''].filter(Boolean).join(' ');
     const stamp = order.status === 'served' ? order.servedAt : order.status === 'cancelled' ? order.cancelledAt : order.status === 'rejected' ? order.rejectedAt : order.createdAt;
+    // La cabecera (nº, mesa, hora) es el botón que abre el ticket.
     return `<article class="${classes}" aria-label="Pedido nº ${order.number}" data-order-ticket="${escapeHTML(order.id)}" data-status="${order.status}">
-      <header class="order-ticket__head"><strong class="order-ticket__number">Nº ${order.number}</strong><span class="order-ticket__place">${escapeHTML(placeLabel(order.tableLabel))}</span><time datetime="${escapeHTML(order.createdAt)}">${clock(order.createdAt)}</time></header>
+      <header class="order-ticket__top"><button class="order-ticket__head" type="button" data-orders-action="ticket" data-order-id="${escapeHTML(order.id)}" data-focus-key="ticket-${escapeHTML(order.id)}" aria-label="${escapeHTML(ticketText('openTicket', { number: order.number }))}, ${escapeHTML(placeLabel(order.tableLabel))}, ${clock(order.createdAt)}"><strong class="order-ticket__number">Nº ${order.number}</strong><span class="order-ticket__place">${escapeHTML(placeLabel(order.tableLabel))}</span><time datetime="${escapeHTML(order.createdAt)}">${clock(order.createdAt)}</time></button>${printToolHTML(order)}</header>
       <p class="order-ticket__meta"><span>${escapeHTML(order.customer)}</span>${order.status === 'pending' ? ` · <span data-elapsed="${escapeHTML(order.createdAt)}">${elapsedLabel(order.createdAt)}</span>` : ''}</p>
       <span class="order-ticket__status" data-order-status>${fresh ? 'Nuevo · ' : ''}${statusLabel[order.status] || order.status}${stamp && order.status !== 'pending' ? ` · ${clock(stamp)}` : ''}</span>
       ${compact ? '' : itemsHTML(order)}
@@ -347,6 +382,57 @@ export function createBusinessOrdersPanel({
 
   const paintOrders = () => {
     paintInto('[data-orders-panel]', ordersHTML());
+    refreshOpenTicket();
+  };
+
+  // ---------------------------------------------------------------------------
+  // Ticket digital y comanda.
+  // ---------------------------------------------------------------------------
+  const ticketOptions = () => ({ lang: TICKET_LANG, businessName: employee.businessName, escapeHTML });
+
+  const openTicket = (orderId) => {
+    const order = state.byId.get(orderId);
+    if (!order) return;
+    const dialog = modal.open(accessibleDialogMarkup({
+      labelledBy: 'order-ticket-title',
+      className: 'modal--form business-modal ticket-modal',
+      content: renderOrderTicket(order, ticketOptions())
+    }), { initialFocus: '[data-ticket-close]' });
+    ticketOrderId = orderId;
+    bindModal(dialog);
+  };
+
+  // Con el ticket abierto, un cambio por Realtime actualiza su contenido sin
+  // mover el foco (Cerrar e Imprimir quedan fuera de la zona repintada).
+  function refreshOpenTicket() {
+    if (!ticketOrderId || !modal.isOpen()) return;
+    const order = state.byId.get(ticketOrderId);
+    const body = modal.currentDialog()?.querySelector('[data-ticket-body]');
+    if (order && body) body.innerHTML = renderOrderTicketBody(order, ticketOptions());
+  }
+
+  let printCleanup = null;
+  const printOrder = (orderId) => {
+    const order = state.byId.get(orderId);
+    if (!order) return;
+    printCleanup?.();
+    let root = document.getElementById('print-root');
+    if (!root) {
+      root = document.createElement('div');
+      root.id = 'print-root';
+      document.body.append(root);
+    }
+    root.innerHTML = renderKitchenTicket(order, ticketOptions());
+    document.documentElement.classList.add('is-printing-ticket');
+    const cleanup = () => {
+      document.documentElement.classList.remove('is-printing-ticket');
+      root.innerHTML = '';
+      window.removeEventListener('afterprint', cleanup);
+      printCleanup = null;
+    };
+    printCleanup = cleanup;
+    window.addEventListener('afterprint', cleanup);
+    window.print();
   };
 
   // ---------------------------------------------------------------------------
@@ -571,7 +657,8 @@ export function createBusinessOrdersPanel({
 
   function bindModal(dialog) {
     if (!dialog) return;
-    dialog.querySelectorAll('[data-orders-action="close-modal"]').forEach((button) => button.addEventListener('click', () => modal.close({ reason: 'action' })));
+    dialog.querySelectorAll('[data-orders-action="close-modal"], [data-ticket-close]').forEach((button) => button.addEventListener('click', () => modal.close({ reason: 'action' })));
+    dialog.querySelector('[data-ticket-print]')?.addEventListener('click', (event) => printOrder(event.currentTarget.dataset.ticketPrint));
     dialog.querySelector('[data-orders-action="confirm"]')?.addEventListener('click', async () => {
       const callback = pendingConfirm;
       pendingConfirm = null;
@@ -624,6 +711,8 @@ export function createBusinessOrdersPanel({
       paintStatus();
       return;
     }
+    if (action === 'ticket') return openTicket(orderId);
+    if (action === 'print') return printOrder(orderId);
     if (action === 'accept') return changeStatus(orderId, 'accepted');
     if (action === 'preparing') return changeStatus(orderId, 'preparing');
     if (action === 'served') return changeStatus(orderId, 'served');
@@ -680,6 +769,7 @@ export function createBusinessOrdersPanel({
 
   const destroy = () => {
     stop();
+    printCleanup?.();
     appRoot.removeEventListener('click', handleClick);
     appRoot.removeEventListener('change', handleChange);
     appRoot.removeEventListener('input', handleInput);

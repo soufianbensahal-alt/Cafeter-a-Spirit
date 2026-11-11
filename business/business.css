@@ -268,7 +268,16 @@ body.business-mode #toast { display: none; }
 .order-ticket--fresh { animation: orders-attention 1.2s ease-in-out 6; }
 .order-ticket--cancelled, .order-ticket--rejected { background: rgba(255,253,247,.6); }
 .order-ticket--cancelled .order-ticket__number, .order-ticket--rejected .order-ticket__number { text-decoration: line-through; color: var(--business-muted); }
-.order-ticket__head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; gap: 10px; }
+.order-ticket__top { display: flex; align-items: flex-start; gap: 10px; }
+/* La cabecera de la tarjeta es el botón que abre el ticket. */
+.order-ticket__head { flex: 1 1 auto; min-width: 0; min-height: 44px; margin: -6px; padding: 6px; border: 0; border-radius: 14px; background: transparent; color: inherit; font: inherit; text-align: left; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; gap: 10px; cursor: pointer; }
+.order-ticket__head:hover { background: rgba(36,35,31,.05); }
+.order-ticket__head:focus-visible { outline: 3px solid #695c2c; outline-offset: 2px; }
+/* «Imprimir comanda»: pequeño, secundario y separado de las acciones de estado. */
+.order-tool { flex: none; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; border: 1px solid var(--business-line); border-radius: 12px; background: transparent; color: var(--business-muted); display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.order-tool:hover { color: var(--business-ink); border-color: rgba(98,85,36,.4); }
+.order-tool:focus-visible { outline: 3px solid #695c2c; outline-offset: 2px; }
+.order-tool__icon { width: 20px; height: 20px; }
 .order-ticket__number { font-family: "DM Serif Display", serif; font-size: 30px; line-height: 1; }
 .order-ticket__place { overflow-wrap: anywhere; font-size: 17px; font-weight: 800; }
 .order-ticket__head time { color: var(--business-muted); font-size: 14px; font-weight: 800; }
@@ -336,6 +345,86 @@ body.business-mode .modal:focus { outline: none; }
 .business-modal__actions { margin-top: 6px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .business-modal__actions .business-primary, .business-modal__actions .business-secondary { margin: 0; }
 .business-primary--danger { border-color: #8b2f22; background: #8b2f22; }
+
+/* ---------------------------------------------------------------------------
+   Ticket digital del pedido (pantalla). Papel crema, tinta, mostaza y serif.
+   --------------------------------------------------------------------------- */
+body.business-mode .modal.ticket-modal { width: min(100%, 440px); padding: 18px; background: #f7f1e1; }
+.ticket-sheet { display: grid; gap: 14px; }
+.ticket-sheet__bar { display: flex; justify-content: flex-end; }
+.ticket-sheet__close { min-height: 44px; padding: 0 18px; border: 1px solid var(--business-line); border-radius: 999px; background: #fffaf0; color: var(--business-ink); font: inherit; font-weight: 800; cursor: pointer; }
+.ticket-sheet__close:focus-visible, .ticket-sheet__print:focus-visible { outline: 3px solid #695c2c; outline-offset: 2px; }
+.ticket { --ticket-paper: #fffdf6; --ticket-ink: #24231f; --ticket-muted: #6a6252; --ticket-rule: rgba(36,35,31,.38); position: relative; padding: 22px 20px 20px; border-radius: 0; background: var(--ticket-paper); color: var(--ticket-ink); box-shadow: 0 10px 26px rgba(75,63,26,.14); font-variant-numeric: tabular-nums; }
+/* Bordes dentados de papel de ticket. */
+.ticket::before, .ticket::after { content: ""; position: absolute; left: 0; right: 0; height: 8px; background: radial-gradient(circle at 6px 0, transparent 5px, var(--ticket-paper) 5.5px) 0 0 / 12px 8px repeat-x; }
+.ticket::before { top: -7px; transform: rotate(180deg); }
+.ticket::after { bottom: -7px; }
+.ticket__brand { display: grid; justify-items: center; gap: 6px; text-align: center; }
+/* El logo de la huella es blanco: sobre papel se pinta en tinta. */
+.ticket__logo { width: 52px; height: auto; filter: brightness(0); opacity: .9; }
+.ticket__business { margin: 0; font-family: "DM Serif Display", Georgia, serif; font-size: 18px; letter-spacing: .02em; }
+.ticket__rule { margin: 14px 0; border: 0; border-top: 2px dashed var(--ticket-rule); }
+.ticket__title { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 14px; }
+.ticket__number { font-family: "DM Serif Display", Georgia, serif; font-size: 44px; font-weight: 400; line-height: 1; }
+.ticket__place { padding: 4px 12px; border-radius: 999px; background: #EECF62; color: #24231f; font-size: 22px; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+.ticket__status { margin: 10px 0 0; color: var(--ticket-muted); font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.ticket__meta { margin: 10px 0 0; display: grid; gap: 4px; font-size: 14px; }
+.ticket__row { display: flex; justify-content: space-between; gap: 12px; }
+.ticket__row dt { color: var(--ticket-muted); }
+.ticket__row dd { margin: 0; font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+.ticket__row--reason dd { color: #8b2f22; }
+.ticket__lines { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.ticket__line { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "qty product total" ". unit unit"; gap: 2px 10px; align-items: baseline; }
+.ticket__qty { grid-area: qty; font-size: 20px; font-weight: 800; }
+.ticket__product { grid-area: product; font-size: 19px; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
+.ticket__unit { grid-area: unit; color: var(--ticket-muted); font-size: 13px; }
+.ticket__line-total { grid-area: total; font-size: 16px; font-weight: 700; }
+.ticket__note { margin-top: 14px; padding: 12px 14px; border: 2px solid #b89a42; border-radius: 10px; background: rgba(238,207,98,.32); }
+.ticket__note h3 { margin: 0 0 4px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+.ticket__note p { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+.ticket__total { margin: 0; display: flex; justify-content: space-between; align-items: baseline; font-size: 18px; font-weight: 800; }
+.ticket__total strong { font-family: "DM Serif Display", Georgia, serif; font-size: 30px; font-weight: 400; }
+.ticket__pay { margin: 4px 0 0; color: var(--ticket-muted); font-size: 14px; font-weight: 700; }
+.ticket__legal { margin: 16px 0 0; color: var(--ticket-muted); font-size: 11px; letter-spacing: .08em; text-align: center; text-transform: uppercase; }
+.ticket-sheet__actions { display: grid; }
+.ticket-sheet__print { min-height: 52px; border: 1px solid var(--business-ink); border-radius: 15px; background: var(--business-ink); color: #fffaf0; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: inherit; font-size: 16px; font-weight: 800; cursor: pointer; }
+.ticket-sheet__print .order-tool__icon { width: 22px; height: 22px; }
+html[data-theme="dark"] body.business-mode .modal.ticket-modal { background: #1d1b16; }
+html[data-theme="dark"] .ticket { --ticket-paper: #2a2720; --ticket-ink: #f7f0de; --ticket-muted: #c3baa7; --ticket-rule: rgba(247,240,222,.4); box-shadow: 0 12px 30px rgba(0,0,0,.4); }
+html[data-theme="dark"] .ticket__logo { filter: none; }
+html[data-theme="dark"] .ticket__note { border-color: #EECF62; background: rgba(238,207,98,.14); }
+html[data-theme="dark"] .ticket__row--reason dd { color: #f0a095; }
+html[data-theme="dark"] .ticket-sheet__close { border-color: rgba(247,240,222,.3); background: #2a2720; color: #f7f0de; }
+html[data-theme="dark"] .ticket-sheet__print { border-color: #EECF62; background: #EECF62; color: #1d1b16; }
+
+/* ---------------------------------------------------------------------------
+   Comanda impresa (cocina). Sin @page size: en una impresora de tickets usa
+   el ancho del rollo (80 mm) y en A4 sale como una columna legible.
+   --------------------------------------------------------------------------- */
+#print-root { display: none; }
+@media print {
+  @page { margin: 4mm; }
+  html.is-printing-ticket, html.is-printing-ticket body { background: #fff !important; }
+  html.is-printing-ticket body > :not(#print-root) { display: none !important; }
+  html.is-printing-ticket #print-root { display: block; }
+  .kitchen-ticket { width: 100%; max-width: 72mm; color: #000; background: #fff; font: 11pt/1.3 "DM Sans", Arial, Helvetica, sans-serif; font-variant-numeric: tabular-nums; }
+  .kitchen-ticket * { color: #000 !important; background: transparent !important; box-shadow: none !important; }
+  .kitchen-ticket p, .kitchen-ticket ul { margin: 0; padding: 0; }
+  .kitchen-ticket ul { list-style: none; }
+  .kitchen-ticket__business { font-size: 9pt; text-transform: uppercase; letter-spacing: .06em; }
+  .kitchen-ticket__number { margin-top: 1mm; font: 700 30pt/1 Georgia, "DM Serif Display", serif; }
+  .kitchen-ticket__place { margin-top: 1mm; font-size: 20pt; font-weight: 800; line-height: 1.1; text-transform: uppercase; overflow-wrap: anywhere; }
+  .kitchen-ticket__time { margin-top: 1mm; font-size: 11pt; font-weight: 700; }
+  .kitchen-ticket__rule { margin: 3mm 0; border: 0; border-top: 1.5pt dashed #000; }
+  .kitchen-ticket__lines { display: grid; gap: 2mm; }
+  .kitchen-ticket__lines li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2mm; font-size: 16pt; font-weight: 800; line-height: 1.2; break-inside: avoid; }
+  .kitchen-ticket__product { overflow-wrap: anywhere; }
+  .kitchen-ticket__note { margin-top: 3mm !important; padding: 2mm; border: 2pt solid #000; font-size: 13pt; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; break-inside: avoid; }
+  .kitchen-ticket__prices { display: grid; gap: .5mm; font-size: 8.5pt; }
+  .kitchen-ticket__prices li, .kitchen-ticket__total { display: flex; justify-content: space-between; gap: 2mm; }
+  .kitchen-ticket__total { margin-top: 1mm !important; font-size: 9pt; font-weight: 700; }
+  .kitchen-ticket__legal { margin-top: 2mm !important; font-size: 7.5pt; }
+}
 
 @keyframes orders-attention { 0%, 100% { box-shadow: 0 0 0 4px rgba(178,65,47,.1); } 50% { box-shadow: 0 0 0 10px rgba(178,65,47,.28); } }
 

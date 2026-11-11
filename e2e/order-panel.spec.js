@@ -221,7 +221,9 @@ e2eTest('una cancelación del cliente se ve al instante en el panel', async () =
   await expect(employee.getByText(`El cliente ha cancelado el pedido nº ${number}.`)).toBeVisible({ timeout: 10000 });
   const closed = employee.locator('.orders-closed').getByRole('article', { name: `Pedido nº ${number}`, exact: true });
   await expect(closed).toContainText('Cancelado por el cliente');
-  await expect(closed.getByRole('button')).toHaveCount(0);
+  // Sin acciones de estado ni comanda: el único botón es la cabecera que abre el ticket.
+  await expect(closed.getByRole('button')).toHaveCount(1);
+  await expect(closed.getByRole('button')).toHaveAccessibleName(new RegExp(`^Ver ticket del pedido nº ${number},`));
   await expect(employee).toHaveTitle(BASE_TITLE);
 });
 
