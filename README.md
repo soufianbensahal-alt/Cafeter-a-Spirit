@@ -311,6 +311,11 @@ Si no puedes instalar los navegadores de Playwright, `SPIRIT_E2E_CHROME=1` añad
 
 `vercel.json` publica `dist`, conserva `/`, reescribe `/cafeteria` y `/reset-password` hacia la SPA y permite que cámara y service worker funcionen bajo HTTPS. Tras desplegar, prueba instalación PWA, navegación offline del shell, login, recuperación, cámara en iOS/Android y el flujo de dos dispositivos.
 
+## Pendiente antes de la implantación real de pedidos
+
+- Decidir si el rol `employee` debe seguir pudiendo abrir y cerrar pedidos (`set_ordering_enabled`) y regenerar el código del día (`regenerate_order_code`). Hoy ya puede: esas acciones, igual que los agotados y el estado de los pedidos, sólo exigen ser miembro activo con sesión AAL2. Lo único que `manager` (u `owner`) añade es la gestión del piloto (`add/remove/list_ordering_pilot_members` y `set_ordering_pilot_only`).
+- Decidir si `empleado@spiritcoffee.es`, subido a `manager` en Montcada para el piloto, vuelve a `employee`.
+
 ## Limitaciones
 
 - La reversión de un canje no está implementada. El tipo `reversal` queda reservado, pero necesita una RPC separada, motivo obligatorio y autorización exclusiva de `owner` o `manager`.
