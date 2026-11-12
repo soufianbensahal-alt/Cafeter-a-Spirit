@@ -141,13 +141,15 @@ export function ticketTimeline(order) {
 
 // Contenido del diálogo del ticket. «Cerrar» va primero en el DOM (recibe el
 // foco inicial) y después el ticket en orden de lectura.
-export function renderOrderTicket(order, { lang = 'es', businessName, escapeHTML = defaultEscape, logoSrc = '/assets/spirit-logo-header.png' } = {}) {
+// printable = false (PWA instalada en iOS): sin «Imprimir comanda»; el ticket
+// se ve igual.
+export function renderOrderTicket(order, { lang = 'es', businessName, escapeHTML = defaultEscape, logoSrc = '/assets/spirit-logo-header.png', printable = true } = {}) {
   const t = ticketTranslator(lang);
   const money = (cents) => formatTicketMoney(cents, lang);
   return `<div class="ticket-sheet" data-order-ticket-view="${escapeHTML(order.id)}">
     <div class="ticket-sheet__bar"><button class="ticket-sheet__close" type="button" data-ticket-close>${t('close')}</button></div>
     <div class="ticket-sheet__body" data-ticket-body>${renderOrderTicketBody(order, { lang, businessName, escapeHTML, logoSrc, t, money })}</div>
-    <div class="ticket-sheet__actions"><button class="ticket-sheet__print" type="button" data-ticket-print="${escapeHTML(order.id)}">${PRINTER_ICON}<span>${t('print')}</span></button></div>
+    ${printable ? `<div class="ticket-sheet__actions"><button class="ticket-sheet__print" type="button" data-ticket-print="${escapeHTML(order.id)}">${PRINTER_ICON}<span>${t('print')}</span></button></div>` : ''}
   </div>`;
 }
 

@@ -33,6 +33,7 @@ import {
   renderOrderTicketBody,
   ticketTranslator
 } from './order-ticket.js';
+import { canPrintKitchenTicket } from '../services/print-route.js';
 
 // El panel está en castellano; ORDER_TICKET_COPY ya incluye el catalán.
 const TICKET_LANG = 'es';
@@ -86,6 +87,8 @@ export function createBusinessOrdersPanel({
   onSessionLost = () => {}
 }) {
   const businessId = employee.businessId;
+  // En la PWA instalada de iOS no se imprime (la comanda sale del PC de la barra).
+  const printEnabled = canPrintKitchenTicket();
   const canManagePilot = MANAGER_ROLES.has(employee.role);
   const state = {
     orders: [],
@@ -342,7 +345,7 @@ export function createBusinessOrdersPanel({
   // Comanda imprimible sólo mientras el pedido está en curso (Nuevos y En
   // preparación). Botón pequeño, arriba y lejos de las acciones de estado.
   const PRINTABLE_STATUSES = new Set(['pending', 'accepted', 'preparing']);
-  const printToolHTML = (order) => (PRINTABLE_STATUSES.has(order.status)
+  const printToolHTML = (order) => (printEnabled && PRINTABLE_STATUSES.has(order.status)
     ? `<button class="order-tool" type="button" data-orders-action="print" data-order-id="${escapeHTML(order.id)}" data-focus-key="print-${escapeHTML(order.id)}" aria-label="${escapeHTML(ticketText('printOrder', { number: order.number }))}">${PRINTER_ICON}</button>`
     : '');
 
@@ -388,7 +391,7 @@ export function createBusinessOrdersPanel({
   // ---------------------------------------------------------------------------
   // Ticket digital y comanda.
   // ---------------------------------------------------------------------------
-  const ticketOptions = () => ({ lang: TICKET_LANG, businessName: employee.businessName, escapeHTML });
+  const ticketOptions = () => ({ lang: TICKET_LANG, businessName: employee.businessName, escapeHTML, printable: printEnabled });
 
   const openTicket = (orderId) => {
     const order = state.byId.get(orderId);
@@ -414,7 +417,7 @@ export function createBusinessOrdersPanel({
   let printCleanup = null;
   const printOrder = (orderId) => {
     const order = state.byId.get(orderId);
-    if (!order) return;
+    if (!order || !printEnabled) return;
     printCleanup?.();
     let root = document.getElementById('print-root');
     if (!root) {
