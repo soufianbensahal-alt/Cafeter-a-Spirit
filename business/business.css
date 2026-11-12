@@ -332,8 +332,9 @@ body.business-mode #toast { display: none; }
 .control-pilot-form > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 
 /* Modal del modo cafetería (styles.css no se carga en /cafeteria). */
-body.business-mode .modal-backdrop { position: fixed; z-index: 30; inset: 0; padding: 20px; background: rgba(29,27,22,.52); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); display: grid; place-items: center; }
-body.business-mode .modal { width: min(100%, 520px); max-height: calc(100svh - 40px); overflow: auto; padding: 26px; border: 1px solid rgba(255,255,255,.6); border-radius: 30px; background: #fffaf0; color: var(--business-ink); box-shadow: 0 24px 70px rgba(29,27,22,.24); }
+/* Fuera de la franja de la barra de estado del iPhone (safe-area-inset-top). */
+body.business-mode .modal-backdrop { position: fixed; z-index: 30; inset: 0; --modal-top: max(20px, calc(env(safe-area-inset-top) + 12px)); --modal-bottom: max(20px, env(safe-area-inset-bottom)); padding: var(--modal-top) max(20px, env(safe-area-inset-right)) var(--modal-bottom) max(20px, env(safe-area-inset-left)); background: rgba(29,27,22,.52); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); display: grid; place-items: center; }
+body.business-mode .modal { width: min(100%, 520px); max-height: calc(100svh - var(--modal-top, 20px) - var(--modal-bottom, 20px)); overflow: auto; padding: 26px; border: 1px solid rgba(255,255,255,.6); border-radius: 30px; background: #fffaf0; color: var(--business-ink); box-shadow: 0 24px 70px rgba(29,27,22,.24); }
 body.business-mode .modal:focus { outline: none; }
 .business-modal__head h2 { margin: 6px 0 0; font-size: 28px; line-height: 1.05; }
 .business-modal__copy { margin: 10px 0 16px; color: var(--business-muted); font-size: 15px; line-height: 1.5; }

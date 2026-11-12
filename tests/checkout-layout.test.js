@@ -118,7 +118,7 @@ test('la confirmación separa cuerpo desplazable y pie con total, error y envío
 
 test('CSS: pie fijo con safe-area, cuerpo desplazable y modo compacto con teclado', async () => {
   const source = await css();
-  assert.match(rule(source, '.modal--checkout'), /display: flex; flex-direction: column; overflow: hidden; max-height: calc\(var\(--viewport-height, 100svh\) - 40px\)/);
+  assert.match(rule(source, '.modal--checkout'), /display: flex; flex-direction: column; overflow: hidden; max-height: calc\(var\(--viewport-height, 100svh\) - var\(--modal-top, 20px\) - var\(--modal-bottom, 20px\)\)/);
   assert.match(rule(source, '.checkout-body'), /overflow-y: auto; overscroll-behavior: contain/);
   assert.match(rule(source, '.checkout-body'), /min-height: 0/);
   assert.match(rule(source, '.checkout-footer'), /flex: none/);
