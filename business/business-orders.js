@@ -3,6 +3,7 @@ import {
   getCurrentOrderCode,
   getOrderingSettings,
   listBusinessOrders,
+  listBusinessOrdersByDate,
   listBusinessProducts,
   listPilotMembers,
   regenerateOrderCode,
@@ -34,6 +35,18 @@ import {
   ticketTranslator
 } from './order-ticket.js';
 import { canPrintKitchenTicket } from '../services/print-route.js';
+import {
+  HISTORY_IDLE_MS,
+  clampServiceDate,
+  createIdleTimer,
+  formatServiceDate,
+  historyMinDate,
+  madridToday,
+  pendingBannerText,
+  shiftServiceDate,
+  sortByCreatedAt,
+  summarizeDay
+} from '../services/order-history.js';
 
 // El panel está en castellano; ORDER_TICKET_COPY ya incluye el catalán.
 const TICKET_LANG = 'es';
@@ -101,6 +114,8 @@ export function createBusinessOrdersPanel({
     busy: new Set(),
     freshIds: new Set(),
     message: null,
+    // Historial: date === null es «Hoy» (tablero en directo).
+    history: { date: null, loading: false, error: '', retryable: false, orders: [], byId: new Map() },
     control: {
       loaded: false,
       loading: false,
@@ -182,7 +197,12 @@ export function createBusinessOrdersPanel({
           const order = state.byId.get(id);
           return `nº ${order.number} · ${placeLabel(order.tableLabel)}`;
         });
-        announcer?.announce(`Nuevo pedido ${labels.join(', ')}`, { assertive: true });
+        if (state.history.date) {
+          // En el historial suena igual y se anuncia la franja «Volver a Hoy».
+          announcer?.announce(`Nuevo pedido ${labels.join(', ')}. ${pendingBannerText(pendingCount())}: vuelve a Hoy para atenderlos.`, { assertive: true });
+        } else {
+          announcer?.announce(`Nuevo pedido ${labels.join(', ')}`, { assertive: true });
+        }
       }
 
       const cancelled = newlyCancelled(previousById, orders);
@@ -258,6 +278,8 @@ export function createBusinessOrdersPanel({
     removeEventListener('offline', handleOffline);
     removeEventListener('online', handleOnline);
     modal.close({ force: true, restoreFocus: false, reason: 'stop' });
+    historyIdle.stop();
+    watchInteraction(false);
     device.destroy();
     document.title = baseTitle;
   };
@@ -349,32 +371,86 @@ export function createBusinessOrdersPanel({
     ? `<button class="order-tool" type="button" data-orders-action="print" data-order-id="${escapeHTML(order.id)}" data-focus-key="print-${escapeHTML(order.id)}" aria-label="${escapeHTML(ticketText('printOrder', { number: order.number }))}">${PRINTER_ICON}</button>`
     : '');
 
-  const ticketHTML = (order, { compact = false } = {}) => {
+  const ticketHTML = (order, { compact = false, readOnly = false } = {}) => {
     const fresh = state.freshIds.has(order.id);
     const classes = ['order-ticket', `order-ticket--${order.status}`, fresh ? 'order-ticket--fresh' : '', compact ? 'order-ticket--compact' : ''].filter(Boolean).join(' ');
     const stamp = order.status === 'served' ? order.servedAt : order.status === 'cancelled' ? order.cancelledAt : order.status === 'rejected' ? order.rejectedAt : order.createdAt;
     // La cabecera (nº, mesa, hora) es el botón que abre el ticket.
     return `<article class="${classes}" aria-label="Pedido nº ${order.number}" data-order-ticket="${escapeHTML(order.id)}" data-status="${order.status}">
       <header class="order-ticket__top"><button class="order-ticket__head" type="button" data-orders-action="ticket" data-order-id="${escapeHTML(order.id)}" data-focus-key="ticket-${escapeHTML(order.id)}" aria-label="${escapeHTML(ticketText('openTicket', { number: order.number }))}, ${escapeHTML(placeLabel(order.tableLabel))}, ${clock(order.createdAt)}"><strong class="order-ticket__number">Nº ${order.number}</strong><span class="order-ticket__place">${escapeHTML(placeLabel(order.tableLabel))}</span><time datetime="${escapeHTML(order.createdAt)}">${clock(order.createdAt)}</time></button>${printToolHTML(order)}</header>
-      <p class="order-ticket__meta"><span>${escapeHTML(order.customer)}</span>${order.status === 'pending' ? ` · <span data-elapsed="${escapeHTML(order.createdAt)}">${elapsedLabel(order.createdAt)}</span>` : ''}</p>
+      <p class="order-ticket__meta"><span>${escapeHTML(order.customer)}</span>${order.status === 'pending' && !readOnly ? ` · <span data-elapsed="${escapeHTML(order.createdAt)}">${elapsedLabel(order.createdAt)}</span>` : ''}</p>
       <span class="order-ticket__status" data-order-status>${fresh ? 'Nuevo · ' : ''}${statusLabel[order.status] || order.status}${stamp && order.status !== 'pending' ? ` · ${clock(stamp)}` : ''}</span>
       ${compact ? '' : itemsHTML(order)}
       ${order.note && !compact ? `<p class="order-ticket__note"><strong>Nota:</strong> ${escapeHTML(order.note)}</p>` : ''}
       ${order.rejectionReason ? `<p class="order-ticket__reason"><strong>Motivo:</strong> ${escapeHTML(order.rejectionReason)}</p>` : ''}
       <footer class="order-ticket__foot"><strong>${money(order.totalCents)}</strong><span>Pago en el local</span></footer>
-      ${actionsHTML(order)}
+      ${readOnly ? '' : actionsHTML(order)}
     </article>`;
   };
 
   // Los servidos van compactos: en hora punta la columna crece mucho.
   const columnHTML = (key, title, orders, empty, { compact = false } = {}) => `<section class="orders-column orders-column--${key}" aria-labelledby="orders-column-${key}"><h2 id="orders-column-${key}">${title} <span class="orders-count">${orders.length}</span></h2>${orders.length ? orders.map((order) => ticketHTML(order, { compact })).join('') : `<p class="business-empty">${empty}</p>`}</section>`;
 
+  // ---------------------------------------------------------------------------
+  // Historial por día (solo consulta).
+  // ---------------------------------------------------------------------------
+  const historyBounds = () => {
+    const today = madridToday();
+    return { today, min: historyMinDate(employee.role, today) };
+  };
+
+  const dateBarHTML = () => {
+    const { today, min } = historyBounds();
+    const selected = state.history.date || today;
+    const isToday = !state.history.date;
+    const prevDisabled = min && selected <= min;
+    return `<div class="orders-datebar" role="group" aria-label="Día de los pedidos">
+        <button class="orders-datebar__step" type="button" data-orders-action="history-prev" data-focus-key="history-prev" aria-label="Día anterior" ${prevDisabled ? 'disabled' : ''}><span aria-hidden="true">‹</span></button>
+        <label class="orders-datebar__field"><span class="sr-only">Fecha</span><input type="date" data-history-date data-focus-key="history-date" value="${selected}" max="${today}" ${min ? `min="${min}"` : ''}></label>
+        <button class="orders-datebar__step" type="button" data-orders-action="history-next" data-focus-key="history-next" aria-label="Día siguiente" ${isToday ? 'disabled' : ''}><span aria-hidden="true">›</span></button>
+        <button class="orders-datebar__today" type="button" data-orders-action="history-today" data-focus-key="history-today" aria-pressed="${isToday}">Hoy</button>
+      </div>`;
+  };
+
+  const historyHTML = () => {
+    const { today } = historyBounds();
+    const history = state.history;
+    const label = formatServiceDate(history.date, { today });
+    const pending = pendingCount();
+    const banner = pending
+      ? `<div class="orders-history-alert" data-history-alert><span>${pendingBannerText(pending)}</span><button class="business-primary" type="button" data-orders-action="history-today" data-focus-key="history-alert-today">Volver a Hoy</button></div>`
+      : '';
+    let body;
+    if (history.loading) {
+      body = '<p class="business-empty"><span class="business-spinner" aria-hidden="true"></span> Cargando pedidos…</p>';
+    } else if (history.error) {
+      body = `<div class="orders-message orders-message--error" role="alert"><p>${escapeHTML(history.error)}</p>${history.retryable ? '<button class="business-secondary" type="button" data-orders-action="history-retry" data-focus-key="history-retry">Reintentar</button>' : ''}</div>`;
+    } else {
+      const summary = summarizeDay(history.orders);
+      body = `<dl class="orders-summary" aria-label="Resumen del día">
+          <div><dt>Servidos</dt><dd data-summary-served>${summary.served}</dd></div>
+          <div><dt>Importe servido</dt><dd data-summary-amount>${money(summary.servedCents)}</dd></div>
+          <div><dt>Cancelados</dt><dd data-summary-cancelled>${summary.cancelled}</dd></div>
+          <div><dt>Rechazados</dt><dd data-summary-rejected>${summary.rejected}</dd></div>
+        </dl>
+        ${history.orders.length
+          ? `<div class="orders-history__list">${history.orders.map((order) => ticketHTML(order, { compact: true, readOnly: true })).join('')}</div>`
+          : '<p class="business-empty">No hubo pedidos ese día.</p>'}`;
+    }
+    return `${banner}<section class="orders-history" aria-labelledby="orders-history-title" data-orders-history="${escapeHTML(history.date)}">
+        <h2 id="orders-history-title">Pedidos del ${escapeHTML(label)}</h2>
+        <p class="orders-history__note">Solo consulta: sin acciones ni cambios de estado.</p>
+        ${body}
+      </section>`;
+  };
+
   const ordersHTML = () => {
-    const groups = groupBusinessOrders(state.orders);
     const message = state.message ? `<p class="orders-message orders-message--${state.message.tone}" role="${state.message.tone === 'error' ? 'alert' : 'status'}">${escapeHTML(state.message.text)}</p>` : '';
     const error = state.loadError ? `<p class="orders-message orders-message--error" role="alert">${escapeHTML(state.loadError)}</p>` : '';
-    if (!state.loaded) return `<h1 class="orders-title">Pedidos</h1>${error}${message}<p class="business-empty"><span class="business-spinner" aria-hidden="true"></span> Cargando pedidos…</p>`;
-    return `<h1 class="orders-title">Pedidos</h1>${error}${message}
+    if (state.history.date) return `<h1 class="orders-title">Pedidos</h1>${dateBarHTML()}${historyHTML()}`;
+    if (!state.loaded) return `<h1 class="orders-title">Pedidos</h1>${dateBarHTML()}${error}${message}<p class="business-empty"><span class="business-spinner" aria-hidden="true"></span> Cargando pedidos…</p>`;
+    const groups = groupBusinessOrders(state.orders);
+    return `<h1 class="orders-title">Pedidos</h1>${dateBarHTML()}${error}${message}
       <div class="orders-board">
         ${columnHTML('new', 'Nuevos', groups.fresh, 'No hay pedidos nuevos.')}
         ${columnHTML('progress', 'En preparación', groups.inProgress, 'Nada en preparación.')}
@@ -382,6 +458,70 @@ export function createBusinessOrdersPanel({
       </div>
       <section class="orders-closed" aria-labelledby="orders-closed-title"><h2 id="orders-closed-title">Cancelados y rechazados hoy <span class="orders-count">${groups.closed.length}</span></h2>${groups.closed.length ? `<div class="orders-closed__list">${groups.closed.map((order) => ticketHTML(order, { compact: true })).join('')}</div>` : '<p class="business-empty">Ninguno por ahora.</p>'}</section>`;
   };
+
+  // Vista histórica abierta 3 minutos sin interacción: vuelve sola a «Hoy».
+  const historyIdle = createIdleTimer({
+    timeoutMs: HISTORY_IDLE_MS,
+    onIdle: () => showToday({ reason: 'idle' })
+  });
+  const touchHistory = () => historyIdle.touch();
+  const INTERACTION_EVENTS = ['pointerdown', 'keydown', 'input', 'wheel', 'touchstart'];
+  const watchInteraction = (active) => INTERACTION_EVENTS.forEach((type) => (active
+    ? document.addEventListener(type, touchHistory, { capture: true, passive: true })
+    : document.removeEventListener(type, touchHistory, { capture: true })));
+
+  let historyRequest = 0;
+  const loadHistory = async (requested) => {
+    const { today, min } = historyBounds();
+    const date = clampServiceDate(requested, { today, min });
+    if (date === today) return showToday();
+    const request = ++historyRequest;
+    const wasHistory = Boolean(state.history.date);
+    state.history = { date, loading: true, error: '', retryable: false, orders: [], byId: new Map() };
+    if (!wasHistory) {
+      historyIdle.start();
+      watchInteraction(true);
+    } else {
+      historyIdle.touch();
+    }
+    paintOrders();
+    try {
+      const orders = sortByCreatedAt(await listBusinessOrdersByDate(businessId, date));
+      if (request !== historyRequest || state.history.date !== date) return;
+      state.history = { ...state.history, loading: false, orders, byId: new Map(orders.map((order) => [order.id, order])) };
+      announcer?.announce(`Pedidos del ${formatServiceDate(date, { today })}: ${orders.length}`);
+    } catch (error) {
+      if (request !== historyRequest || state.history.date !== date) return;
+      if (error?.code === 'not_authorized' || error?.code === 'not_authenticated') {
+        onSessionLost(error);
+        return;
+      }
+      const text = error?.code === 'history_out_of_range'
+        ? 'Solo puedes consultar los últimos 30 días.'
+        : error?.code === 'network_error'
+          ? 'Sin conexión. Comprueba la red y vuelve a intentarlo.'
+          : 'No se han podido cargar los pedidos de ese día.';
+      state.history = { ...state.history, loading: false, error: text, retryable: error?.code !== 'history_out_of_range' };
+      announcer?.announce(text, { assertive: true });
+    }
+    paintOrders();
+  };
+
+  function showToday({ reason = 'action' } = {}) {
+    historyRequest += 1;
+    const wasHistory = Boolean(state.history.date);
+    state.history = { date: null, loading: false, error: '', retryable: false, orders: [], byId: new Map() };
+    historyIdle.stop();
+    watchInteraction(false);
+    paintOrders();
+    if (wasHistory) {
+      announcer?.announce(reason === 'idle'
+        ? 'Sin actividad durante 3 minutos: de vuelta a los pedidos de hoy.'
+        : 'Pedidos de hoy, en directo.');
+    }
+  }
+
+  const findOrder = (orderId) => state.byId.get(orderId) || state.history.byId.get(orderId);
 
   const paintOrders = () => {
     paintInto('[data-orders-panel]', ordersHTML());
@@ -394,7 +534,7 @@ export function createBusinessOrdersPanel({
   const ticketOptions = () => ({ lang: TICKET_LANG, businessName: employee.businessName, escapeHTML, printable: printEnabled });
 
   const openTicket = (orderId) => {
-    const order = state.byId.get(orderId);
+    const order = findOrder(orderId);
     if (!order) return;
     const dialog = modal.open(accessibleDialogMarkup({
       labelledBy: 'order-ticket-title',
@@ -409,14 +549,14 @@ export function createBusinessOrdersPanel({
   // mover el foco (Cerrar e Imprimir quedan fuera de la zona repintada).
   function refreshOpenTicket() {
     if (!ticketOrderId || !modal.isOpen()) return;
-    const order = state.byId.get(ticketOrderId);
+    const order = findOrder(ticketOrderId);
     const body = modal.currentDialog()?.querySelector('[data-ticket-body]');
     if (order && body) body.innerHTML = renderOrderTicketBody(order, ticketOptions());
   }
 
   let printCleanup = null;
   const printOrder = (orderId) => {
-    const order = state.byId.get(orderId);
+    const order = findOrder(orderId);
     if (!order || !printEnabled) return;
     printCleanup?.();
     let root = document.getElementById('print-root');
@@ -714,6 +854,10 @@ export function createBusinessOrdersPanel({
       paintStatus();
       return;
     }
+    if (action === 'history-prev') return loadHistory(shiftServiceDate(state.history.date || historyBounds().today, -1));
+    if (action === 'history-next') return state.history.date ? loadHistory(shiftServiceDate(state.history.date, 1)) : null;
+    if (action === 'history-today') return showToday();
+    if (action === 'history-retry') return loadHistory(state.history.date);
     if (action === 'ticket') return openTicket(orderId);
     if (action === 'print') return printOrder(orderId);
     if (action === 'accept') return changeStatus(orderId, 'accepted');
@@ -735,6 +879,11 @@ export function createBusinessOrdersPanel({
   };
 
   const handleChange = (event) => {
+    const dateInput = event.target.closest?.('[data-history-date]');
+    if (dateInput && appRoot.contains(dateInput)) {
+      if (dateInput.value) loadHistory(dateInput.value);
+      return;
+    }
     const input = event.target.closest?.('[data-control-switch]');
     if (!input || !appRoot.contains(input)) return;
     const key = input.dataset.controlSwitch;

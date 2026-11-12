@@ -33,6 +33,29 @@ export const listBusinessOrders = (businessId) => guard(async () => {
   return Object.freeze((data || []).map(mapBusinessOrderRow));
 });
 
+// Historial: pedidos de un día de servicio (Madrid). «Fuera de rango» y «fecha
+// no válida» son respuestas normales del panel, no una sesión perdida.
+const HISTORY_ERRORS = Object.freeze(['history_out_of_range', 'invalid_date']);
+
+export const listBusinessOrdersByDate = async (businessId, serviceDate) => {
+  try {
+    return await guard(async () => {
+      const { data, error } = await requireSupabase().rpc('list_business_orders_by_date', {
+        p_business_id: businessId,
+        p_service_date: serviceDate
+      });
+      if (error) {
+        const known = HISTORY_ERRORS.find((code) => String(error.message || '').includes(code));
+        if (known) throw new OrderServiceError(known, error);
+        throw error;
+      }
+      return Object.freeze((data || []).map(mapBusinessOrderRow));
+    });
+  } catch (error) {
+    throw error instanceof OrderServiceError ? error : new OrderServiceError('unexpected', error);
+  }
+};
+
 export const updateBusinessOrderStatus = (orderId, status, reason = null) => guard(async () => {
   const { data, error } = await requireSupabase().rpc('update_order_status', {
     p_order_id: orderId,
