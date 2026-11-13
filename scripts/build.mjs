@@ -84,8 +84,17 @@ const customerStaticAssets = [
   '/assets/uber-eats-logo.png',
   '/assets/glovo-logo.svg'
 ];
+// Fuentes propias (antes Google Fonts): disponibles también sin conexión.
+const fontAssets = [
+  '/assets/fonts/dm-sans-latin.woff2',
+  '/assets/fonts/dm-sans-latin-ext.woff2',
+  '/assets/fonts/dm-serif-display-latin.woff2',
+  '/assets/fonts/dm-serif-display-latin-ext.woff2',
+  '/assets/fonts/dm-serif-display-italic-latin.woff2',
+  '/assets/fonts/dm-serif-display-italic-latin-ext.woff2'
+];
 const buildAssets = {
-  shared: ['/', '/index.html', '/startup.js', bootstrapUrl, cssUrls.base],
+  shared: ['/', '/index.html', '/startup.js', bootstrapUrl, cssUrls.base, ...fontAssets],
   customer: [customerEntryUrl, cssUrls.customer, '/manifest.webmanifest', ...customerStaticAssets],
   business: [businessEntryUrl, cssUrls.business, '/business/manifest.webmanifest'],
   runtime: sharedRuntimeChunks
