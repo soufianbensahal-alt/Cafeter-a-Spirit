@@ -68,8 +68,8 @@ select results_eq(
   array[1::bigint],
   'products se publica en Realtime (agotados en la carta sin recargar)'
 );
-select ok(not has_function_privilege('anon', 'public.create_order(uuid, text, text, jsonb, text)', 'execute'), 'anon no puede crear pedidos');
-select ok(has_function_privilege('authenticated', 'public.create_order(uuid, text, text, jsonb, text)', 'execute'), 'authenticated puede invocar create_order');
+select ok(not has_function_privilege('anon', 'public.create_order(uuid, text, text, jsonb, text, text)', 'execute'), 'anon no puede crear pedidos');
+select ok(has_function_privilege('authenticated', 'public.create_order(uuid, text, text, jsonb, text, text)', 'execute'), 'authenticated puede invocar create_order');
 select ok(not has_function_privilege('anon', 'public.update_order_status(uuid, text, text)', 'execute'), 'anon no puede cambiar estados');
 select ok(not has_function_privilege('anon', 'public.regenerate_order_code(uuid, integer)', 'execute'), 'anon no puede regenerar códigos');
 select is(

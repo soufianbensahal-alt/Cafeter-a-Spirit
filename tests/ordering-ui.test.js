@@ -138,7 +138,7 @@ test('app.js usa live-announcer, el modal accesible y sessionStorage para pedido
   const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
   assert.match(app, /announcer\.announce\(t\('orderAdded'/);
   assert.match(app, /announcer\.announce\(t\('orderStatusAnnouncement'/);
-  assert.match(app, /modalController\.open\(checkoutSheet\(\), \{ initialFocus: '\[data-checkout-code\]' \}\)/);
+  assert.match(app, /modalController\.open\(checkoutSheet\(\), \{ initialFocus: state\.isGuest \? '\[data-checkout-guest-name\]' : '\[data-checkout-code\]' \}\)/);
   assert.match(app, /sessionStorage\.setItem\(CART_STORAGE_KEY/);
   assert.match(app, /createRealtimeWithFallback\(/);
 });

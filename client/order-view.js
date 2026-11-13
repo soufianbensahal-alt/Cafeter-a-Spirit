@@ -13,6 +13,7 @@ import {
   isClosedUnsuccessfully,
   orderProgressIndex
 } from '../services/order-monitor.js';
+import { renderGuestNameField } from './guest-view.js';
 
 const screenHeader = ({ action, label, icons, eyebrow, title, extra = '' }) => `<header class="order-header">
   <button class="menu-icon-button" type="button" data-action="${action}" aria-label="${label}">${icons.arrowLeft}</button>
@@ -98,13 +99,15 @@ export function renderCheckoutSoldOutNotice({ names, translate: t, escapeHTML })
   </div>`;
 }
 
-export function renderCheckoutContent({ cart, products, translate: t, escapeHTML = (value) => String(value), lang, draft = null, soldOutNames = [], submitting = false }) {
+// guest = true: invitado (sesión anónima); pide además «Nombre para el pedido».
+export function renderCheckoutContent({ cart, products, translate: t, escapeHTML = (value) => String(value), lang, draft = null, soldOutNames = [], submitting = false, guest = false }) {
   const total = formatCents(cartTotalCents(cart, products), lang);
   const pickup = Boolean(draft?.pickup);
   const blocked = soldOutNames.length > 0;
   return `<div class="sheet-head"><div><p class="eyebrow">${t('checkoutEyebrow')}</p><h2 id="checkout-dialog-title">${t('checkoutTitle')}</h2></div><button class="sheet-close" type="button" data-action="close-sheet" aria-label="${t('close')}">×</button></div>
   <form class="sheet-form checkout-form" data-form="checkout" novalidate>
     <div class="checkout-body" data-checkout-body>
+    ${guest ? renderGuestNameField({ translate: t, escapeHTML, value: draft?.guestName || '' }) : ''}
     <div class="field">
       <label for="checkout-code">${t('checkoutCode')}</label>
       <input id="checkout-code" class="checkout-code" name="code" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="one-time-code" enterkeyhint="next" aria-describedby="checkout-code-hint checkout-code-error" aria-invalid="false" required value="${escapeHTML(draft?.code || '')}" data-checkout-code>

@@ -9,6 +9,7 @@ import {
   regenerateOrderCode,
   removePilotMember,
   setOrderingEnabled,
+  setGuestOrderingEnabled,
   setOrderingPilotOnly,
   setProductAvailability,
   subscribeToBusinessOrders,
@@ -604,6 +605,7 @@ export function createBusinessOrdersPanel({
           <h2 id="control-ordering-title">Pedidos desde la carta</h2>
           <div class="control-row"><div><strong data-ordering-state>${settings.orderingEnabled ? 'Abiertos' : 'Cerrados'}</strong><small>${settings.orderingEnabled ? 'Los clientes pueden enviar pedidos.' : 'La carta solo es informativa.'}</small></div>${switchHTML({ key: 'ordering', label: 'Aceptar pedidos', checked: settings.orderingEnabled, disabled: control.busy.has('ordering') })}</div>
           <div class="control-row"><div><strong>Solo usuarios del piloto</strong><small>${settings.pilotOnly ? 'Solo pueden pedir las cuentas del piloto.' : 'Cualquier cliente con cuenta puede pedir.'}</small></div>${switchHTML({ key: 'pilot-only', label: 'Solo usuarios del piloto', checked: settings.pilotOnly, disabled: !canManagePilot || control.busy.has('pilot-only') })}</div>
+          <div class="control-row"><div><strong>Pedidos sin cuenta</strong><small>${settings.guestOrderingEnabled ? 'Los clientes pueden pedir sin registrarse, con el código del día.' : 'Solo pueden pedir los clientes con cuenta.'}</small></div>${switchHTML({ key: 'guest-ordering', label: 'Pedidos sin cuenta', checked: settings.guestOrderingEnabled, disabled: !canManagePilot || control.busy.has('guest-ordering') })}</div>
         </section>
         <section class="control-card control-card--code" aria-labelledby="control-code-title">
           <h2 id="control-code-title">Código del día</h2>
@@ -687,6 +689,13 @@ export function createBusinessOrdersPanel({
       return withControlBusy('pilot-only', async () => {
         expectOk(await setOrderingPilotOnly(businessId, checked));
         control.settings = { ...control.settings, pilotOnly: checked };
+      });
+    }
+    if (key === 'guest-ordering') {
+      return withControlBusy('guest-ordering', async () => {
+        expectOk(await setGuestOrderingEnabled(businessId, checked));
+        control.settings = { ...control.settings, guestOrderingEnabled: checked };
+        announcer?.announce(checked ? 'Pedidos sin cuenta activados' : 'Pedidos sin cuenta desactivados');
       });
     }
     if (key.startsWith('product:')) {

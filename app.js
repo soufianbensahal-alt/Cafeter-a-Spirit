@@ -79,6 +79,23 @@ import { CLIENT_ICONS } from './client/icons.js';
 import { renderQuickAccess } from './client/quick-access.js';
 import { renderCartBar, renderMenuContent, renderMenuScreen, renderProductOrderControl } from './client/menu-view.js';
 import { ORDER_COPY } from './client/order-copy.js';
+import { GUEST_COPY } from './client/guest-copy.js';
+import {
+  renderGuestEntry,
+  renderGuestExitContent,
+  renderGuestMenuBanner,
+  renderGuestPasswordScreen,
+  renderGuestPrompt,
+  renderGuestSignupScreen
+} from './client/guest-view.js';
+import { guestScreen, isGuestUser, validateGuestName } from './services/guest-rules.js';
+import {
+  confirmGuestConversion,
+  getGuestOrderingStatus,
+  setConvertedAccountPassword,
+  signInAsGuest,
+  startGuestConversion
+} from './services/guest-service.js';
 import {
   renderActiveOrdersBanner,
   renderCancelOrderContent,
@@ -187,6 +204,8 @@ const copy = {
 
 Object.assign(copy.es, ORDER_COPY.es);
 Object.assign(copy.ca, ORDER_COPY.ca);
+Object.assign(copy.es, GUEST_COPY.es);
+Object.assign(copy.ca, GUEST_COPY.ca);
 
 const defaultProfile = { firstName: 'Cliente', lastName: '', email: '' };
 const state = {
@@ -234,6 +253,12 @@ const state = {
   // Código, mesa y «recoger en barra» escritos en la confirmación. Sólo en
   // memoria: se conservan al volver al carrito y se borran al enviar o salir.
   checkoutDraft: null,
+  // Invitado: sesión anónima de Supabase (pedir sin cuenta).
+  isGuest: false,
+  guestOrderingAvailable: false,
+  guestBusy: false,
+  guestSignup: { sentTo: '', busy: false, error: '' },
+  guestPassword: { busy: false, error: '' },
   orderCancelling: false,
   ordersBackTarget: 'menu',
   orderBackTarget: 'menu'
@@ -326,7 +351,28 @@ const menuViewContext = () => ({
   ordering: menuOrderingContext()
 });
 const menuContent = () => renderMenuContent(menuViewContext());
-const menu = () => renderMenuScreen(menuViewContext());
+const menu = () => {
+  // Invitado: captación y «Salir del modo invitado». Sin sesión: «Pedir sin cuenta».
+  let banner = '';
+  let back = null;
+  if (state.isGuest) {
+    banner = `<div class="guest-menu-slot">${renderGuestPrompt({ translate: t, id: 'guest-prompt-menu' })}</div>`;
+    back = { action: 'guest-exit', label: t('guestExit') };
+  } else if (state.authStatus !== 'authenticated' && state.guestOrderingAvailable) {
+    banner = renderGuestMenuBanner({ translate: t, busy: state.guestBusy });
+  }
+  return renderMenuScreen({ ...menuViewContext(), banner, back });
+};
+
+// Captación al final del carrito y del seguimiento del invitado.
+const withGuestPrompt = (html, id) => {
+  if (!state.isGuest) return html;
+  const end = html.lastIndexOf('</section></main>');
+  return end < 0 ? html : `${html.slice(0, end)}${renderGuestPrompt({ translate: t, id })}${html.slice(end)}`;
+};
+
+const guestSignup = () => renderGuestSignupScreen({ translate: t, escapeHTML, icons, ...state.guestSignup });
+const guestPassword = () => renderGuestPasswordScreen({ translate: t, escapeHTML, ...state.guestPassword, minLength: PASSWORD_MIN_LENGTH });
 
 // ---------------------------------------------------------------------------
 // Pedidos (piloto). La carta sólo muestra controles de pedido si hay sesión,
@@ -421,9 +467,11 @@ async function loadOrderingState({ repaint = false } = {}) {
     const context = await getOrderingContext();
     let products = new Map();
     let activeOrders = [];
-    if (context?.eligible) {
+    // Los pedidos propios se ven siempre (p. ej. un invitado que acaba de crear
+    // su cuenta fuera del piloto); la elegibilidad sólo decide si puede pedir.
+    if (context) {
       [products, activeOrders] = await Promise.all([
-        context.orderingEnabled ? getOrderableProducts(context.businessId) : Promise.resolve(new Map()),
+        context.eligible && context.orderingEnabled ? getOrderableProducts(context.businessId) : Promise.resolve(new Map()),
         getOwnOrders({ activeOnly: true })
       ]);
     }
@@ -470,6 +518,7 @@ const soldOutCartNames = () => (orderingActive() ? unavailableCartItems(state.ca
 
 function readCheckoutDraft(form) {
   return {
+    guestName: form.querySelector('[data-checkout-guest-name]')?.value || '',
     code: normalizeOrderCode(form.querySelector('[data-checkout-code]')?.value),
     table: form.querySelector('[data-checkout-table]')?.value || '',
     pickup: Boolean(form.querySelector('[data-checkout-pickup]')?.checked)
@@ -667,19 +716,19 @@ function updateCartLine(kind, productId) {
   announcer.announce(count ? t('cartQuantity', { name, count }) : t('cartRemoved', { name }));
 }
 
-const cartScreen = () => renderCartScreen({
+const cartScreen = () => withGuestPrompt(renderCartScreen({
   cart: state.cart,
   products: state.ordering.products,
   productName,
   orderingOpen: orderingActive(),
-  closedKey: state.ordering.context && !state.ordering.context.eligible ? 'orderErrorNotInPilot' : 'orderErrorClosed',
+  closedKey: state.ordering.context && !state.ordering.context.eligible ? (state.isGuest ? 'orderErrorGuestDisabled' : 'orderErrorNotInPilot') : 'orderErrorClosed',
   translate: t,
   escapeHTML,
   icons,
   lang: state.lang
-});
+}), 'guest-prompt-cart');
 
-const orderTracking = () => renderOrderTrackingScreen({
+const orderTracking = () => withGuestPrompt(renderOrderTrackingScreen({
   order: state.currentOrder,
   loading: state.orderLoading,
   offline: navigator.onLine === false,
@@ -688,7 +737,7 @@ const orderTracking = () => renderOrderTrackingScreen({
   escapeHTML,
   icons,
   lang: state.lang
-});
+}), 'guest-prompt-tracking');
 
 const orders = () => renderOrdersScreen({
   orders: state.activeOrders,
@@ -789,6 +838,7 @@ function checkoutSheet() {
     escapeHTML,
     lang: state.lang,
     draft: state.checkoutDraft,
+    guest: state.isGuest,
     soldOutNames: soldOutCartNames(),
     submitting: state.checkoutSubmitting
   }), 'modal--form modal--checkout', 'checkout-dialog-title');
@@ -812,6 +862,15 @@ async function handleCheckoutFailure(status, form) {
     codeInput.focus();
     return;
   }
+  if (status === 'invalid_guest_name') {
+    restoreSubmit();
+    const nameInput = form.querySelector('[data-checkout-guest-name]');
+    if (nameInput) {
+      setCheckoutFieldError(nameInput, message);
+      nameInput.focus();
+      return;
+    }
+  }
   if (status === 'invalid_table_label') {
     restoreSubmit();
     const tableInput = form.querySelector('[data-checkout-table]');
@@ -828,7 +887,7 @@ async function handleCheckoutFailure(status, form) {
     if (formError) formError.textContent = message;
     return;
   }
-  if (['ordering_closed', 'ordering_unavailable', 'not_in_pilot'].includes(status)) {
+  if (['ordering_closed', 'ordering_unavailable', 'not_in_pilot', 'guest_ordering_disabled'].includes(status)) {
     modalController.close({ force: true, restoreFocus: false, reason: 'order-error' });
     await loadOrderingState();
     state.screen = 'cart';
@@ -855,14 +914,21 @@ async function submitCheckout(form) {
   const formError = form.querySelector('[data-checkout-error]');
   const code = normalizeOrderCode(codeInput.value);
   codeInput.value = code;
+  const guestNameInput = form.querySelector('[data-checkout-guest-name]');
+  const guestName = validateGuestName(guestNameInput?.value);
   if (formError) formError.textContent = '';
   setCheckoutFieldError(codeInput, '');
   setCheckoutFieldError(tableInput, '');
+  setCheckoutFieldError(guestNameInput, '');
 
   let firstInvalid = null;
+  if (guestNameInput && !guestName.ok) {
+    setCheckoutFieldError(guestNameInput, t('guestNameInvalid'));
+    firstInvalid = guestNameInput;
+  }
   if (!isValidOrderCode(code)) {
     setCheckoutFieldError(codeInput, t('checkoutCodeInvalid'));
-    firstInvalid = codeInput;
+    firstInvalid ??= codeInput;
   }
   if (!pickup && !isValidTableLabel(tableInput.value)) {
     setCheckoutFieldError(tableInput, t('checkoutTableInvalid'));
@@ -896,7 +962,8 @@ async function submitCheckout(form) {
       code,
       tableLabel: resolveTableLabel({ pickup, table: tableInput.value }),
       items: toOrderItems(state.cart),
-      note: state.cart.note.trim()
+      note: state.cart.note.trim(),
+      guestName: guestNameInput ? guestName.value : null
     });
   } catch (error) {
     result = { status: error instanceof OrderServiceError ? error.code : 'unexpected' };
@@ -981,7 +1048,10 @@ function login() {
     const signingUp = state.authMode === 'signup';
     form = `<div class="auth-switch" role="group" aria-label="${t('authLabel')}"><button type="button" class="${!signingUp ? 'auth-switch--active' : ''}" data-action="auth-signin">${t('signIn')}</button><button type="button" class="${signingUp ? 'auth-switch--active' : ''}" data-action="auth-signup">${t('createAccount')}</button></div><form class="form" data-form="customer-auth" data-auth-mode="${signingUp ? 'signup' : 'signin'}" ${signingUp ? 'novalidate' : ''}>${signingUp ? `<div class="field"><label for="signup-first-name">${t('firstName')}</label><input id="signup-first-name" name="firstName" maxlength="28" autocomplete="given-name" placeholder="${t('namePlaceholder')}" required></div><div class="field"><label for="signup-last-name">${t('lastName')}</label><input id="signup-last-name" name="lastName" maxlength="42" autocomplete="family-name" placeholder="${t('lastNamePlaceholder')}" required></div>` : ''}<div class="field"><label for="email">${t('email')}</label><input id="email" name="email" type="email" autocomplete="username" inputmode="email" placeholder="${t('emailPlaceholder')}" required></div><div class="field"><label for="password">${t('password')}</label><input id="password" name="password" type="password" minlength="${signingUp ? PASSWORD_MIN_LENGTH : 1}" autocomplete="${signingUp ? 'new-password' : 'current-password'}" aria-describedby="${signingUp ? 'signup-password-note' : ''}" required>${signingUp ? `<small id="signup-password-note" class="field-note">${t('passwordLength')}</small>` : ''}</div>${signingUp ? `<div class="field"><label for="signup-password-confirmation">${t('confirmSignupPassword')}</label><input id="signup-password-confirmation" name="passwordConfirmation" type="password" minlength="${PASSWORD_MIN_LENGTH}" autocomplete="new-password" placeholder="${t('confirmSignupPasswordPlaceholder')}" aria-invalid="false" aria-describedby="signup-password-confirmation-error" required><small id="signup-password-confirmation-error" class="field-error" data-signup-password-error role="alert" aria-live="polite"></small></div><label class="check"><input type="checkbox" name="privacyConsent" value="accepted" required><span>${t('privacy')}</span></label>` : `<button class="auth-link" type="button" data-action="auth-forgot">${t('forgotPassword')}</button>`}<p class="form-notice" role="status">${escapeHTML(state.authNotice)}</p><p class="form-error" data-auth-error role="alert">${escapeHTML(state.authError)}</p><button class="primary-button" type="submit" ${state.authLoading || signingUp ? 'disabled' : ''} ${signingUp ? 'data-signup-submit' : ''}>${state.authLoading ? t('checkSession') : signingUp ? t('createAccount') : t('signIn')}</button></form>`;
   }
-  return `<main class="app-shell"><section class="screen screen--gold ${recoveryMode ? 'screen--recovery' : ''}">${topbar()}<p class="eyebrow">${t(recoveryMode ? 'recoveryEyebrow' : 'welcome')}</p><h1>${t(recoveryMode ? 'recoveryTitle' : 'loginTitle')}</h1>${recoveryMode && state.authMode === 'recovery' ? `<p class="subtitle recovery-intro">${t('recoveryCopy')}</p>` : ''}${form}</section></main>`;
+  const guestEntry = ['signin', 'signup'].includes(state.authMode)
+    ? renderGuestEntry({ translate: t, available: state.guestOrderingAvailable, busy: state.guestBusy })
+    : '';
+  return `<main class="app-shell"><section class="screen screen--gold ${recoveryMode ? 'screen--recovery' : ''}">${topbar()}<p class="eyebrow">${t(recoveryMode ? 'recoveryEyebrow' : 'welcome')}</p><h1>${t(recoveryMode ? 'recoveryTitle' : 'loginTitle')}</h1>${recoveryMode && state.authMode === 'recovery' ? `<p class="subtitle recovery-intro">${t('recoveryCopy')}</p>` : ''}${form}${guestEntry}</section></main>`;
 }
 
 function emailConfirmation() {
@@ -1064,6 +1134,7 @@ async function refreshCustomerLoyalty({ includeHistory = true, repaint = false }
 }
 
 async function refreshCustomerLoyaltySafely(options) {
+  if (state.isGuest) return null;
   try {
     return await refreshCustomerLoyalty(options);
   } catch (error) {
@@ -1363,6 +1434,7 @@ async function refreshPushNotificationPreference({ rerender = false } = {}) {
 
 function applyCustomerContext(context) {
   if (!context) return;
+  state.isGuest = false;
   state.profile = {
     ...defaultProfile,
     firstName: context.firstName,
@@ -1382,7 +1454,119 @@ function applyCustomerContext(context) {
   }
 }
 
+// Invitado: sin perfil ni fidelización; sólo carta, carrito y pedidos.
+function applyGuestContext(user) {
+  state.isGuest = true;
+  state.profile = { ...defaultProfile };
+  state.hasBusinessAccess = false;
+  state.needsProfileCompletion = false;
+  // La sesión del invitado se conserva para seguir sus pedidos.
+  state.keepSession = setSessionPersistence(true);
+  state.authStatus = 'authenticated';
+  state.afterIntro = 'menu';
+  localStorage.setItem('spirit-seen', '1');
+  if (user?.id && state.userId !== user.id) {
+    state.userId = user.id;
+    restoreCart();
+    void loadOrderingState({ repaint: true });
+  }
+}
+
+async function refreshGuestAvailability({ repaint = false } = {}) {
+  const available = await getGuestOrderingStatus();
+  if (available === state.guestOrderingAvailable) return;
+  state.guestOrderingAvailable = available;
+  if (repaint && state.authStatus !== 'authenticated' && ['login', 'menu'].includes(state.screen)) renderPreservingFocus();
+}
+
+async function startGuestOrdering() {
+  if (state.guestBusy) return;
+  state.guestBusy = true;
+  state.authError = '';
+  renderPreservingFocus();
+  try {
+    const user = await signInAsGuest();
+    applyGuestContext(user);
+    state.screen = 'menu';
+    render();
+    scrollTo(0, 0);
+    announcer.announce(t('guestEntryCopy'));
+  } catch (error) {
+    state.authError = error?.code === 'guest_disabled' ? t('guestUnavailable') : t('guestStartError');
+    if (state.screen === 'menu') showToast(state.authError);
+    renderPreservingFocus();
+  } finally {
+    state.guestBusy = false;
+    if (state.authStatus !== 'authenticated') renderPreservingFocus();
+  }
+}
+
+function openGuestSignup() {
+  modalController.close({ force: true, restoreFocus: false, reason: 'navigate' });
+  state.guestSignup = { sentTo: '', busy: false, error: '' };
+  goToOrderScreen('guestSignup');
+}
+
+async function submitGuestSignup(form) {
+  if (state.guestSignup.busy) return;
+  const data = new FormData(form);
+  const email = String(data.get('email') || '').trim();
+  const firstName = String(data.get('firstName') || '').trim();
+  const emailInput = form.querySelector('#guest-email');
+  let error = '';
+  if (!firstName || !email || !emailInput?.checkValidity()) error = t('guestSignupRequired');
+  else if (data.get('privacyConsent') !== 'accepted') error = t('guestSignupPrivacy');
+  if (error) {
+    form.querySelector('[data-guest-signup-error]').textContent = error;
+    return;
+  }
+  state.guestSignup = { ...state.guestSignup, busy: true, error: '' };
+  render();
+  try {
+    await startGuestConversion({
+      email,
+      firstName,
+      lastName: String(data.get('lastName') || ''),
+      consent: { accepted: true, version: PRIVACY_POLICY_VERSION }
+    });
+    state.guestSignup = { sentTo: email, busy: false, error: '' };
+    render();
+    focusScreenHeading();
+  } catch (failure) {
+    state.guestSignup = { sentTo: '', busy: false, error: failure?.code === 'email_exists' ? t('guestSignupEmailTaken') : t('guestSignupError') };
+    render();
+    document.querySelector('[data-guest-signup-error]')?.focus?.();
+  }
+}
+
+async function submitGuestPassword(form) {
+  if (state.guestPassword.busy) return;
+  const data = new FormData(form);
+  const password = String(data.get('password') || '');
+  const confirmation = String(data.get('passwordConfirmation') || '');
+  const errorElement = form.querySelector('[data-guest-password-error]');
+  if (!passwordMeetsPolicy(password)) { errorElement.textContent = t('passwordLength'); return; }
+  if (password !== confirmation) { errorElement.textContent = t('passwordMismatch'); return; }
+  state.guestPassword = { busy: true, error: '' };
+  render();
+  try {
+    const user = await setConvertedAccountPassword(password);
+    applyCustomerContext(await getCustomerContext(user));
+    await refreshCustomerLoyaltySafely();
+    window.history.replaceState({}, '', '/');
+    state.guestPassword = { busy: false, error: '' };
+    state.screen = 'home';
+    render();
+    showToast(t('guestPasswordDone'));
+  } catch {
+    state.guestPassword = { busy: false, error: t('guestSignupError') };
+    render();
+  }
+}
+
 function clearCustomerIdentity() {
+  state.isGuest = false;
+  state.guestSignup = { sentTo: '', busy: false, error: '' };
   stopStampMonitoring();
   orderMonitor.stop();
   productMonitor.stop();
@@ -1463,7 +1647,14 @@ async function initializeCustomerAuth() {
     }
 
     const user = await getCurrentUser();
+    if (isGuestUser(user)) {
+      applyGuestContext(user);
+      if (['authLoading', 'login'].includes(state.screen)) state.screen = 'menu';
+      render();
+      return;
+    }
     const context = user ? await getCustomerContext(user) : null;
+    if (!context) void refreshGuestAvailability({ repaint: true });
     if (context) {
       applyCustomerContext(context);
       await refreshCustomerLoyaltySafely();
@@ -1500,6 +1691,18 @@ async function initializeEmailConfirmation() {
   render();
 
   try {
+    if (emailConfirmationRoute.type === 'email_change') {
+      // Invitado que crea su cuenta: misma fila de usuario, mismos pedidos.
+      await confirmGuestConversion(tokenHash);
+      window.history.replaceState({}, '', '/');
+      state.isGuest = false;
+      state.authStatus = 'authenticated';
+      state.guestPassword = { busy: false, error: '' };
+      state.screen = 'guestPassword';
+      render();
+      focusScreenHeading();
+      return;
+    }
     await confirmCustomerEmail(tokenHash);
     state.emailConfirmationStatus = 'confirmed';
     window.history.replaceState({}, '', emailConfirmationResultUrl('confirmed'));
@@ -1779,7 +1982,8 @@ function render() {
   document.documentElement.lang = state.lang;
   syncIntroPresentation();
   cleanupMenuInteractions();
-  app.innerHTML = ({intro,onboarding,login,emailConfirmation,authLoading,home,menu,rewards,history,profile,cart:cartScreen,orders,orderTracking})[state.screen]();
+  if (state.isGuest) state.screen = guestScreen(state.screen);
+  app.innerHTML = ({intro,onboarding,login,emailConfirmation,authLoading,home,menu,rewards,history,profile,cart:cartScreen,orders,orderTracking,guestSignup,guestPassword})[state.screen]();
   bind();
   syncOrderMonitor();
   syncProductMonitor();
@@ -1864,10 +2068,16 @@ function bind() {
     if(action==='request-stamp'){ openStampRequest(); }
     if(action==='use-reward' && state.availableRewards > 0){ openRewardRequest(); }
     if(action==='open-menu'){ state.menuQuery='';state.menuActiveCategory=MENU_CATEGORIES[0].id;state.screen='menu';render();scrollTo(0,0);void loadOrderingState({ repaint: true }); }
-    if(action==='close-menu'){ state.menuQuery='';state.screen='home';render();scrollTo(0,0); }
+    if(action==='close-menu'){ state.menuQuery='';state.screen=state.authStatus==='authenticated'?'home':'login';render();scrollTo(0,0); }
+    if(action==='guest-start'){ await startGuestOrdering(); }
+    if(action==='guest-view-menu'){ state.menuQuery='';state.menuActiveCategory=MENU_CATEGORIES[0].id;state.screen='menu';render();scrollTo(0,0);void refreshGuestAvailability({ repaint: true }); }
+    if(action==='guest-exit'){ openSheet(sheet(renderGuestExitContent({ translate: t }), 'modal--form modal--danger', 'guest-exit-title', 'guest-exit-description')); }
+    if(action==='guest-exit-confirm'){ modalController.close({ force: true, restoreFocus: false, reason: 'action' }); await logout(); }
+    if(action==='guest-create-account'){ openGuestSignup(); }
+    if(action==='guest-signup-back'){ state.screen=state.isGuest?'menu':'login';render();scrollTo(0,0); }
     if(action==='back-to-menu'){ state.screen='menu';render();void loadOrderingState({ repaint: true }); }
     if(action==='checkout-back-to-cart'){ modalController.close({ force: true, restoreFocus: false, reason: 'back-to-cart' }); state.screen='cart'; renderPreservingFocus(); focusScreenHeading(); }
-    if(action==='open-checkout'){ if(orderingActive()&&canCheckout(state.cart,state.ordering.products)) { modalController.open(checkoutSheet(), { initialFocus: '[data-checkout-code]' }); bind(); startCheckoutViewport(); } }
+    if(action==='open-checkout'){ if(orderingActive()&&canCheckout(state.cart,state.ordering.products)) { modalController.open(checkoutSheet(), { initialFocus: state.isGuest ? '[data-checkout-guest-name]' : '[data-checkout-code]' }); bind(); startCheckoutViewport(); } }
     if(action==='open-orders'){ openOrdersScreen(); }
     if(action==='orders-back'){ state.screen=state.ordersBackTarget||'menu';render();scrollTo(0,0); }
     if(action==='order-back'){ if(state.orderBackTarget==='orders'){ state.ordersLoading=!state.activeOrders.length;goToOrderScreen('orders');void refreshOrdersSafely(); } else { state.screen='menu';render();scrollTo(0,0); } }
@@ -2036,6 +2246,14 @@ function bindOrderInteractions() {
       if (el.checked) setCheckoutFieldError(table, '');
     });
   });
+  document.querySelectorAll('[data-form="guest-signup"]:not([data-bound])').forEach((form) => {
+    form.dataset.bound = '1';
+    form.addEventListener('submit', (event) => { event.preventDefault(); void submitGuestSignup(form); });
+  });
+  document.querySelectorAll('[data-form="guest-password"]:not([data-bound])').forEach((form) => {
+    form.dataset.bound = '1';
+    form.addEventListener('submit', (event) => { event.preventDefault(); void submitGuestPassword(form); });
+  });
   document.querySelectorAll('[data-form="checkout"]:not([data-bound])').forEach((form) => {
     form.dataset.bound = '1';
     form.addEventListener('submit', (event) => {
@@ -2079,6 +2297,7 @@ if (!isBusinessMode) {
         }
         if (!['intro', 'onboarding'].includes(state.screen)) state.screen = 'login';
         render();
+        void refreshGuestAvailability({ repaint: true });
         return;
       }
       if (event === 'SIGNED_IN' && user && state.authStatus !== 'authenticated') {
@@ -2088,6 +2307,12 @@ if (!isBusinessMode) {
           state.authMode = passwordRecoveryState.getTokenHash() ? 'recovery' : 'forgot';
           if (state.authMode === 'forgot') state.authError = t('recoveryInvalidCopy');
           state.screen = 'login';
+          render();
+          return;
+        }
+        if (isGuestUser(user)) {
+          applyGuestContext(user);
+          if (['login', 'authLoading'].includes(state.screen)) state.screen = 'menu';
           render();
           return;
         }

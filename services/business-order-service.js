@@ -69,18 +69,26 @@ export const updateBusinessOrderStatus = (orderId, status, reason = null) => gua
 export const getOrderingSettings = (businessId) => guard(async () => {
   const { data, error } = await requireSupabase()
     .from('business_ordering_settings')
-    .select('ordering_enabled, pilot_only')
+    .select('ordering_enabled, pilot_only, guest_ordering_enabled')
     .eq('business_id', businessId)
     .maybeSingle();
   if (error) throw error;
   return Object.freeze({
     orderingEnabled: Boolean(data?.ordering_enabled),
-    pilotOnly: data ? Boolean(data.pilot_only) : true
+    pilotOnly: data ? Boolean(data.pilot_only) : true,
+    guestOrderingEnabled: Boolean(data?.guest_ordering_enabled)
   });
 });
 
 export const setOrderingEnabled = (businessId, enabled) => guard(async () => {
   const { data, error } = await requireSupabase().rpc('set_ordering_enabled', { p_business_id: businessId, p_enabled: enabled });
+  if (error) throw error;
+  return statusResult(data);
+});
+
+// «Pedidos sin cuenta» (invitados): sólo owner y manager.
+export const setGuestOrderingEnabled = (businessId, enabled) => guard(async () => {
+  const { data, error } = await requireSupabase().rpc('set_guest_ordering_enabled', { p_business_id: businessId, p_enabled: enabled });
   if (error) throw error;
   return statusResult(data);
 });

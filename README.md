@@ -311,6 +311,21 @@ Si no puedes instalar los navegadores de Playwright, `SPIRIT_E2E_CHROME=1` añad
 
 `vercel.json` publica `dist`, conserva `/`, reescribe `/cafeteria` y `/reset-password` hacia la SPA y permite que cámara y service worker funcionen bajo HTTPS. Tras desplegar, prueba instalación PWA, navegación offline del shell, login, recuperación, cámara en iOS/Android y el flujo de dos dispositivos.
 
+### Pedidos sin cuenta (inicios de sesión anónimos)
+
+Los invitados son usuarios anónimos de Supabase Auth. En local están activados (`enable_anonymous_sign_ins = true` y `anonymous_users = 50` en `supabase/config.toml`).
+
+**En producción, los inicios anónimos permanecen desactivados en Supabase** (Authentication → Sign In / Providers → «Allow anonymous sign-ins») hasta que se vaya a usar «Pedidos sin cuenta» con clientes. Mientras estén desactivados, el botón «Pedir sin cuenta» no hace nada útil aunque el interruptor del Panel esté encendido: el alta anónima falla y la app muestra «Ahora mismo no se puede pedir sin cuenta».
+
+El día que se active:
+
+1. Aplicar la migración de invitados con `supabase db push --dry-run` y su revisión.
+2. En Supabase: activar «Allow anonymous sign-ins» y poner el límite de inicios anónimos por hora e IP en 50 (Authentication → Rate Limits).
+3. Revisar la plantilla «Change email address» (es la que recibe el invitado al crear su cuenta): enlace a `https://www.spiritcoffee.es/auth/confirm?token_hash={{ .TokenHash }}&type=email_change`, como `supabase/templates/email_change.html`.
+4. Encender «Pedidos sin cuenta» en el Panel (owner o manager).
+
+No hay CAPTCHA: Turnstile se retiró en agosto (`bc655f2`) y `tests/security-hardening.test.js` impide reintroducirlo. Las protecciones son el límite por IP de Supabase, el código del día (5 intentos fallidos cada 15 minutos) y el máximo de 2 pedidos activos por usuario. La limpieza diaria (`private.purge_stale_guests`, pg_cron a las 03:00 UTC) borra los invitados con más de 30 días sin actividad y sin pedidos activos; sus pedidos se conservan.
+
 ## Pendiente antes de la implantación real de pedidos
 
 - Decidir si el rol `employee` debe seguir pudiendo abrir y cerrar pedidos (`set_ordering_enabled`) y regenerar el código del día (`regenerate_order_code`). Hoy ya puede: esas acciones, igual que los agotados y el estado de los pedidos, sólo exigen ser miembro activo con sesión AAL2. Lo único que `manager` (u `owner`) añade es la gestión del piloto (`add/remove/list_ordering_pilot_members` y `set_ordering_pilot_only`).

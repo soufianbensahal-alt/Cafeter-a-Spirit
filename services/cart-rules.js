@@ -190,6 +190,8 @@ export const ORDER_ERROR_KEYS = Object.freeze({
   ordering_closed: 'orderErrorClosed',
   ordering_unavailable: 'orderErrorClosed',
   not_in_pilot: 'orderErrorNotInPilot',
+  guest_ordering_disabled: 'orderErrorGuestDisabled',
+  invalid_guest_name: 'orderErrorGuestName',
   product_unavailable: 'orderErrorProductUnavailable',
   active_order_limit: 'orderErrorActiveLimit',
   invalid_table_label: 'orderErrorTable',

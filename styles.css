@@ -682,3 +682,21 @@ html[data-theme="dark"] .order-status--served .order-status__chip { color: #1716
 @media (max-width: 360px) {
   .menu-titlebar--ordering { grid-template-columns: 44px 52px minmax(0,1fr) 44px; }
 }
+
+/* Pedir sin cuenta (invitados). */
+.guest-entry { margin-top: 26px; padding: 18px; border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: var(--surface-soft); display: grid; gap: 10px; text-align: center; }
+.guest-entry h2 { margin: 0; font-size: 20px; }
+.guest-entry p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+.guest-prompt { margin: 22px 0 0; padding: 16px 18px; border: 2px solid var(--mustard-deep); border-radius: var(--radius-md); background: rgba(238,207,98,.28); display: grid; gap: 8px; }
+.guest-prompt__title { margin: 0; font-size: 16px; font-weight: 800; line-height: 1.35; color: var(--ink); }
+.guest-prompt__copy { margin: 0; color: var(--muted); font-size: 13px; }
+.guest-prompt__action { min-height: 48px; }
+.guest-menu-slot { flex: 0 0 auto; padding: 0 max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left)); }
+.guest-menu-slot .guest-prompt { margin: 12px 0 0; padding: 12px 14px; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.guest-menu-slot .guest-prompt__copy { display: none; }
+.guest-menu-slot .guest-prompt__action { width: auto; min-height: 44px; padding: 0 16px; }
+.guest-menu-banner { flex: 0 0 auto; margin: 12px max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left)); padding: 12px 14px; border-radius: var(--radius-md); background: var(--surface-soft); border: 1px solid var(--border-soft); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.guest-menu-banner p { margin: 0; font-size: 14px; font-weight: 700; }
+.guest-menu-banner .primary-button { width: auto; min-height: 44px; padding: 0 18px; }
+html[data-theme="dark"] .guest-prompt { border-color: var(--mustard); background: rgba(238,207,98,.12); }
+html[data-theme="dark"] .guest-prompt__title { color: #f7f0de; }

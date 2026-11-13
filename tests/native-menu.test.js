@@ -95,7 +95,8 @@ test('Carta abre internamente y elimina por completo el enlace de Canva', async 
 
   assert.doesNotMatch(app, /canva\.com\/design\/DAFuLPRj4h0/i);
   assert.match(quickAccess, /\{ name: 'Carta', subtitle: 'viewMenu', icon: 'card', action: 'open-menu' \}/);
-  assert.match(await read('client/menu-view.js'), /data-action="close-menu"/);
+  // close-menu es la acción por defecto del botón de volver (el invitado usa otra).
+  assert.match(await read('client/menu-view.js'), /data-action="\$\{back\?\.action \|\| 'close-menu'\}"/);
   assert.match(app, /\{intro,onboarding,login,emailConfirmation,authLoading,home,menu,rewards,history,profile[,}]/);
 });
 

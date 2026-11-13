@@ -144,7 +144,7 @@ test('CSS: casilla de la marca con 44 px, foco visible y variante oscura', async
 
 test('app.js ajusta la confirmación al viewport visible y lo libera al cerrar', async () => {
   const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
-  assert.match(app, /modalController\.open\(checkoutSheet\(\), \{ initialFocus: '\[data-checkout-code\]' \}\); bind\(\); startCheckoutViewport\(\);/);
+  assert.match(app, /modalController\.open\(checkoutSheet\(\), \{ initialFocus: state\.isGuest \? '\[data-checkout-guest-name\]' : '\[data-checkout-code\]' \}\); bind\(\); startCheckoutViewport\(\);/);
   assert.match(app, /viewport\?\.addEventListener\('resize', update\)/);
   assert.match(app, /viewport\?\.addEventListener\('scroll', update\)/);
   assert.match(app, /dialog\.addEventListener\('focusin', onFocusIn\)/);

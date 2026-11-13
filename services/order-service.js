@@ -84,13 +84,15 @@ export const getOrderableProducts = (businessId) => guard(async () => {
   })]));
 });
 
-export const createOrder = ({ businessId, code, tableLabel, items, note }) => guard(async () => {
+// guestName: sólo invitados (sesión anónima); create_order lo ignora para registrados.
+export const createOrder = ({ businessId, code, tableLabel, items, note, guestName = null }) => guard(async () => {
   const { data, error } = await requireSupabase().rpc('create_order', {
     p_business_id: businessId,
     p_order_code: code,
     p_table_label: tableLabel,
     p_items: items,
-    p_note: note || null
+    p_note: note || null,
+    p_guest_name: guestName || null
   });
   if (error) throw error;
   const row = firstRow(data);

@@ -75,11 +75,13 @@ export function renderMenuContent({ categories, query, icons, translate, escapeH
   return `<section class="menu-results" aria-live="polite"><h2>${translate('menuResults')}</h2>${groups.map(({ category, products }) => `<section class="menu-result-group"><h3>${escapeHTML(category.name)}</h3><div class="menu-products">${products.map((product) => productRow(product, escapeHTML, options)).join('')}</div></section>`).join('')}</section>`;
 }
 
-export function renderMenuScreen({ categories, query, activeCategory, icons, translate, escapeHTML, brandLogo, ordering = null }) {
+// banner: franja bajo la cabecera (invitado / pedir sin cuenta). back: acción
+// y etiqueta del botón de la izquierda (por defecto, volver al inicio).
+export function renderMenuScreen({ categories, query, activeCategory, icons, translate, escapeHTML, brandLogo, ordering = null, banner = '', back = null }) {
   return `<main class="app-shell menu-shell"><section class="menu-screen ${ordering ? 'menu-screen--ordering' : ''}">
     <header class="menu-sticky">
       <div class="menu-titlebar ${ordering ? 'menu-titlebar--ordering' : ''}">
-        <button class="menu-icon-button" type="button" data-action="close-menu" aria-label="${translate('menuBack')}">${icons.arrowLeft}</button>
+        <button class="menu-icon-button" type="button" data-action="${back?.action || 'close-menu'}" aria-label="${back?.label || translate('menuBack')}">${icons.arrowLeft}</button>
         <div class="menu-brand">${brandLogo('menu')}</div>
         <h1>${translate('menuTitle')}</h1>
         ${ordering ? `<button class="menu-icon-button" type="button" data-action="open-orders" aria-label="${translate('myOrders')}">${icons.bag}</button>` : ''}
@@ -94,6 +96,7 @@ export function renderMenuScreen({ categories, query, activeCategory, icons, tra
         ${categories.map((category) => `<button type="button" class="menu-category-tab ${activeCategory === category.id ? 'menu-category-tab--active' : ''}" data-menu-category="${category.id}" aria-pressed="${activeCategory === category.id}">${escapeHTML(category.name)}</button>`).join('')}
       </nav>
     </header>
+    ${banner}
     <div class="menu-content" data-menu-content>${renderMenuContent({ categories, query, icons, translate, escapeHTML, ordering })}</div>
     <button class="menu-to-top" type="button" data-action="menu-top" aria-label="${translate('menuTop')}">${icons.arrowUp}</button>
     ${ordering ? `<div class="cart-bar-slot" data-cart-bar-slot>${renderCartBar({ ordering, translate })}</div>` : ''}
