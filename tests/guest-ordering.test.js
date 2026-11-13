@@ -45,7 +45,7 @@ test('nombre para el pedido: espacios normalizados, 2–30 caracteres y sin cont
 });
 
 test('el invitado sólo navega por carta, carrito y pedidos (y crear cuenta)', () => {
-  assert.deepEqual([...GUEST_SCREENS], ['menu', 'cart', 'orders', 'orderTracking', 'guestSignup', 'guestPassword']);
+  assert.deepEqual([...GUEST_SCREENS], ['menu', 'cart', 'orders', 'orderTracking', 'guestSignup', 'guestPassword', 'legal']);
   for (const screen of ['menu', 'cart', 'orders', 'orderTracking', 'guestSignup']) assert.equal(guestScreen(screen), screen);
   for (const screen of ['home', 'rewards', 'history', 'profile', 'login']) assert.equal(guestScreen(screen), 'menu', screen);
 });

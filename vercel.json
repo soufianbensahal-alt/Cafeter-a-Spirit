@@ -41,6 +41,22 @@
     {
       "source": "/login/",
       "destination": "/index.html"
+    },
+    {
+      "source": "/privacidad",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/privacidad/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/aviso-legal",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/aviso-legal/",
+      "destination": "/index.html"
     }
   ],
   "headers": [

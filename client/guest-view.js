@@ -1,11 +1,15 @@
 // Vistas de «Pedir sin cuenta». Render puro (tests/guest-ordering.test.js).
 import { GUEST_NAME_MAX } from '../services/guest-rules.js';
+import { privacyInlineLink } from './legal-view.js';
+
+// Aviso de privacidad junto a «Pedir sin cuenta» (abre la política en un diálogo).
+const guestPrivacyNote = (t) => `<p class="guest-privacy">${t('guestPrivacyNote')} ${privacyInlineLink(t)}.</p>`;
 
 // Bloque del login/bienvenida: entrar como invitado o ver la carta.
 export function renderGuestEntry({ translate: t, available = false, busy = false }) {
   return `<section class="guest-entry" aria-labelledby="guest-entry-title">
     <h2 id="guest-entry-title">${t('guestEntryTitle')}</h2>
-    ${available ? `<p>${t('guestEntryCopy')}</p><button class="primary-button primary-button--light" type="button" data-action="guest-start" ${busy ? 'disabled' : ''}>${busy ? t('guestStarting') : t('guestStart')}</button>` : ''}
+    ${available ? `<p>${t('guestEntryCopy')}</p><button class="primary-button primary-button--light" type="button" data-action="guest-start" ${busy ? 'disabled' : ''}>${busy ? t('guestStarting') : t('guestStart')}</button>${guestPrivacyNote(t)}` : ''}
     <button class="auth-link auth-link--centered" type="button" data-action="guest-view-menu">${t('guestViewMenu')}</button>
   </section>`;
 }
@@ -21,7 +25,7 @@ export function renderGuestPrompt({ translate: t, id = 'guest-prompt' }) {
 
 // Carta sin sesión: entrar como invitado sin salir de la carta.
 export function renderGuestMenuBanner({ translate: t, busy = false }) {
-  return `<div class="guest-menu-banner"><p>${t('guestEntryCopy')}</p><button class="primary-button" type="button" data-action="guest-start" ${busy ? 'disabled' : ''}>${busy ? t('guestStarting') : t('guestStart')}</button></div>`;
+  return `<div class="guest-menu-banner"><p>${t('guestEntryCopy')}</p><button class="primary-button" type="button" data-action="guest-start" ${busy ? 'disabled' : ''}>${busy ? t('guestStarting') : t('guestStart')}</button>${guestPrivacyNote(t)}</div>`;
 }
 
 export function renderGuestNameField({ translate: t, escapeHTML, value = '' }) {
@@ -49,7 +53,7 @@ const header = ({ t, icons, eyebrow, title }) => `<header class="order-header">
   <h1 tabindex="-1" data-screen-heading>${title}</h1>`;
 
 // Paso 1 de la conversión: nombre, correo y consentimiento.
-export function renderGuestSignupScreen({ translate: t, escapeHTML, icons, sentTo = '', busy = false, error = '' }) {
+export function renderGuestSignupScreen({ translate: t, escapeHTML, icons, sentTo = '', busy = false, error = '', privacyLabel = '' }) {
   const head = header({ t, icons, eyebrow: t('guestSignupEyebrow'), title: sentTo ? t('guestSignupSentTitle') : t('guestSignupTitle') });
   if (sentTo) {
     return `<main class="app-shell"><section class="screen order-screen">${head}
@@ -63,7 +67,7 @@ export function renderGuestSignupScreen({ translate: t, escapeHTML, icons, sentT
       <div class="field"><label for="guest-first-name">${t('firstName')}</label><input id="guest-first-name" name="firstName" type="text" autocomplete="given-name" maxlength="28" required></div>
       <div class="field"><label for="guest-last-name">${t('lastName')}</label><input id="guest-last-name" name="lastName" type="text" autocomplete="family-name" maxlength="42"></div>
       <div class="field"><label for="guest-email">${t('email')}</label><input id="guest-email" name="email" type="email" autocomplete="email" inputmode="email" required></div>
-      <label class="check"><input type="checkbox" name="privacyConsent" value="accepted" required><span>${t('privacy')}</span></label>
+      <label class="check"><input type="checkbox" name="privacyConsent" value="accepted" required><span>${privacyLabel || t('privacy')}</span></label>
       <p class="form-error" role="alert" data-guest-signup-error>${escapeHTML(error)}</p>
       <button class="primary-button" type="submit" ${busy ? 'disabled' : ''}>${busy ? t('guestSignupSending') : t('guestSignupSubmit')}</button>
     </form>

@@ -700,3 +700,25 @@ html[data-theme="dark"] .order-status--served .order-status__chip { color: #1716
 .guest-menu-banner .primary-button { width: auto; min-height: 44px; padding: 0 18px; }
 html[data-theme="dark"] .guest-prompt { border-color: var(--mustard); background: rgba(238,207,98,.12); }
 html[data-theme="dark"] .guest-prompt__title { color: #f7f0de; }
+
+/* Páginas legales (/privacidad y /aviso-legal) y pie con sus enlaces. */
+.legal-screen h1 { font-size: clamp(30px, 8vw, 40px); }
+.legal-screen .order-header { justify-content: space-between; }
+.legal-lang { padding-right: 4px; }
+.legal-draft { margin: 0 0 16px; padding: 12px 14px; border: 2px dashed var(--danger); border-radius: var(--radius-sm); background: rgba(152,68,56,.08); color: var(--danger); font-size: 14px; font-weight: 800; line-height: 1.45; }
+.legal-updated { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+.legal-intro { margin: 14px 0 0; line-height: 1.6; }
+.legal-section { margin-top: 22px; }
+.legal-section h2, .legal-section h3 { margin: 0 0 8px; font-family: "DM Sans", system-ui, sans-serif; font-size: 18px; font-weight: 800; line-height: 1.3; }
+.legal-section p, .legal-section li { color: var(--ink); font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }
+.legal-section ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.legal-placeholder { padding: 0 3px; border-radius: 4px; background: rgba(238,207,98,.55); color: var(--ink); font-weight: 800; }
+.legal-other { margin: 28px 0 0; font-weight: 800; }
+.legal-sheet { display: grid; gap: 4px; }
+.legal-footer { margin: 28px 0 0; padding: 14px 0 6px; border-top: 1px solid var(--line); text-align: center; font-size: 13px; }
+.legal-footer a, .legal-other a, .check a, .guest-privacy a { color: inherit; font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
+.legal-footer a { display: inline-block; min-height: 44px; padding: 12px 6px; }
+.guest-privacy { margin: 2px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+a.settings-row { text-decoration: none; color: inherit; }
+html[data-theme="dark"] .legal-section p, html[data-theme="dark"] .legal-section li { color: #f7f0de; }
+html[data-theme="dark"] .legal-placeholder { background: rgba(238,207,98,.3); color: #f7f0de; }

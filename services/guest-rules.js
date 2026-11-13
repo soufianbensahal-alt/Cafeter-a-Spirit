@@ -5,7 +5,7 @@ export const GUEST_NAME_MIN = 2;
 export const GUEST_NAME_MAX = 30;
 
 // Un invitado sólo usa la carta, el carrito y sus pedidos (más crear cuenta).
-export const GUEST_SCREENS = Object.freeze(['menu', 'cart', 'orders', 'orderTracking', 'guestSignup', 'guestPassword']);
+export const GUEST_SCREENS = Object.freeze(['menu', 'cart', 'orders', 'orderTracking', 'guestSignup', 'guestPassword', 'legal']);
 
 export const isGuestUser = (user) => user?.is_anonymous === true;
 

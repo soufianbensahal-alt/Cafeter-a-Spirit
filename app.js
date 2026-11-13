@@ -80,6 +80,14 @@ import { renderQuickAccess } from './client/quick-access.js';
 import { renderCartBar, renderMenuContent, renderMenuScreen, renderProductOrderControl } from './client/menu-view.js';
 import { ORDER_COPY } from './client/order-copy.js';
 import { GUEST_COPY } from './client/guest-copy.js';
+import { LEGAL_ROUTES, legalPageFromPath } from './client/legal-content.js';
+import {
+  LEGAL_COPY,
+  privacyInlineLink,
+  renderLegalFooter,
+  renderLegalScreen,
+  renderLegalSheetContent
+} from './client/legal-view.js';
 import {
   renderGuestEntry,
   renderGuestExitContent,
@@ -206,10 +214,12 @@ Object.assign(copy.es, ORDER_COPY.es);
 Object.assign(copy.ca, ORDER_COPY.ca);
 Object.assign(copy.es, GUEST_COPY.es);
 Object.assign(copy.ca, GUEST_COPY.ca);
+Object.assign(copy.es, LEGAL_COPY.es);
+Object.assign(copy.ca, LEGAL_COPY.ca);
 
 const defaultProfile = { firstName: 'Cliente', lastName: '', email: '' };
 const state = {
-  screen: initialCustomerScreen({ passwordRecovery: isPasswordRecoveryRoute, emailConfirmation: emailConfirmationRoute.active, login: isLoginRoute }), afterIntro: localStorage.getItem('spirit-onboarded') ? 'login' : 'onboarding', onboarding: 0, stamps: 0,
+  screen: legalPageFromPath(window.location.pathname) ? 'legal' : initialCustomerScreen({ passwordRecovery: isPasswordRecoveryRoute, emailConfirmation: emailConfirmationRoute.active, login: isLoginRoute }), afterIntro: localStorage.getItem('spirit-onboarded') ? 'login' : 'onboarding', onboarding: 0, stamps: 0,
   availableRewards: 0,
   loyaltyGoal: 0,
   rewardDescription: '',
@@ -253,6 +263,10 @@ const state = {
   // Código, mesa y «recoger en barra» escritos en la confirmación. Sólo en
   // memoria: se conservan al volver al carrito y se borran al enviar o salir.
   checkoutDraft: null,
+  // Páginas legales (/privacidad y /aviso-legal) y desde dónde se abrieron.
+  legalPage: legalPageFromPath(window.location.pathname),
+  legalLang: null,
+  legalReturn: null,
   // Invitado: sesión anónima de Supabase (pedir sin cuenta).
   isGuest: false,
   guestOrderingAvailable: false,
@@ -337,7 +351,7 @@ function home() {
   const countLabel = state.loyaltyReady ? `${state.stamps}/${state.loyaltyGoal}` : '—';
   const loyaltyAction = state.customerCardId ? 'request-stamp' : 'join-loyalty';
   const loyaltyActionLabel = state.stampRequestLoading ? (state.customerCardId ? t('generatingStamp') : t('joiningClub')) : (state.customerCardId ? t('requestStamp') : t('joinClub'));
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${countLabel}</div></div><span class="reward-chip">${escapeHTML(rewardLabel)}</span></div><div class="stamps">${stamps}</div><div class="loyalty-card__footer"><div class="progress-copy">${progressLabel}</div><div class="loyalty-card__actions"><button class="loyalty-card__request" type="button" data-action="${loyaltyAction}" ${state.stampRequestLoading ? 'disabled' : ''}>${loyaltyActionLabel}</button><button class="loyalty-card__request loyalty-card__request--reward" type="button" data-action="use-reward" ${state.availableRewards < 1 || state.stampRequestLoading ? 'disabled' : ''}>${t('useFreeCoffee')}</button></div></div></article>${renderActiveOrdersBanner({ count: state.activeOrders.length, translate: t })}<div class="section-head" id="quick-access"><h2>${t('quickAccess')}</h2></div>${quickAccess()}</section>${nav('home')}</main>`;
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${countLabel}</div></div><span class="reward-chip">${escapeHTML(rewardLabel)}</span></div><div class="stamps">${stamps}</div><div class="loyalty-card__footer"><div class="progress-copy">${progressLabel}</div><div class="loyalty-card__actions"><button class="loyalty-card__request" type="button" data-action="${loyaltyAction}" ${state.stampRequestLoading ? 'disabled' : ''}>${loyaltyActionLabel}</button><button class="loyalty-card__request loyalty-card__request--reward" type="button" data-action="use-reward" ${state.availableRewards < 1 || state.stampRequestLoading ? 'disabled' : ''}>${t('useFreeCoffee')}</button></div></div></article>${renderActiveOrdersBanner({ count: state.activeOrders.length, translate: t })}<div class="section-head" id="quick-access"><h2>${t('quickAccess')}</h2></div>${quickAccess()}${legalFooter()}</section>${nav('home')}</main>`;
 }
 
 const menuViewContext = () => ({
@@ -371,7 +385,13 @@ const withGuestPrompt = (html, id) => {
   return end < 0 ? html : `${html.slice(0, end)}${renderGuestPrompt({ translate: t, id })}${html.slice(end)}`;
 };
 
-const guestSignup = () => renderGuestSignupScreen({ translate: t, escapeHTML, icons, ...state.guestSignup });
+const guestSignup = () => renderGuestSignupScreen({ translate: t, escapeHTML, icons, privacyLabel: privacyLabel(), ...state.guestSignup });
+
+// Casilla de consentimiento con enlace a la política (se abre en un diálogo
+// para no perder lo escrito).
+const privacyLabel = () => t('privacy').replace(t('legalPrivacyInline'), privacyInlineLink(t));
+const legalFooter = () => renderLegalFooter({ translate: t });
+const legal = () => renderLegalScreen({ page: state.legalPage || 'privacy', lang: state.legalLang || state.lang, translate: t, escapeHTML, icons });
 const guestPassword = () => renderGuestPasswordScreen({ translate: t, escapeHTML, ...state.guestPassword, minLength: PASSWORD_MIN_LENGTH });
 
 // ---------------------------------------------------------------------------
@@ -1027,7 +1047,7 @@ function history() {
 
 function profile() {
   const loyaltyCount = state.loyaltyReady ? `${state.stamps} ${t('stamps')}` : t('cardUnavailable');
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('profileEyebrow')}</p><h1>${t('profileTitle')}</h1>${state.needsProfileCompletion ? `<button class="profile-completion" type="button" data-action="open-personal">${t('completeProfile')}</button>` : ''}<div class="section-head"><h2>${t('yourAccount')}</h2></div><article class="profile-card">${avatar()}<div><h3>${escapeHTML(state.profile.firstName)} ${escapeHTML(state.profile.lastName)}</h3><p>${escapeHTML(state.profile.email)} · ${loyaltyCount}</p></div></article><div class="section-head"><h2>${t('settings')}</h2></div><div class="settings-list"><button class="settings-row" data-action="open-personal"><span>${t('personalData')}</span><span aria-hidden="true">›</span></button>${state.hasBusinessAccess ? `<a class="settings-row settings-row--link" href="/cafeteria"><span>${t('businessMode')}</span><span aria-hidden="true">›</span></a>` : ''}<label class="settings-row settings-row--switch"><span class="settings-row__copy"><span>${t('notifications')}</span><small>${t('notificationsCopy')}</small></span><span class="switch"><input type="checkbox" data-notifications ${state.notifications?'checked':''} ${state.notificationsLoading?'disabled':''} aria-label="${t('notifications')}"><span class="switch__track" aria-hidden="true"></span></span></label><label class="settings-row settings-row--switch"><span class="settings-row__copy"><span>${t('keepSession')}</span><small>${t('keepSessionCopy')}</small></span><span class="switch"><input type="checkbox" data-session-persistence ${state.keepSession?'checked':''} aria-label="${t('keepSession')}"><span class="switch__track" aria-hidden="true"></span></span></label><button class="settings-row" data-action="open-appearance"><span>${t('appearance')}</span><small>${t(state.themePreference==='system'?'systemTheme':state.themePreference==='dark'?'darkTheme':'lightTheme')}</small></button><button class="settings-row" data-action="open-language"><span>${t('language')}</span><small>${state.lang==='ca'?t('catalan'):t('spanish')}</small></button><button class="settings-row settings-row--danger" data-action="logout"><span>${t('logout')}</span><span aria-hidden="true">›</span></button></div><div class="section-head"><h2>Spirit Coffee</h2></div><p class="subtitle">Passeig Rocamora, 9<br>Montcada i Reixac · Barcelona</p><section class="danger-zone" aria-labelledby="danger-zone-title"><div class="section-head"><div><h2 id="danger-zone-title">${t('dangerZone')}</h2><p>${t('dangerZoneCopy')}</p></div></div><button class="danger-zone__button" type="button" data-action="open-delete-account">${t('deleteAccount')}</button></section></section>${nav('profile')}</main>`;
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('profileEyebrow')}</p><h1>${t('profileTitle')}</h1>${state.needsProfileCompletion ? `<button class="profile-completion" type="button" data-action="open-personal">${t('completeProfile')}</button>` : ''}<div class="section-head"><h2>${t('yourAccount')}</h2></div><article class="profile-card">${avatar()}<div><h3>${escapeHTML(state.profile.firstName)} ${escapeHTML(state.profile.lastName)}</h3><p>${escapeHTML(state.profile.email)} · ${loyaltyCount}</p></div></article><div class="section-head"><h2>${t('settings')}</h2></div><div class="settings-list"><button class="settings-row" data-action="open-personal"><span>${t('personalData')}</span><span aria-hidden="true">›</span></button>${state.hasBusinessAccess ? `<a class="settings-row settings-row--link" href="/cafeteria"><span>${t('businessMode')}</span><span aria-hidden="true">›</span></a>` : ''}<label class="settings-row settings-row--switch"><span class="settings-row__copy"><span>${t('notifications')}</span><small>${t('notificationsCopy')}</small></span><span class="switch"><input type="checkbox" data-notifications ${state.notifications?'checked':''} ${state.notificationsLoading?'disabled':''} aria-label="${t('notifications')}"><span class="switch__track" aria-hidden="true"></span></span></label><label class="settings-row settings-row--switch"><span class="settings-row__copy"><span>${t('keepSession')}</span><small>${t('keepSessionCopy')}</small></span><span class="switch"><input type="checkbox" data-session-persistence ${state.keepSession?'checked':''} aria-label="${t('keepSession')}"><span class="switch__track" aria-hidden="true"></span></span></label><button class="settings-row" data-action="open-appearance"><span>${t('appearance')}</span><small>${t(state.themePreference==='system'?'systemTheme':state.themePreference==='dark'?'darkTheme':'lightTheme')}</small></button><button class="settings-row" data-action="open-language"><span>${t('language')}</span><small>${state.lang==='ca'?t('catalan'):t('spanish')}</small></button><a class="settings-row" href="${LEGAL_ROUTES.privacy}" data-legal-link="privacy"><span>${t('legalPrivacyLink')}</span><small aria-hidden="true">›</small></a><a class="settings-row" href="${LEGAL_ROUTES.notice}" data-legal-link="notice"><span>${t('legalNoticeLink')}</span><small aria-hidden="true">›</small></a><button class="settings-row settings-row--danger" data-action="logout"><span>${t('logout')}</span><span aria-hidden="true">›</span></button></div><div class="section-head"><h2>Spirit Coffee</h2></div><p class="subtitle">Passeig Rocamora, 9<br>Montcada i Reixac · Barcelona</p><section class="danger-zone" aria-labelledby="danger-zone-title"><div class="section-head"><div><h2 id="danger-zone-title">${t('dangerZone')}</h2><p>${t('dangerZoneCopy')}</p></div></div><button class="danger-zone__button" type="button" data-action="open-delete-account">${t('deleteAccount')}</button></section>${legalFooter()}</section>${nav('profile')}</main>`;
 }
 
 function login() {
@@ -1046,12 +1066,12 @@ function login() {
     form = `<form class="form" data-form="customer-recovery"><div class="field"><label for="recovery-password">${t('newPassword')}</label><input id="recovery-password" name="password" type="password" minlength="${PASSWORD_MIN_LENGTH}" autocomplete="new-password" aria-describedby="recovery-password-note" required><small id="recovery-password-note" class="field-note">${t('passwordLength')}</small></div><div class="field"><label for="recovery-confirmation">${t('repeatPassword')}</label><input id="recovery-confirmation" name="confirmation" type="password" minlength="${PASSWORD_MIN_LENGTH}" autocomplete="new-password" required></div>${message}<button class="primary-button" type="submit" ${state.authLoading ? 'disabled' : ''}>${state.authLoading ? t('checkSession') : t('completeRecovery')}</button></form>`;
   } else {
     const signingUp = state.authMode === 'signup';
-    form = `<div class="auth-switch" role="group" aria-label="${t('authLabel')}"><button type="button" class="${!signingUp ? 'auth-switch--active' : ''}" data-action="auth-signin">${t('signIn')}</button><button type="button" class="${signingUp ? 'auth-switch--active' : ''}" data-action="auth-signup">${t('createAccount')}</button></div><form class="form" data-form="customer-auth" data-auth-mode="${signingUp ? 'signup' : 'signin'}" ${signingUp ? 'novalidate' : ''}>${signingUp ? `<div class="field"><label for="signup-first-name">${t('firstName')}</label><input id="signup-first-name" name="firstName" maxlength="28" autocomplete="given-name" placeholder="${t('namePlaceholder')}" required></div><div class="field"><label for="signup-last-name">${t('lastName')}</label><input id="signup-last-name" name="lastName" maxlength="42" autocomplete="family-name" placeholder="${t('lastNamePlaceholder')}" required></div>` : ''}<div class="field"><label for="email">${t('email')}</label><input id="email" name="email" type="email" autocomplete="username" inputmode="email" placeholder="${t('emailPlaceholder')}" required></div><div class="field"><label for="password">${t('password')}</label><input id="password" name="password" type="password" minlength="${signingUp ? PASSWORD_MIN_LENGTH : 1}" autocomplete="${signingUp ? 'new-password' : 'current-password'}" aria-describedby="${signingUp ? 'signup-password-note' : ''}" required>${signingUp ? `<small id="signup-password-note" class="field-note">${t('passwordLength')}</small>` : ''}</div>${signingUp ? `<div class="field"><label for="signup-password-confirmation">${t('confirmSignupPassword')}</label><input id="signup-password-confirmation" name="passwordConfirmation" type="password" minlength="${PASSWORD_MIN_LENGTH}" autocomplete="new-password" placeholder="${t('confirmSignupPasswordPlaceholder')}" aria-invalid="false" aria-describedby="signup-password-confirmation-error" required><small id="signup-password-confirmation-error" class="field-error" data-signup-password-error role="alert" aria-live="polite"></small></div><label class="check"><input type="checkbox" name="privacyConsent" value="accepted" required><span>${t('privacy')}</span></label>` : `<button class="auth-link" type="button" data-action="auth-forgot">${t('forgotPassword')}</button>`}<p class="form-notice" role="status">${escapeHTML(state.authNotice)}</p><p class="form-error" data-auth-error role="alert">${escapeHTML(state.authError)}</p><button class="primary-button" type="submit" ${state.authLoading || signingUp ? 'disabled' : ''} ${signingUp ? 'data-signup-submit' : ''}>${state.authLoading ? t('checkSession') : signingUp ? t('createAccount') : t('signIn')}</button></form>`;
+    form = `<div class="auth-switch" role="group" aria-label="${t('authLabel')}"><button type="button" class="${!signingUp ? 'auth-switch--active' : ''}" data-action="auth-signin">${t('signIn')}</button><button type="button" class="${signingUp ? 'auth-switch--active' : ''}" data-action="auth-signup">${t('createAccount')}</button></div><form class="form" data-form="customer-auth" data-auth-mode="${signingUp ? 'signup' : 'signin'}" ${signingUp ? 'novalidate' : ''}>${signingUp ? `<div class="field"><label for="signup-first-name">${t('firstName')}</label><input id="signup-first-name" name="firstName" maxlength="28" autocomplete="given-name" placeholder="${t('namePlaceholder')}" required></div><div class="field"><label for="signup-last-name">${t('lastName')}</label><input id="signup-last-name" name="lastName" maxlength="42" autocomplete="family-name" placeholder="${t('lastNamePlaceholder')}" required></div>` : ''}<div class="field"><label for="email">${t('email')}</label><input id="email" name="email" type="email" autocomplete="username" inputmode="email" placeholder="${t('emailPlaceholder')}" required></div><div class="field"><label for="password">${t('password')}</label><input id="password" name="password" type="password" minlength="${signingUp ? PASSWORD_MIN_LENGTH : 1}" autocomplete="${signingUp ? 'new-password' : 'current-password'}" aria-describedby="${signingUp ? 'signup-password-note' : ''}" required>${signingUp ? `<small id="signup-password-note" class="field-note">${t('passwordLength')}</small>` : ''}</div>${signingUp ? `<div class="field"><label for="signup-password-confirmation">${t('confirmSignupPassword')}</label><input id="signup-password-confirmation" name="passwordConfirmation" type="password" minlength="${PASSWORD_MIN_LENGTH}" autocomplete="new-password" placeholder="${t('confirmSignupPasswordPlaceholder')}" aria-invalid="false" aria-describedby="signup-password-confirmation-error" required><small id="signup-password-confirmation-error" class="field-error" data-signup-password-error role="alert" aria-live="polite"></small></div><label class="check"><input type="checkbox" name="privacyConsent" value="accepted" required><span>${privacyLabel()}</span></label>` : `<button class="auth-link" type="button" data-action="auth-forgot">${t('forgotPassword')}</button>`}<p class="form-notice" role="status">${escapeHTML(state.authNotice)}</p><p class="form-error" data-auth-error role="alert">${escapeHTML(state.authError)}</p><button class="primary-button" type="submit" ${state.authLoading || signingUp ? 'disabled' : ''} ${signingUp ? 'data-signup-submit' : ''}>${state.authLoading ? t('checkSession') : signingUp ? t('createAccount') : t('signIn')}</button></form>`;
   }
   const guestEntry = ['signin', 'signup'].includes(state.authMode)
     ? renderGuestEntry({ translate: t, available: state.guestOrderingAvailable, busy: state.guestBusy })
     : '';
-  return `<main class="app-shell"><section class="screen screen--gold ${recoveryMode ? 'screen--recovery' : ''}">${topbar()}<p class="eyebrow">${t(recoveryMode ? 'recoveryEyebrow' : 'welcome')}</p><h1>${t(recoveryMode ? 'recoveryTitle' : 'loginTitle')}</h1>${recoveryMode && state.authMode === 'recovery' ? `<p class="subtitle recovery-intro">${t('recoveryCopy')}</p>` : ''}${form}${guestEntry}</section></main>`;
+  return `<main class="app-shell"><section class="screen screen--gold ${recoveryMode ? 'screen--recovery' : ''}">${topbar()}<p class="eyebrow">${t(recoveryMode ? 'recoveryEyebrow' : 'welcome')}</p><h1>${t(recoveryMode ? 'recoveryTitle' : 'loginTitle')}</h1>${recoveryMode && state.authMode === 'recovery' ? `<p class="subtitle recovery-intro">${t('recoveryCopy')}</p>` : ''}${form}${guestEntry}${legalFooter()}</section></main>`;
 }
 
 function emailConfirmation() {
@@ -1564,6 +1584,59 @@ async function submitGuestPassword(form) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Páginas legales: /privacidad y /aviso-legal dentro de la app.
+// ---------------------------------------------------------------------------
+function openLegalPage(page, { push = true } = {}) {
+  modalController.close({ force: true, restoreFocus: false, reason: 'navigate' });
+  if (state.screen !== 'legal') state.legalReturn = { screen: state.screen };
+  state.legalPage = page;
+  state.legalLang = null;
+  if (push) window.history.pushState({ legal: page }, '', LEGAL_ROUTES[page]);
+  state.screen = 'legal';
+  render();
+  scrollTo(0, 0);
+  focusScreenHeading();
+}
+
+function closeLegalPage({ fromHistory = false } = {}) {
+  const back = state.legalReturn?.screen;
+  state.legalReturn = null;
+  state.legalLang = null;
+  if (!fromHistory) window.history.replaceState({}, '', '/');
+  state.screen = back && back !== 'legal'
+    ? back
+    : state.authStatus === 'authenticated' ? (state.isGuest ? 'menu' : 'home') : 'login';
+  render();
+  scrollTo(0, 0);
+}
+
+function openLegalSheet(page) {
+  openSheet(sheet(renderLegalSheetContent({ page, lang: state.lang, translate: t, escapeHTML }), 'modal--form modal--legal', 'legal-sheet-title'));
+}
+
+// Delegado una sola vez: los enlaces viven en pantallas y diálogos repintados.
+document.addEventListener('click', (event) => {
+  const sheetLink = event.target.closest?.('[data-legal-sheet]');
+  if (sheetLink) {
+    event.preventDefault();
+    openLegalSheet(sheetLink.dataset.legalSheet);
+    return;
+  }
+  const pageLink = event.target.closest?.('[data-legal-link]');
+  if (pageLink && !isBusinessMode) {
+    event.preventDefault();
+    openLegalPage(pageLink.dataset.legalLink);
+  }
+});
+
+addEventListener('popstate', () => {
+  if (isBusinessMode) return;
+  const page = legalPageFromPath(window.location.pathname);
+  if (page) openLegalPage(page, { push: false });
+  else if (state.screen === 'legal') closeLegalPage({ fromHistory: true });
+});
+
 function clearCustomerIdentity() {
   state.isGuest = false;
   state.guestSignup = { sentTo: '', busy: false, error: '' };
@@ -1983,7 +2056,7 @@ function render() {
   syncIntroPresentation();
   cleanupMenuInteractions();
   if (state.isGuest) state.screen = guestScreen(state.screen);
-  app.innerHTML = ({intro,onboarding,login,emailConfirmation,authLoading,home,menu,rewards,history,profile,cart:cartScreen,orders,orderTracking,guestSignup,guestPassword})[state.screen]();
+  app.innerHTML = ({intro,onboarding,login,emailConfirmation,authLoading,home,menu,rewards,history,profile,cart:cartScreen,orders,orderTracking,guestSignup,guestPassword,legal})[state.screen]();
   bind();
   syncOrderMonitor();
   syncProductMonitor();
@@ -2069,6 +2142,8 @@ function bind() {
     if(action==='use-reward' && state.availableRewards > 0){ openRewardRequest(); }
     if(action==='open-menu'){ state.menuQuery='';state.menuActiveCategory=MENU_CATEGORIES[0].id;state.screen='menu';render();scrollTo(0,0);void loadOrderingState({ repaint: true }); }
     if(action==='close-menu'){ state.menuQuery='';state.screen=state.authStatus==='authenticated'?'home':'login';render();scrollTo(0,0); }
+    if(action==='legal-back'){ closeLegalPage(); }
+    if(action==='legal-lang'){ state.legalLang=(state.legalLang||state.lang)==='ca'?'es':'ca'; renderPreservingFocus(); }
     if(action==='guest-start'){ await startGuestOrdering(); }
     if(action==='guest-view-menu'){ state.menuQuery='';state.menuActiveCategory=MENU_CATEGORIES[0].id;state.screen='menu';render();scrollTo(0,0);void refreshGuestAvailability({ repaint: true }); }
     if(action==='guest-exit'){ openSheet(sheet(renderGuestExitContent({ translate: t }), 'modal--form modal--danger', 'guest-exit-title', 'guest-exit-description')); }
