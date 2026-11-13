@@ -13,3 +13,6 @@ playwright-report/
 supabase/.branches/
 supabase/.temp/
 spirit-intro-remotion/
+
+# Volcados de producción: nunca en Git (datos personales y hashes de contraseñas).
+backups/
