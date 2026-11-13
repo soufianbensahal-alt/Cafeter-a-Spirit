@@ -81,9 +81,11 @@ import { renderCartBar, renderMenuContent, renderMenuScreen, renderProductOrderC
 import { ORDER_COPY } from './client/order-copy.js';
 import { GUEST_COPY } from './client/guest-copy.js';
 import { LEGAL_ROUTES, legalPageFromPath } from './client/legal-content.js';
+import { acceptPrivacyPolicy, getLatestAcceptedPolicyVersion, needsReconsent } from './services/privacy-consent.js';
 import {
   LEGAL_COPY,
   privacyInlineLink,
+  renderConsentScreen,
   renderLegalFooter,
   renderLegalScreen,
   renderLegalSheetContent
@@ -267,6 +269,11 @@ const state = {
   legalPage: legalPageFromPath(window.location.pathname),
   legalLang: null,
   legalReturn: null,
+  // Reconsentimiento: 'ok', 'checking' o 'required' (bloquea hasta aceptar).
+  consentStatus: 'ok',
+  consentCheckedFor: null,
+  consentBusy: false,
+  consentError: '',
   // Invitado: sesión anónima de Supabase (pedir sin cuenta).
   isGuest: false,
   guestOrderingAvailable: false,
@@ -391,6 +398,7 @@ const guestSignup = () => renderGuestSignupScreen({ translate: t, escapeHTML, ic
 // para no perder lo escrito).
 const privacyLabel = () => t('privacy').replace(t('legalPrivacyInline'), privacyInlineLink(t));
 const legalFooter = () => renderLegalFooter({ translate: t });
+const consent = () => renderConsentScreen({ lang: state.lang, translate: t, escapeHTML, checking: state.consentStatus === 'checking', busy: state.consentBusy, error: state.consentError });
 const legal = () => renderLegalScreen({ page: state.legalPage || 'privacy', lang: state.legalLang || state.lang, translate: t, escapeHTML, icons });
 const guestPassword = () => renderGuestPasswordScreen({ translate: t, escapeHTML, ...state.guestPassword, minLength: PASSWORD_MIN_LENGTH });
 
@@ -1472,6 +1480,48 @@ function applyCustomerContext(context) {
     restoreCart();
     void loadOrderingState({ repaint: true });
   }
+  if (context.userId && state.consentCheckedFor !== context.userId) void checkPrivacyConsent(context.userId);
+}
+
+// Al iniciar o restaurar la sesión: si la última versión aceptada es anterior
+// a PRIVACY_POLICY_VERSION (o no hay ninguna), se pide aceptar la nueva. Si la
+// comprobación falla (p. ej. sin red) no se bloquea: se reintenta otro día.
+async function checkPrivacyConsent(userId) {
+  state.consentCheckedFor = userId;
+  state.consentStatus = 'checking';
+  let status = 'ok';
+  try {
+    status = needsReconsent(await getLatestAcceptedPolicyVersion(), PRIVACY_POLICY_VERSION) ? 'required' : 'ok';
+  } catch {
+    state.consentCheckedFor = null;
+  }
+  if (state.userId !== userId || state.isGuest) return;
+  state.consentStatus = status;
+  render();
+  if (status === 'required') focusScreenHeading();
+}
+
+async function submitPrivacyConsent(form) {
+  if (state.consentBusy) return;
+  const errorElement = form.querySelector('[data-consent-error]');
+  if (!form.querySelector('input[name="accept"]')?.checked) {
+    errorElement.textContent = t('consentRequired');
+    return;
+  }
+  state.consentBusy = true;
+  state.consentError = '';
+  render();
+  try {
+    await acceptPrivacyPolicy(PRIVACY_POLICY_VERSION);
+    state.consentStatus = 'ok';
+    announcer.announce(t('continueToSpirit'));
+  } catch {
+    state.consentError = t('consentError');
+  } finally {
+    state.consentBusy = false;
+    render();
+    scrollTo(0, 0);
+  }
 }
 
 // Invitado: sin perfil ni fidelización; sólo carta, carrito y pedidos.
@@ -1639,6 +1689,9 @@ addEventListener('popstate', () => {
 
 function clearCustomerIdentity() {
   state.isGuest = false;
+  state.consentStatus = 'ok';
+  state.consentCheckedFor = null;
+  state.consentError = '';
   state.guestSignup = { sentTo: '', busy: false, error: '' };
   stopStampMonitoring();
   orderMonitor.stop();
@@ -2056,12 +2109,19 @@ function render() {
   syncIntroPresentation();
   cleanupMenuInteractions();
   if (state.isGuest) state.screen = guestScreen(state.screen);
-  app.innerHTML = ({intro,onboarding,login,emailConfirmation,authLoading,home,menu,rewards,history,profile,cart:cartScreen,orders,orderTracking,guestSignup,guestPassword,legal})[state.screen]();
+  // Con el reconsentimiento pendiente, la cuenta sólo ve la política nueva
+  // (o /privacidad); al aceptar vuelve a la pantalla que tocaba.
+  const consentBlocked = state.authStatus === 'authenticated'
+    && !state.isGuest
+    && ['checking', 'required'].includes(state.consentStatus)
+    && !['legal', 'emailConfirmation', 'guestPassword'].includes(state.screen);
+  const view = consentBlocked ? 'consent' : state.screen;
+  app.innerHTML = ({intro,onboarding,login,emailConfirmation,authLoading,home,menu,rewards,history,profile,cart:cartScreen,orders,orderTracking,guestSignup,guestPassword,legal,consent})[view]();
   bind();
   syncOrderMonitor();
   syncProductMonitor();
-  if (lastAnnouncedScreen !== state.screen) {
-    lastAnnouncedScreen = state.screen;
+  if (lastAnnouncedScreen !== view) {
+    lastAnnouncedScreen = view;
     const heading = app.querySelector('h1');
     if (heading) announcer.announce(heading.textContent);
   }
@@ -2143,6 +2203,7 @@ function bind() {
     if(action==='open-menu'){ state.menuQuery='';state.menuActiveCategory=MENU_CATEGORIES[0].id;state.screen='menu';render();scrollTo(0,0);void loadOrderingState({ repaint: true }); }
     if(action==='close-menu'){ state.menuQuery='';state.screen=state.authStatus==='authenticated'?'home':'login';render();scrollTo(0,0); }
     if(action==='legal-back'){ closeLegalPage(); }
+    if(action==='consent-logout'){ await logout(); }
     if(action==='legal-lang'){ state.legalLang=(state.legalLang||state.lang)==='ca'?'es':'ca'; renderPreservingFocus(); }
     if(action==='guest-start'){ await startGuestOrdering(); }
     if(action==='guest-view-menu'){ state.menuQuery='';state.menuActiveCategory=MENU_CATEGORIES[0].id;state.screen='menu';render();scrollTo(0,0);void refreshGuestAvailability({ repaint: true }); }
@@ -2320,6 +2381,10 @@ function bindOrderInteractions() {
       table.required = !el.checked;
       if (el.checked) setCheckoutFieldError(table, '');
     });
+  });
+  document.querySelectorAll('[data-form="privacy-consent"]:not([data-bound])').forEach((form) => {
+    form.dataset.bound = '1';
+    form.addEventListener('submit', (event) => { event.preventDefault(); void submitPrivacyConsent(form); });
   });
   document.querySelectorAll('[data-form="guest-signup"]:not([data-bound])').forEach((form) => {
     form.dataset.bound = '1';

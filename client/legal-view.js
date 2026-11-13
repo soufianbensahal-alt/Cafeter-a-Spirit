@@ -9,7 +9,16 @@ export const LEGAL_COPY = Object.freeze({
     legalReadOther: 'Llegir en català',
     legalFooterLabel: 'Información legal',
     legalPrivacyInline: 'política de privacidad',
-    guestPrivacyNote: 'Al pedir sin cuenta tratamos tu nombre y tu pedido como explica la'
+    guestPrivacyNote: 'Al pedir sin cuenta tratamos tu nombre y tu pedido como explica la',
+    consentEyebrow: 'Tu privacidad',
+    consentTitle: 'Hemos actualizado la política de privacidad',
+    consentCopy: 'Para seguir usando tu cuenta, lee la nueva política y acéptala.',
+    consentChecking: 'Comprobando tu consentimiento…',
+    consentCheckbox: 'He leído y acepto la política de privacidad.',
+    consentAccept: 'Aceptar y continuar',
+    consentLogout: 'Cerrar sesión',
+    consentRequired: 'Marca la casilla para aceptar la política.',
+    consentError: 'No se ha podido guardar tu aceptación. Inténtalo de nuevo.'
   }),
   ca: Object.freeze({
     legalPrivacyLink: 'Política de privacitat',
@@ -18,7 +27,16 @@ export const LEGAL_COPY = Object.freeze({
     legalReadOther: 'Leer en castellano',
     legalFooterLabel: 'Informació legal',
     legalPrivacyInline: 'política de privacitat',
-    guestPrivacyNote: 'En demanar sense compte tractem el teu nom i la comanda com explica la'
+    guestPrivacyNote: 'En demanar sense compte tractem el teu nom i la comanda com explica la',
+    consentEyebrow: 'La teva privacitat',
+    consentTitle: 'Hem actualitzat la política de privacitat',
+    consentCopy: 'Per continuar fent servir el compte, llegeix la nova política i accepta-la.',
+    consentChecking: 'Comprovant el teu consentiment…',
+    consentCheckbox: 'He llegit i accepto la política de privacitat.',
+    consentAccept: 'Acceptar i continuar',
+    consentLogout: 'Tancar la sessió',
+    consentRequired: 'Marca la casella per acceptar la política.',
+    consentError: 'No s’ha pogut desar la teva acceptació. Torna-ho a provar.'
   })
 });
 
@@ -80,4 +98,28 @@ export const privacyInlineLink = (t) => `<a href="${LEGAL_ROUTES.privacy}" data-
 
 export function renderLegalFooter({ translate: t }) {
   return `<footer class="legal-footer"><nav aria-label="${t('legalFooterLabel')}"><a href="${LEGAL_ROUTES.privacy}" data-legal-link="privacy">${t('legalPrivacyLink')}</a><span aria-hidden="true"> · </span><a href="${LEGAL_ROUTES.notice}" data-legal-link="notice">${t('legalNoticeLink')}</a></nav></footer>`;
+}
+
+// Pantalla bloqueante de reconsentimiento: la política nueva y aceptarla para
+// continuar (o cerrar sesión). checking: comprobando la última versión.
+export function renderConsentScreen({ lang = 'es', translate: t, escapeHTML, checking = false, busy = false, error = '' }) {
+  if (checking) {
+    return `<main class="app-shell"><section class="screen screen--gold auth-loading"><div class="form recovery-state" role="status"><span class="auth-spinner" aria-hidden="true"></span><p>${t('consentChecking')}</p></div></section></main>`;
+  }
+  return `<main class="app-shell"><section class="screen legal-screen consent-screen" data-consent-screen>
+    <p class="eyebrow">${t('consentEyebrow')}</p>
+    <h1 tabindex="-1" data-screen-heading>${t('consentTitle')}</h1>
+    <p class="subtitle">${t('consentCopy')}</p>
+    ${draftBanner(lang, escapeHTML)}
+    <article class="consent-policy" aria-label="${escapeHTML(contentFor(lang).privacy.title)}">
+      <p class="legal-intro">${legalText(contentFor(lang).privacy.intro, escapeHTML)}</p>
+      ${renderLegalDocument({ page: 'privacy', lang, escapeHTML })}
+    </article>
+    <form class="form consent-form" data-form="privacy-consent" novalidate>
+      <label class="check"><input type="checkbox" name="accept" value="yes" required><span>${t('consentCheckbox')}</span></label>
+      <p class="form-error" role="alert" data-consent-error>${escapeHTML(error)}</p>
+      <button class="primary-button" type="submit" ${busy ? 'disabled' : ''}>${t('consentAccept')}</button>
+      <button class="auth-link auth-link--centered" type="button" data-action="consent-logout">${t('consentLogout')}</button>
+    </form>
+  </section></main>`;
 }

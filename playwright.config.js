@@ -17,6 +17,8 @@ if (enabled && !publishableKey) {
 
 export default defineConfig({
   testDir: './e2e',
+  // Cuentas de prueba locales con la versión actual de la política aceptada.
+  globalSetup: './e2e/global-setup.js',
   fullyParallel: false,
   workers: 1,
   retries: 0,
