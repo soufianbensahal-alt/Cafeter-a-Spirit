@@ -487,3 +487,10 @@ html[data-theme="dark"] .ticket-sheet__print { border-color: #EECF62; background
   .business-spinner { animation-duration: 1.4s !important; }
   .order-ticket--fresh, .orders-activate--lost { animation: none; }
 }
+
+/* Vigilancia de invitados (Panel, owner/manager). */
+.control-guests__total { margin: 0; font-size: 15px; }
+.control-guests { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.control-guests th, .control-guests td { padding: 6px 4px; border-bottom: 1px solid var(--business-line); text-align: right; }
+.control-guests th:first-child, .control-guests thead th:first-child { text-align: left; font-weight: 700; text-transform: capitalize; }
+.control-guests thead th { color: var(--business-muted); font-size: 12px; font-weight: 800; }

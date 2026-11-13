@@ -93,6 +93,17 @@ export const setGuestOrderingEnabled = (businessId, enabled) => guard(async () =
   return statusResult(data);
 });
 
+// Vigilancia de «Pedidos sin cuenta»: invitados creados por día (14 días).
+export const getGuestSignupsByDay = (businessId) => guard(async () => {
+  const { data, error } = await requireSupabase().rpc('get_guest_signups_by_day', { p_business_id: businessId });
+  if (error) throw error;
+  return Object.freeze((data || []).map((row) => Object.freeze({
+    day: row.day,
+    guests: Number(row.guests) || 0,
+    guestsWithOrders: Number(row.guests_with_orders) || 0
+  })));
+});
+
 export const setOrderingPilotOnly = (businessId, pilotOnly) => guard(async () => {
   const { data, error } = await requireSupabase().rpc('set_ordering_pilot_only', { p_business_id: businessId, p_pilot_only: pilotOnly });
   if (error) throw error;

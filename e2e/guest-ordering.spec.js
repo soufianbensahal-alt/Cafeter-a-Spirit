@@ -202,6 +202,19 @@ e2eTest('el invitado pide con su nombre y el panel lo recibe como «Nombre · In
   expect(row).toEqual({ guest_name: GUEST_NAME, is_anonymous: true, profiles: 0, cards: 0 });
 });
 
+e2eTest('vigilancia: el manager ve en el Panel los invitados de hoy y cuántos pidieron', async () => {
+  await employee.getByRole('tab', { name: 'Panel' }).click();
+  const card = employee.locator('[data-guest-signups]');
+  await expect(card.getByRole('heading', { name: 'Invitados (últimos 14 días)' })).toBeVisible();
+  const table = card.getByRole('table', { name: 'Invitados nuevos por día' });
+  await expect(table.getByRole('row')).toHaveCount(15);
+  // Hoy: al menos este invitado, que pidió.
+  const today = table.getByRole('row').nth(1);
+  expect(Number(await today.getByRole('cell').nth(0).textContent())).toBeGreaterThanOrEqual(1);
+  expect(Number(await today.getByRole('cell').nth(1).textContent())).toBeGreaterThanOrEqual(1);
+  await employee.getByRole('tab', { name: /^Pedidos/ }).click();
+});
+
 e2eTest('el invitado crea su cuenta: confirma el correo, elige contraseña y conserva el pedido', async ({ request }) => {
   // Incluye la espera del correo en Mailpit.
   test.setTimeout(60_000);

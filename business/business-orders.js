@@ -1,6 +1,7 @@
 import {
   addPilotMember,
   getCurrentOrderCode,
+  getGuestSignupsByDay,
   getOrderingSettings,
   listBusinessOrders,
   listBusinessOrdersByDate,
@@ -126,6 +127,7 @@ export function createBusinessOrdersPanel({
       products: [],
       productFilter: '',
       pilot: [],
+      guestSignups: [],
       pilotEmail: '',
       pilotMessage: '',
       busy: new Set()
@@ -623,7 +625,29 @@ export function createBusinessOrdersPanel({
           ${control.pilot.length ? `<ul class="control-pilot">${control.pilot.map((member) => `<li><div><strong>${escapeHTML(member.customer)}</strong><small>${escapeHTML(member.email)}</small></div><button type="button" class="order-action order-action--secondary" data-orders-action="remove-pilot" data-user-id="${escapeHTML(member.userId)}" data-focus-key="remove-${escapeHTML(member.userId)}">Quitar</button></li>`).join('')}</ul>` : '<p class="control-help">Todavía no hay usuarios en el piloto.</p>'}`
             : '<p class="control-help">Solo propietarios y responsables pueden gestionar quién participa en el piloto.</p>'}
         </section>
+        ${canManagePilot ? guestSignupsHTML(control.guestSignups) : ''}
       </div>`;
+  };
+
+  // Vigilancia de «Pedidos sin cuenta»: invitados nuevos por día (Madrid).
+  const signupDay = (day) => new Intl.DateTimeFormat('es-ES', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' })
+    .format(new Date(`${day}T00:00:00Z`));
+  const guestSignupsHTML = (rows) => {
+    if (!rows) {
+      return `<section class="control-card" aria-labelledby="control-guests-title"><h2 id="control-guests-title">Invitados (últimos 14 días)</h2><p class="control-help">No se ha podido cargar la vigilancia de invitados.</p></section>`;
+    }
+    const total = rows.reduce((sum, row) => sum + row.guests, 0);
+    const ordered = rows.reduce((sum, row) => sum + row.guestsWithOrders, 0);
+    return `<section class="control-card control-card--guests" aria-labelledby="control-guests-title" data-guest-signups>
+          <h2 id="control-guests-title">Invitados (últimos 14 días)</h2>
+          <p class="control-help">Altas sin cuenta por día y cuántas llegaron a pedir. Un salto brusco sin pedidos puede indicar abuso.</p>
+          <p class="control-guests__total"><strong data-guest-signups-total>${total}</strong> invitados · <strong>${ordered}</strong> con pedido</p>
+          <table class="control-guests">
+            <caption class="sr-only">Invitados nuevos por día</caption>
+            <thead><tr><th scope="col">Día</th><th scope="col">Invitados</th><th scope="col">Con pedido</th></tr></thead>
+            <tbody>${rows.map((row) => `<tr><th scope="row">${escapeHTML(signupDay(row.day))}</th><td>${row.guests}</td><td>${row.guestsWithOrders}</td></tr>`).join('')}</tbody>
+          </table>
+        </section>`;
   };
 
   const paintControl = () => {
@@ -641,13 +665,15 @@ export function createBusinessOrdersPanel({
     control.error = '';
     paintControl();
     try {
-      const [settings, code, products, pilot] = await Promise.all([
+      const [settings, code, products, pilot, guestSignups] = await Promise.all([
         getOrderingSettings(businessId),
         getCurrentOrderCode(businessId),
         listBusinessProducts(businessId),
-        canManagePilot ? listPilotMembers(businessId) : Promise.resolve([])
+        canManagePilot ? listPilotMembers(businessId) : Promise.resolve([]),
+        // Vigilancia de invitados: sólo owner/manager (la RPC lo exige).
+        canManagePilot ? getGuestSignupsByDay(businessId).catch(() => null) : Promise.resolve([])
       ]);
-      Object.assign(control, { settings, code, products: [...products], pilot: [...pilot], loaded: true });
+      Object.assign(control, { settings, code, products: [...products], pilot: [...pilot], guestSignups, loaded: true });
     } catch (error) {
       control.error = controlError(error);
     } finally {
