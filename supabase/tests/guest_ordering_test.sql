@@ -270,8 +270,8 @@ select ok(exists (select 1 from auth.users where id = 'd3000000-0000-4000-8000-0
 select ok(not exists (select 1 from auth.users where id = 'd3000000-0000-4000-8000-00000000000f'), 'F (último pedido hace 35 días) se borra');
 select results_eq(
   $$select customer_id, guest_name, status from public.orders where id = 'd4000000-0000-4000-8000-00000000000f'$$,
-  $$values (null::uuid, 'Fran'::text, 'served'::text)$$,
-  'el pedido de F se conserva sin cliente y con su nombre de invitado'
+  $$values (null::uuid, null::text, 'served'::text)$$,
+  'el pedido de F se conserva sin cliente y, al borrarse el invitado, sin su nombre (retención)'
 );
 select ok(exists (select 1 from auth.users where id = 'd3000000-0000-4000-8000-0000000000aa'), 'los registrados nunca se borran');
 

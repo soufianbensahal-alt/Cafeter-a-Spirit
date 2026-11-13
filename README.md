@@ -326,6 +326,16 @@ El día que se active:
 
 No hay CAPTCHA: Turnstile se retiró en agosto (`bc655f2`) y `tests/security-hardening.test.js` impide reintroducirlo. Las protecciones son el límite por IP de Supabase, el código del día (5 intentos fallidos cada 15 minutos) y el máximo de 2 pedidos activos por usuario. La limpieza diaria (`private.purge_stale_guests`, pg_cron a las 03:00 UTC) borra los invitados con más de 30 días sin actividad y sin pedidos activos; sus pedidos se conservan.
 
+### Conservación de datos
+
+`private.purge_expired_data()` (pg_cron, a diario a las 03:30 UTC) aplica los plazos propuestos en el borrador de `/privacidad`, pendientes de validar con la cafetería: pedidos 12 meses (nunca los que siguen en curso), intentos del código del día, solicitudes de sello o canje caducadas e intentos de validación del equipo 30 días, correos de recompensa enviados o fallidos 90 días y alertas de seguridad 12 meses. Al borrar una cuenta (también la limpieza de invitados), sus pedidos pierden en ese momento la nota y el nombre.
+
+Antes de activarla en producción, simula qué borraría:
+
+```sql
+select jsonb_pretty(private.purge_expired_data(true));
+```
+
 ## Pendiente antes de la implantación real de pedidos
 
 - Decidir si el rol `employee` debe seguir pudiendo abrir y cerrar pedidos (`set_ordering_enabled`) y regenerar el código del día (`regenerate_order_code`). Hoy ya puede: esas acciones, igual que los agotados y el estado de los pedidos, sólo exigen ser miembro activo con sesión AAL2. Lo único que `manager` (u `owner`) añade es la gestión del piloto (`add/remove/list_ordering_pilot_members` y `set_ordering_pilot_only`).
