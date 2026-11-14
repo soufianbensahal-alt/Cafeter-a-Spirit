@@ -9,9 +9,9 @@ import {
   renderGuestExitContent,
   renderGuestMenuBanner,
   renderGuestPasswordScreen,
-  renderGuestPrompt,
   renderGuestSignupScreen
 } from '../client/guest-view.js';
+import { SIGNUP_PROMO_COPY, renderSignupPromo } from '../client/signup-promo.js';
 import { renderCheckoutContent } from '../client/order-view.js';
 import { renderMenuScreen } from '../client/menu-view.js';
 import { getMenuCategories } from '../data/menu.js';
@@ -27,7 +27,7 @@ import {
 import { readEmailConfirmationRoute } from '../services/email-confirmation-route.js';
 
 const escapeHTML = (value = '') => String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
-const dictionary = { ...ORDER_COPY.es, ...GUEST_COPY.es, firstName: 'Nombre', lastName: 'Apellidos', email: 'Correo electrónico', privacy: 'Acepto la política de privacidad', newPassword: 'Nueva contraseña', confirmPassword: 'Confirmar contraseña', passwordLength: 'Usa al menos 12 caracteres.' };
+const dictionary = { ...ORDER_COPY.es, ...GUEST_COPY.es, ...SIGNUP_PROMO_COPY.es, firstName: 'Nombre', lastName: 'Apellidos', email: 'Correo electrónico', privacy: 'Acepto la política de privacidad', newPassword: 'Nueva contraseña', confirmPassword: 'Confirmar contraseña', passwordLength: 'Usa al menos 12 caracteres.' };
 const t = (key, values = {}) => Object.entries(values).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, value), dictionary[key] || key);
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -74,7 +74,6 @@ test('textos en castellano y catalán con las mismas claves, sin pisar los exist
   for (const lang of ['es', 'ca']) {
     for (const [key, value] of Object.entries(GUEST_COPY[lang])) assert.ok(value.trim(), `${lang}.${key}`);
   }
-  assert.equal(GUEST_COPY.es.guestPromptTitle, 'Crea tu cuenta y consigue un café gratis con tus sellos');
   assert.equal(GUEST_COPY.es.guestStart, 'Pedir sin cuenta');
   assert.equal(GUEST_COPY.es.guestName, 'Nombre para el pedido');
   const collisions = Object.keys(GUEST_COPY.es).filter((key) => key in ORDER_COPY.es);
@@ -95,10 +94,12 @@ test('entrada del login: «Pedir sin cuenta» sólo si está disponible; «Ver l
 });
 
 test('captación y salida del invitado', () => {
-  const prompt = renderGuestPrompt({ translate: t, id: 'guest-prompt-cart' });
-  assert.match(prompt, /<aside class="guest-prompt" aria-labelledby="guest-prompt-cart-title">/);
-  assert.match(prompt, /Crea tu cuenta y consigue un café gratis con tus sellos/);
-  assert.match(prompt, /data-action="guest-create-account">Crear cuenta</);
+  // La captación es la promoción de registro compacta (client/signup-promo.js).
+  const prompt = renderSignupPromo({ translate: t, variant: 'compact', id: 'guest-prompt-cart', stampsRequired: 10 });
+  assert.match(prompt, /<aside class="signup-promo signup-promo--compact" aria-labelledby="guest-prompt-cart-title"/);
+  assert.match(prompt, /Crea tu cuenta y llévate un café gratis/);
+  assert.match(prompt, /Conservarás tus pedidos de hoy\./);
+  assert.match(prompt, /data-action="guest-create-account">Crear mi cuenta</);
   const exit = renderGuestExitContent({ translate: t });
   assert.match(exit, /id="guest-exit-title"/);
   assert.match(exit, /data-action="guest-exit-confirm"/);

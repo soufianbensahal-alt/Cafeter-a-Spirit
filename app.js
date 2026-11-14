@@ -95,9 +95,10 @@ import {
   renderGuestExitContent,
   renderGuestMenuBanner,
   renderGuestPasswordScreen,
-  renderGuestPrompt,
   renderGuestSignupScreen
 } from './client/guest-view.js';
+import { SIGNUP_PROMO_COPY, promoDurationMs, promoSlots, renderSignupPromo } from './client/signup-promo.js';
+import { getPublicLoyaltyProgram } from './services/public-loyalty-program.js';
 import { guestScreen, isGuestUser, validateGuestName } from './services/guest-rules.js';
 import {
   confirmGuestConversion,
@@ -216,6 +217,8 @@ Object.assign(copy.es, ORDER_COPY.es);
 Object.assign(copy.ca, ORDER_COPY.ca);
 Object.assign(copy.es, GUEST_COPY.es);
 Object.assign(copy.ca, GUEST_COPY.ca);
+Object.assign(copy.es, SIGNUP_PROMO_COPY.es);
+Object.assign(copy.ca, SIGNUP_PROMO_COPY.ca);
 Object.assign(copy.es, LEGAL_COPY.es);
 Object.assign(copy.ca, LEGAL_COPY.ca);
 
@@ -282,6 +285,8 @@ const state = {
   guestBusy: false,
   guestSignup: { sentTo: '', busy: false, error: '' },
   guestPassword: { busy: false, error: '' },
+  // Programa de sellos público (promoción de registro): 'loading' o 'ready'.
+  publicProgram: { status: 'loading', stampsRequired: null },
   orderCancelling: false,
   ordersBackTarget: 'menu',
   orderBackTarget: 'menu'
@@ -379,7 +384,7 @@ const menu = () => {
   let banner = '';
   let back = null;
   if (state.isGuest) {
-    banner = `<div class="guest-menu-slot">${renderGuestPrompt({ translate: t, id: 'guest-prompt-menu' })}</div>`;
+    banner = `<div class="guest-menu-slot">${guestPrompt('guest-prompt-menu')}</div>`;
     back = { action: 'guest-exit', label: t('guestExit') };
   } else if (state.authStatus !== 'authenticated' && (state.guestOrderingAvailable || state.guestError)) {
     banner = renderGuestMenuBanner({ translate: t, busy: state.guestBusy, error: state.guestError, escapeHTML });
@@ -387,12 +392,70 @@ const menu = () => {
   return renderMenuScreen({ ...menuViewContext(), banner, back });
 };
 
+// Captación del invitado (carta, carrito y seguimiento): la misma promoción
+// del login en su variante compacta.
+function guestPrompt(id) {
+  return renderSignupPromo({ translate: t, variant: 'compact', id, stampsRequired: state.publicProgram.stampsRequired });
+}
+
 // Captación al final del carrito y del seguimiento del invitado.
 const withGuestPrompt = (html, id) => {
   if (!state.isGuest) return html;
   const end = html.lastIndexOf('</section></main>');
-  return end < 0 ? html : `${html.slice(0, end)}${renderGuestPrompt({ translate: t, id })}${html.slice(end)}`;
+  return end < 0 ? html : `${html.slice(0, end)}${guestPrompt(id)}${html.slice(end)}`;
 };
+
+// Mini tarjeta del login: se anima una sola vez por carga de página, desde
+// que se sabe el número de sellos. Si el login se repinta a mitad, sigue por
+// donde iba; después, siempre el estado final.
+let signupPromoStartedAt = 0;
+function signupPromoMotion() {
+  if (state.publicProgram.status !== 'ready') return { motion: 'pending' };
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return { motion: 'static' };
+  const now = performance.now();
+  if (!signupPromoStartedAt) signupPromoStartedAt = now;
+  const elapsed = now - signupPromoStartedAt;
+  return elapsed < promoDurationMs(promoSlots(state.publicProgram.stampsRequired))
+    ? { motion: 'animate', elapsed }
+    : { motion: 'static' };
+}
+
+function loginSignupPromo() {
+  if (!['signin', 'signup'].includes(state.authMode)) return '';
+  return renderSignupPromo({
+    translate: t,
+    variant: 'hero',
+    id: 'signup-promo',
+    action: 'signup-promo-start',
+    showAction: state.authMode === 'signin',
+    stampsRequired: state.publicProgram.stampsRequired,
+    ...signupPromoMotion()
+  });
+}
+
+// Al llegar el número de sellos sólo se sustituye la promoción: repintar toda
+// la pantalla borraría lo que se esté escribiendo en el login.
+async function loadPublicProgram() {
+  const program = await getPublicLoyaltyProgram();
+  state.publicProgram = { status: 'ready', stampsRequired: program?.stampsRequired ?? null };
+  for (const current of document.querySelectorAll('[data-signup-promo]')) {
+    const hero = current.classList.contains('signup-promo--hero');
+    if (!hero && !state.publicProgram.stampsRequired) continue;
+    const id = String(current.getAttribute('aria-labelledby') || '').replace(/-title$/, '');
+    const template = document.createElement('template');
+    template.innerHTML = (hero ? loginSignupPromo() : guestPrompt(id)).trim();
+    const next = template.content.firstElementChild;
+    if (!next) continue;
+    // Se conserva el botón ya enlazado (bind() no se repite para no duplicar
+    // los listeners de los formularios).
+    const button = current.querySelector('.signup-promo__action');
+    const hadFocus = button && button === document.activeElement;
+    const slot = next.querySelector('.signup-promo__action');
+    if (button && slot) slot.replaceWith(button);
+    current.replaceWith(next);
+    if (hadFocus) button.focus();
+  }
+}
 
 const guestSignup = () => renderGuestSignupScreen({ translate: t, escapeHTML, icons, privacyLabel: privacyLabel(), ...state.guestSignup });
 
@@ -1078,10 +1141,11 @@ function login() {
     const signingUp = state.authMode === 'signup';
     form = `<div class="auth-switch" role="group" aria-label="${t('authLabel')}"><button type="button" class="${!signingUp ? 'auth-switch--active' : ''}" data-action="auth-signin">${t('signIn')}</button><button type="button" class="${signingUp ? 'auth-switch--active' : ''}" data-action="auth-signup">${t('createAccount')}</button></div><form class="form" data-form="customer-auth" data-auth-mode="${signingUp ? 'signup' : 'signin'}" ${signingUp ? 'novalidate' : ''}>${signingUp ? `<div class="field"><label for="signup-first-name">${t('firstName')}</label><input id="signup-first-name" name="firstName" maxlength="28" autocomplete="given-name" placeholder="${t('namePlaceholder')}" required></div><div class="field"><label for="signup-last-name">${t('lastName')}</label><input id="signup-last-name" name="lastName" maxlength="42" autocomplete="family-name" placeholder="${t('lastNamePlaceholder')}" required></div>` : ''}<div class="field"><label for="email">${t('email')}</label><input id="email" name="email" type="email" autocomplete="username" inputmode="email" placeholder="${t('emailPlaceholder')}" required></div><div class="field"><label for="password">${t('password')}</label><input id="password" name="password" type="password" minlength="${signingUp ? PASSWORD_MIN_LENGTH : 1}" autocomplete="${signingUp ? 'new-password' : 'current-password'}" aria-describedby="${signingUp ? 'signup-password-note' : ''}" required>${signingUp ? `<small id="signup-password-note" class="field-note">${t('passwordLength')}</small>` : ''}</div>${signingUp ? `<div class="field"><label for="signup-password-confirmation">${t('confirmSignupPassword')}</label><input id="signup-password-confirmation" name="passwordConfirmation" type="password" minlength="${PASSWORD_MIN_LENGTH}" autocomplete="new-password" placeholder="${t('confirmSignupPasswordPlaceholder')}" aria-invalid="false" aria-describedby="signup-password-confirmation-error" required><small id="signup-password-confirmation-error" class="field-error" data-signup-password-error role="alert" aria-live="polite"></small></div><label class="check"><input type="checkbox" name="privacyConsent" value="accepted" required><span>${privacyLabel()}</span></label>` : `<button class="auth-link" type="button" data-action="auth-forgot">${t('forgotPassword')}</button>`}<p class="form-notice" role="status">${escapeHTML(state.authNotice)}</p><p class="form-error" data-auth-error role="alert">${escapeHTML(state.authError)}</p><button class="primary-button" type="submit" ${state.authLoading || signingUp ? 'disabled' : ''} ${signingUp ? 'data-signup-submit' : ''}>${state.authLoading ? t('checkSession') : signingUp ? t('createAccount') : t('signIn')}</button></form>`;
   }
+  const signupPromo = loginSignupPromo();
   const guestEntry = ['signin', 'signup'].includes(state.authMode)
     ? renderGuestEntry({ translate: t, available: state.guestOrderingAvailable, busy: state.guestBusy, error: state.guestError, escapeHTML })
     : '';
-  return `<main class="app-shell"><section class="screen screen--gold ${recoveryMode ? 'screen--recovery' : ''}">${topbar()}<p class="eyebrow">${t(recoveryMode ? 'recoveryEyebrow' : 'welcome')}</p><h1>${t(recoveryMode ? 'recoveryTitle' : 'loginTitle')}</h1>${recoveryMode && state.authMode === 'recovery' ? `<p class="subtitle recovery-intro">${t('recoveryCopy')}</p>` : ''}${form}${guestEntry}${legalFooter()}</section></main>`;
+  return `<main class="app-shell"><section class="screen screen--gold ${recoveryMode ? 'screen--recovery' : ''}">${topbar()}<p class="eyebrow">${t(recoveryMode ? 'recoveryEyebrow' : 'welcome')}</p><h1>${t(recoveryMode ? 'recoveryTitle' : 'loginTitle')}</h1>${recoveryMode && state.authMode === 'recovery' ? `<p class="subtitle recovery-intro">${t('recoveryCopy')}</p>` : ''}${form}${signupPromo}${guestEntry}${legalFooter()}</section></main>`;
 }
 
 function emailConfirmation() {
@@ -1758,6 +1822,7 @@ async function abandonPasswordRecovery(nextMode = 'signin') {
 }
 
 async function initializeCustomerAuth() {
+  void loadPublicProgram();
   try {
     if (isPasswordRecoveryRoute) {
       normalizePasswordRecoveryRoute();
@@ -2250,6 +2315,7 @@ function bind() {
     if(action==='share'){ shareSpirit(); }
     if(action==='auth-signin'){ if(passwordRecoveryState.isPending()){await abandonPasswordRecovery();return;} state.authMode='signin'; state.authError=''; state.authNotice=''; render(); }
     if(action==='auth-signup'){ state.authMode='signup'; state.authError=''; state.authNotice=''; render(); }
+    if(action==='signup-promo-start'){ state.authMode='signup'; state.authError=''; state.authNotice=''; render(); document.querySelector('#signup-first-name')?.focus(); }
     if(action==='auth-forgot'){ state.authMode='forgot'; state.authError=''; state.authNotice=''; render(); }
     if(action==='recovery-request'){ await abandonPasswordRecovery('forgot'); }
     if(action==='recovery-continue'){ passwordRecoveryState.clear(); window.history.replaceState({},'', '/'); state.authMode='signin'; state.screen='login'; render(); scrollTo(0,0); }

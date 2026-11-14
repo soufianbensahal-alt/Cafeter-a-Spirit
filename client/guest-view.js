@@ -26,14 +26,8 @@ export function renderGuestEntry({ translate: t, available = false, busy = false
   </section>`;
 }
 
-// Captación en la carta, el carrito y el seguimiento.
-export function renderGuestPrompt({ translate: t, id = 'guest-prompt' }) {
-  return `<aside class="guest-prompt" aria-labelledby="${id}-title">
-    <p id="${id}-title" class="guest-prompt__title">${t('guestPromptTitle')}</p>
-    <p class="guest-prompt__copy">${t('guestPromptCopy')}</p>
-    <button class="primary-button guest-prompt__action" type="button" data-action="guest-create-account">${t('guestCreateAccount')}</button>
-  </aside>`;
-}
+// La captación del invitado (carta, carrito y seguimiento) es la promoción de
+// registro compacta: client/signup-promo.js.
 
 // Carta sin sesión: entrar como invitado sin salir de la carta. Si el alta
 // falló, el aviso ocupa la franja (sin botón).

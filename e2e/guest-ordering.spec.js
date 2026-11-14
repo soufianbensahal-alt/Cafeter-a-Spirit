@@ -160,12 +160,12 @@ e2eTest('el invitado pide con su nombre y el panel lo recibe como «Nombre · In
   await expect(guest.getByRole('heading', { level: 1, name: 'Carta' })).toBeVisible();
   // Navegación reducida: salir del modo invitado en lugar de volver al inicio.
   await expect(guest.getByRole('button', { name: 'Salir del modo invitado' })).toBeVisible();
-  await expect(guest.getByText('Crea tu cuenta y consigue un café gratis con tus sellos').first()).toBeVisible();
+  await expect(guest.getByText('Crea tu cuenta y llévate un café gratis').first()).toBeVisible();
 
   await guest.getByRole('button', { name: 'Añadir Latte al carrito', exact: true }).click();
   await guest.getByRole('button', { name: /^Ver carrito: 1 producto/ }).click();
   await expect(guest.getByRole('heading', { level: 1, name: 'Tu pedido' })).toBeVisible();
-  await expect(guest.getByRole('complementary').getByRole('button', { name: 'Crear cuenta' })).toBeVisible();
+  await expect(guest.getByRole('complementary').getByRole('button', { name: 'Crear mi cuenta' })).toBeVisible();
 
   await guest.getByRole('button', { name: 'Continuar' }).click();
   const dialog = guest.getByRole('dialog', { name: 'Confirmar pedido' });
@@ -183,7 +183,7 @@ e2eTest('el invitado pide con su nombre y el panel lo recibe como «Nombre · In
   const heading = guest.getByRole('heading', { level: 1, name: /^Pedido nº \d+$/ });
   await expect(heading).toBeVisible();
   orderNumber = Number((await heading.textContent()).match(/\d+/)[0]);
-  await expect(guest.getByText('Crea tu cuenta y consigue un café gratis con tus sellos')).toBeVisible();
+  await expect(guest.getByText('Crea tu cuenta y llévate un café gratis')).toBeVisible();
 
   // El panel lo recibe en directo con el nombre del invitado.
   await employee.getByRole('tab', { name: /^Pedidos/ }).click();
@@ -221,7 +221,7 @@ e2eTest('vigilancia: el manager ve en el Panel los invitados de hoy y cuántos p
 e2eTest('el invitado crea su cuenta: confirma el correo, elige contraseña y conserva el pedido', async ({ request }) => {
   // Incluye la espera del correo en Mailpit.
   test.setTimeout(60_000);
-  await guest.getByRole('button', { name: 'Crear cuenta' }).last().click();
+  await guest.getByRole('complementary').getByRole('button', { name: 'Crear mi cuenta' }).click();
   await expect(guest.getByRole('heading', { level: 1, name: 'Tu cuenta Spirit' })).toBeVisible();
   await guest.getByLabel('Nombre').fill('Laura');
   await guest.getByLabel('Apellidos').fill('Prueba');
