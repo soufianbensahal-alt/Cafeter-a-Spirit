@@ -722,3 +722,6 @@ html[data-theme="dark"] .guest-prompt__title { color: #f7f0de; }
 a.settings-row { text-decoration: none; color: inherit; }
 html[data-theme="dark"] .legal-section p, html[data-theme="dark"] .legal-section li { color: #f7f0de; }
 html[data-theme="dark"] .legal-placeholder { background: rgba(238,207,98,.3); color: #f7f0de; }
+.guest-error { margin: 0; padding: 10px 12px; border-radius: var(--radius-sm); background: rgba(152,68,56,.1); color: var(--danger); font-size: 14px; font-weight: 700; line-height: 1.45; text-align: left; }
+.guest-menu-banner--error { justify-content: flex-start; }
+html[data-theme="dark"] .guest-error { background: rgba(240,160,149,.14); }

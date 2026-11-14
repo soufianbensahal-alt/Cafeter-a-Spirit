@@ -9,6 +9,14 @@ export const GUEST_SCREENS = Object.freeze(['menu', 'cart', 'orders', 'orderTrac
 
 export const isGuestUser = (user) => user?.is_anonymous === true;
 
+// «Pedir sin cuenta» sólo se ofrece si el local lo permite (interruptor del
+// Panel y pedidos abiertos) Y Supabase Auth admite inicios anónimos. Cualquier
+// dato que falte (cargando, error de red) cuenta como «no».
+/** @param {{ statusAvailable?: unknown, anonymousEnabled?: unknown }} [options] */
+export function guestOrderingAvailable({ statusAvailable, anonymousEnabled } = {}) {
+  return statusAvailable === true && anonymousEnabled === true;
+}
+
 export const guestScreen = (screen) => (GUEST_SCREENS.includes(screen) ? screen : 'menu');
 
 // Mismas reglas que create_order: espacios normalizados, 2–30 caracteres
@@ -20,7 +28,6 @@ export function normalizeGuestName(value) {
 export function validateGuestName(value) {
   const name = normalizeGuestName(value);
   const length = Array.from(name).length;
-  // eslint-disable-next-line no-control-regex
   if (!name || length < GUEST_NAME_MIN || length > GUEST_NAME_MAX || /[\u0000-\u001f\u007f]/.test(name)) {
     return Object.freeze({ ok: false, value: name });
   }

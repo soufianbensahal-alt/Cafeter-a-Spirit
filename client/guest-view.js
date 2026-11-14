@@ -5,11 +5,23 @@ import { privacyInlineLink } from './legal-view.js';
 // Aviso de privacidad junto a «Pedir sin cuenta» (abre la política en un diálogo).
 const guestPrivacyNote = (t) => `<p class="guest-privacy">${t('guestPrivacyNote')} ${privacyInlineLink(t)}.</p>`;
 
-// Bloque del login/bienvenida: entrar como invitado o ver la carta.
-export function renderGuestEntry({ translate: t, available = false, busy = false }) {
+// Error del modo invitado: dentro de su tarjeta, nunca en el formulario de login.
+const guestErrorMessage = (error, escape) => (error
+  ? `<p class="guest-error" role="alert" data-guest-error>${escape(error)}</p>`
+  : '');
+
+const plain = (value = '') => String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+
+// Bloque del login/bienvenida: entrar como invitado o ver la carta. Sin
+// «Pedir sin cuenta» mientras no conste que se puede (cargando, apagado o
+// error): solo el texto alternativo y «Ver la carta».
+export function renderGuestEntry({ translate: t, available = false, busy = false, error = '', escapeHTML = plain }) {
   return `<section class="guest-entry" aria-labelledby="guest-entry-title">
     <h2 id="guest-entry-title">${t('guestEntryTitle')}</h2>
-    ${available ? `<p>${t('guestEntryCopy')}</p><button class="primary-button primary-button--light" type="button" data-action="guest-start" ${busy ? 'disabled' : ''}>${busy ? t('guestStarting') : t('guestStart')}</button>${guestPrivacyNote(t)}` : ''}
+    ${available
+      ? `<p>${t('guestEntryCopy')}</p><button class="primary-button primary-button--light" type="button" data-action="guest-start" ${busy ? 'disabled' : ''}>${busy ? t('guestStarting') : t('guestStart')}</button>${guestPrivacyNote(t)}`
+      : `<p>${t('guestEntryUnavailable')}</p>`}
+    ${guestErrorMessage(error, escapeHTML)}
     <button class="auth-link auth-link--centered" type="button" data-action="guest-view-menu">${t('guestViewMenu')}</button>
   </section>`;
 }
@@ -23,8 +35,10 @@ export function renderGuestPrompt({ translate: t, id = 'guest-prompt' }) {
   </aside>`;
 }
 
-// Carta sin sesión: entrar como invitado sin salir de la carta.
-export function renderGuestMenuBanner({ translate: t, busy = false }) {
+// Carta sin sesión: entrar como invitado sin salir de la carta. Si el alta
+// falló, el aviso ocupa la franja (sin botón).
+export function renderGuestMenuBanner({ translate: t, busy = false, error = '', escapeHTML = plain }) {
+  if (error) return `<div class="guest-menu-banner guest-menu-banner--error">${guestErrorMessage(error, escapeHTML)}</div>`;
   return `<div class="guest-menu-banner"><p>${t('guestEntryCopy')}</p><button class="primary-button" type="button" data-action="guest-start" ${busy ? 'disabled' : ''}>${busy ? t('guestStarting') : t('guestStart')}</button>${guestPrivacyNote(t)}</div>`;
 }
 

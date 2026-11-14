@@ -4,6 +4,7 @@ export const GUEST_COPY = Object.freeze({
   es: Object.freeze({
     guestEntryTitle: '¿Solo quieres pedir?',
     guestEntryCopy: 'Pide desde la mesa sin crear una cuenta.',
+    guestEntryUnavailable: 'Para pedir desde la mesa, crea tu cuenta o pide en la barra.',
     guestStart: 'Pedir sin cuenta',
     guestStarting: 'Preparando tu pedido…',
     guestViewMenu: 'Ver la carta',
@@ -43,6 +44,7 @@ export const GUEST_COPY = Object.freeze({
   ca: Object.freeze({
     guestEntryTitle: 'Només vols demanar?',
     guestEntryCopy: 'Demana des de la taula sense crear cap compte.',
+    guestEntryUnavailable: 'Per demanar des de la taula, crea el teu compte o demana a la barra.',
     guestStart: 'Demanar sense compte',
     guestStarting: 'Preparant la teva comanda…',
     guestViewMenu: 'Veure la carta',

@@ -9,6 +9,8 @@ const isEmailConfirmationVerificationRoute = typeof window !== 'undefined'
 
 export const supabaseConfiguration = Object.freeze({
   url: supabaseUrl,
+  // Clave publicable (pública por diseño): para endpoints públicos de Auth.
+  publishableKey: supabasePublishableKey,
   configured: Boolean(supabaseUrl && supabasePublishableKey),
   missing: [
     !supabaseUrl && 'SUPABASE_URL',

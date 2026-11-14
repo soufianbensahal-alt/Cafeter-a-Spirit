@@ -22,3 +22,9 @@ test('el Panel muestra la tarjeta sólo a owner/manager y no rompe si falla', as
   const service = await read('services/business-order-service.js');
   assert.match(service, /rpc\('get_guest_signups_by_day', \{ p_business_id: businessId \}\)/);
 });
+
+test('la tarjeta de vigilancia se recarga cada vez que se abre el Panel', async () => {
+  const panel = await read('business/business-orders.js');
+  assert.match(panel, /else \{\n        paintControl\(\);\n        \/\/ La vigilancia de invitados se actualiza cada vez que se abre el Panel\.\n        refreshGuestSignups\(\);/);
+  assert.match(panel, /if \(!canManagePilot \|\| guestSignupsLoading\) return;/);
+});

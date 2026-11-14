@@ -1,7 +1,7 @@
 // Red de «Pedir sin cuenta»: sesión anónima de Supabase, disponibilidad del
 // modo invitado y conversión en cuenta normal (misma fila, mismos pedidos).
-import { requireSupabase } from './supabase-client.js';
-import { guestConversionMetadata } from './guest-rules.js';
+import { requireSupabase, supabaseConfiguration } from './supabase-client.js';
+import { guestConversionMetadata, guestOrderingAvailable } from './guest-rules.js';
 
 export class GuestServiceError extends Error {
   constructor(code, cause) {
@@ -21,15 +21,30 @@ const toGuestError = (error, fallback) => {
   return new GuestServiceError(error?.code || fallback, error);
 };
 
-// ¿Se puede pedir sin cuenta ahora? Se consulta sin sesión (rol anon).
+// Interruptor del local (sin sesión, rol anon).
+async function localGuestStatus() {
+  const { data, error } = await requireSupabase().rpc('get_guest_ordering_status');
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row?.available === true;
+}
+
+// ¿Admite Supabase Auth inicios anónimos? Endpoint público de ajustes de Auth.
+async function anonymousSignInsEnabled(fetchImpl = globalThis.fetch) {
+  const { url, publishableKey } = supabaseConfiguration;
+  const response = await fetchImpl(`${url}/auth/v1/settings`, { headers: { apikey: publishableKey } });
+  if (!response.ok) throw new Error(`auth_settings_${response.status}`);
+  const settings = await response.json();
+  return settings?.external?.anonymous_users === true;
+}
+
+// ¿Se puede pedir sin cuenta ahora? Las dos condiciones a la vez; si falla
+// cualquiera de las consultas no se ofrece el modo invitado.
 export async function getGuestOrderingStatus() {
   try {
-    const { data, error } = await requireSupabase().rpc('get_guest_ordering_status');
-    if (error) throw error;
-    const row = Array.isArray(data) ? data[0] : data;
-    return Boolean(row?.available);
+    const [statusAvailable, anonymousEnabled] = await Promise.all([localGuestStatus(), anonymousSignInsEnabled()]);
+    return guestOrderingAvailable({ statusAvailable, anonymousEnabled });
   } catch {
-    // Sin respuesta no se ofrece el modo invitado.
     return false;
   }
 }

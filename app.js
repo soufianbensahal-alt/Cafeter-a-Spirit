@@ -276,7 +276,9 @@ const state = {
   consentError: '',
   // Invitado: sesión anónima de Supabase (pedir sin cuenta).
   isGuest: false,
+  // Hasta que conste que se puede (local + Auth), no se ofrece.
   guestOrderingAvailable: false,
+  guestError: '',
   guestBusy: false,
   guestSignup: { sentTo: '', busy: false, error: '' },
   guestPassword: { busy: false, error: '' },
@@ -379,8 +381,8 @@ const menu = () => {
   if (state.isGuest) {
     banner = `<div class="guest-menu-slot">${renderGuestPrompt({ translate: t, id: 'guest-prompt-menu' })}</div>`;
     back = { action: 'guest-exit', label: t('guestExit') };
-  } else if (state.authStatus !== 'authenticated' && state.guestOrderingAvailable) {
-    banner = renderGuestMenuBanner({ translate: t, busy: state.guestBusy });
+  } else if (state.authStatus !== 'authenticated' && (state.guestOrderingAvailable || state.guestError)) {
+    banner = renderGuestMenuBanner({ translate: t, busy: state.guestBusy, error: state.guestError, escapeHTML });
   }
   return renderMenuScreen({ ...menuViewContext(), banner, back });
 };
@@ -1077,7 +1079,7 @@ function login() {
     form = `<div class="auth-switch" role="group" aria-label="${t('authLabel')}"><button type="button" class="${!signingUp ? 'auth-switch--active' : ''}" data-action="auth-signin">${t('signIn')}</button><button type="button" class="${signingUp ? 'auth-switch--active' : ''}" data-action="auth-signup">${t('createAccount')}</button></div><form class="form" data-form="customer-auth" data-auth-mode="${signingUp ? 'signup' : 'signin'}" ${signingUp ? 'novalidate' : ''}>${signingUp ? `<div class="field"><label for="signup-first-name">${t('firstName')}</label><input id="signup-first-name" name="firstName" maxlength="28" autocomplete="given-name" placeholder="${t('namePlaceholder')}" required></div><div class="field"><label for="signup-last-name">${t('lastName')}</label><input id="signup-last-name" name="lastName" maxlength="42" autocomplete="family-name" placeholder="${t('lastNamePlaceholder')}" required></div>` : ''}<div class="field"><label for="email">${t('email')}</label><input id="email" name="email" type="email" autocomplete="username" inputmode="email" placeholder="${t('emailPlaceholder')}" required></div><div class="field"><label for="password">${t('password')}</label><input id="password" name="password" type="password" minlength="${signingUp ? PASSWORD_MIN_LENGTH : 1}" autocomplete="${signingUp ? 'new-password' : 'current-password'}" aria-describedby="${signingUp ? 'signup-password-note' : ''}" required>${signingUp ? `<small id="signup-password-note" class="field-note">${t('passwordLength')}</small>` : ''}</div>${signingUp ? `<div class="field"><label for="signup-password-confirmation">${t('confirmSignupPassword')}</label><input id="signup-password-confirmation" name="passwordConfirmation" type="password" minlength="${PASSWORD_MIN_LENGTH}" autocomplete="new-password" placeholder="${t('confirmSignupPasswordPlaceholder')}" aria-invalid="false" aria-describedby="signup-password-confirmation-error" required><small id="signup-password-confirmation-error" class="field-error" data-signup-password-error role="alert" aria-live="polite"></small></div><label class="check"><input type="checkbox" name="privacyConsent" value="accepted" required><span>${privacyLabel()}</span></label>` : `<button class="auth-link" type="button" data-action="auth-forgot">${t('forgotPassword')}</button>`}<p class="form-notice" role="status">${escapeHTML(state.authNotice)}</p><p class="form-error" data-auth-error role="alert">${escapeHTML(state.authError)}</p><button class="primary-button" type="submit" ${state.authLoading || signingUp ? 'disabled' : ''} ${signingUp ? 'data-signup-submit' : ''}>${state.authLoading ? t('checkSession') : signingUp ? t('createAccount') : t('signIn')}</button></form>`;
   }
   const guestEntry = ['signin', 'signup'].includes(state.authMode)
-    ? renderGuestEntry({ translate: t, available: state.guestOrderingAvailable, busy: state.guestBusy })
+    ? renderGuestEntry({ translate: t, available: state.guestOrderingAvailable, busy: state.guestBusy, error: state.guestError, escapeHTML })
     : '';
   return `<main class="app-shell"><section class="screen screen--gold ${recoveryMode ? 'screen--recovery' : ''}">${topbar()}<p class="eyebrow">${t(recoveryMode ? 'recoveryEyebrow' : 'welcome')}</p><h1>${t(recoveryMode ? 'recoveryTitle' : 'loginTitle')}</h1>${recoveryMode && state.authMode === 'recovery' ? `<p class="subtitle recovery-intro">${t('recoveryCopy')}</p>` : ''}${form}${guestEntry}${legalFooter()}</section></main>`;
 }
@@ -1552,7 +1554,7 @@ async function refreshGuestAvailability({ repaint = false } = {}) {
 async function startGuestOrdering() {
   if (state.guestBusy) return;
   state.guestBusy = true;
-  state.authError = '';
+  state.guestError = '';
   renderPreservingFocus();
   try {
     const user = await signInAsGuest();
@@ -1562,8 +1564,11 @@ async function startGuestOrdering() {
     scrollTo(0, 0);
     announcer.announce(t('guestEntryCopy'));
   } catch (error) {
-    state.authError = error?.code === 'guest_disabled' ? t('guestUnavailable') : t('guestStartError');
-    if (state.screen === 'menu') showToast(state.authError);
+    // El aviso va en la tarjeta (o franja) de invitado, no en el login. Si
+    // Auth no admite anónimos, además deja de ofrecerse el botón.
+    state.guestError = error?.code === 'guest_disabled' ? t('guestUnavailable') : t('guestStartError');
+    if (error?.code === 'guest_disabled') state.guestOrderingAvailable = false;
+    announcer.announce(state.guestError, { assertive: true });
     renderPreservingFocus();
   } finally {
     state.guestBusy = false;
@@ -1689,6 +1694,7 @@ addEventListener('popstate', () => {
 
 function clearCustomerIdentity() {
   state.isGuest = false;
+  state.guestError = '';
   state.consentStatus = 'ok';
   state.consentCheckedFor = null;
   state.consentError = '';

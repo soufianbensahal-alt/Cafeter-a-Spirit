@@ -650,6 +650,19 @@ export function createBusinessOrdersPanel({
         </section>`;
   };
 
+  let guestSignupsLoading = false;
+  const refreshGuestSignups = async () => {
+    if (!canManagePilot || guestSignupsLoading) return;
+    guestSignupsLoading = true;
+    try {
+      const rows = await getGuestSignupsByDay(businessId).catch(() => null);
+      if (rows) state.control.guestSignups = rows;
+      paintControl();
+    } finally {
+      guestSignupsLoading = false;
+    }
+  };
+
   const paintControl = () => {
     paintInto('[data-control-panel]', controlHTML());
   };
@@ -970,7 +983,11 @@ export function createBusinessOrdersPanel({
     if (tab === 'orders') paintOrders();
     if (tab === 'control') {
       if (!state.control.loaded && !state.control.loading) loadControl();
-      else paintControl();
+      else {
+        paintControl();
+        // La vigilancia de invitados se actualiza cada vez que se abre el Panel.
+        refreshGuestSignups();
+      }
     }
   };
 
