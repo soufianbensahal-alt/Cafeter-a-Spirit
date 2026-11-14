@@ -81,7 +81,7 @@ export function renderMenuScreen({ categories, query, activeCategory, icons, tra
   return `<main class="app-shell menu-shell"><section class="menu-screen ${ordering ? 'menu-screen--ordering' : ''}">
     <header class="menu-sticky">
       <div class="menu-titlebar ${ordering ? 'menu-titlebar--ordering' : ''}">
-        <button class="menu-icon-button" type="button" data-action="${back?.action || 'close-menu'}" aria-label="${back?.label || translate('menuBack')}">${icons.arrowLeft}</button>
+        <button class="menu-icon-button" type="button" data-screen-back data-action="${back?.action || 'close-menu'}" aria-label="${back?.label || translate('menuBack')}">${icons.arrowLeft}</button>
         <div class="menu-brand">${brandLogo('menu')}</div>
         <h1>${translate('menuTitle')}</h1>
         ${ordering ? `<button class="menu-icon-button" type="button" data-action="open-orders" aria-label="${translate('myOrders')}">${icons.bag}</button>` : ''}

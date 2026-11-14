@@ -102,7 +102,9 @@ export function createBusinessOrdersPanel({
   appRoot,
   modalRoot,
   baseTitle = 'SPIRIT · Modo cafetería',
-  onSessionLost = () => {}
+  onSessionLost = () => {},
+  // Avisa de cambios de profundidad (diálogo, historial) al botón atrás.
+  onNavigationChange = () => {}
 }) {
   const businessId = employee.businessId;
   // En la PWA instalada de iOS no se imprime (la comanda sale del PC de la barra).
@@ -153,7 +155,11 @@ export function createBusinessOrdersPanel({
   const modal = createAccessibleModalController({
     appRoot,
     modalRoot,
+    // Mientras se envía el rechazo, el diálogo no se cierra (ni con atrás).
+    canClose: ({ backdrop }) => !backdrop.querySelector('[data-orders-form="reject"][data-submitting]'),
+    onOpen: () => onNavigationChange(),
     onClose: ({ reason }) => {
+      if (reason !== 'replace') queueMicrotask(() => onNavigationChange());
       modalOrderId = null;
       const closedTicket = ticketOrderId;
       ticketOrderId = null;
@@ -497,6 +503,7 @@ export function createBusinessOrdersPanel({
     const wasHistory = Boolean(state.history.date);
     state.history = { date, loading: true, error: '', retryable: false, orders: [], byId: new Map() };
     if (!wasHistory) {
+      onNavigationChange();
       historyIdle.start();
       watchInteraction(true);
     } else {
@@ -532,6 +539,7 @@ export function createBusinessOrdersPanel({
     historyIdle.stop();
     watchInteraction(false);
     paintOrders();
+    if (wasHistory) onNavigationChange();
     // «Hoy» desaparece al volver: si el foco estaba ahí (o se perdió), pasa
     // al título; nunca queda en el vacío.
     const active = document.activeElement;
@@ -907,7 +915,9 @@ export function createBusinessOrdersPanel({
       }
       const orderId = modalOrderId;
       form.querySelectorAll('button, input').forEach((element) => { element.disabled = true; });
+      form.dataset.submitting = 'true';
       const result = await changeStatus(orderId, 'rejected', normalized.value);
+      delete form.dataset.submitting;
       if (result === 'reason_required') {
         form.querySelectorAll('button, input').forEach((element) => { element.disabled = false; });
         input.setAttribute('aria-invalid', 'true');
@@ -1051,5 +1061,13 @@ export function createBusinessOrdersPanel({
     }
   };
 
-  return { start, stop: destroy, paint, pendingCount };
+  // Para el botón atrás: cerrar el diálogo o volver a «Hoy».
+  const navigation = {
+    modalOpen: () => modal.isOpen(),
+    historyOpen: () => Boolean(state.history.date),
+    closeModal: () => modal.close({ reason: 'back' }),
+    showToday: () => showToday({ reason: 'back' })
+  };
+
+  return { start, stop: destroy, paint, pendingCount, navigation };
 }

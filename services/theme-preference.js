@@ -48,10 +48,20 @@ export const resolveThemePreference = (
   }
 };
 
+// Meta color-scheme: con el tema del sistema la app admite los dos; con uno
+// elegido a mano, sólo ese (el navegador no fuerza el otro).
+export const colorSchemeFor = (preference) => {
+  const normalized = normalizeThemePreference(preference);
+  if (normalized === 'light') return 'only light';
+  if (normalized === 'dark') return 'dark';
+  return 'light dark';
+};
+
 export const createThemePreferenceController = ({
   storage,
   documentElement = globalThis.document?.documentElement,
   themeColorElement = globalThis.document?.querySelector?.('#theme-color'),
+  colorSchemeElement = globalThis.document?.querySelector?.('#color-scheme'),
   matchMediaImpl = globalThis.matchMedia,
   onChange = () => {}
 } = {}) => {
@@ -68,6 +78,7 @@ export const createThemePreferenceController = ({
       'content',
       effectiveTheme === 'dark' ? '#171612' : '#eecf62'
     );
+    colorSchemeElement?.setAttribute?.('content', colorSchemeFor(preference));
     onChange({ preference, effectiveTheme });
   };
 

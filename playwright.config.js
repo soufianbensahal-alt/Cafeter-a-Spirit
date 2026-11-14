@@ -32,6 +32,22 @@ export default defineConfig({
     { name: 'webkit-mobile', use: { ...devices['iPhone 14'] } },
     { name: 'webkit-tablet', use: { ...devices['iPad Pro 11'] } },
     { name: 'chromium-desktop', use: { ...devices['Desktop Chrome'] } },
+    // Android: 360 px (Galaxy S8) y un Galaxy actual. Todo cambio de interfaz
+    // se prueba también aquí, no solo en iPhone.
+    { name: 'android-360', use: { ...devices['Galaxy S8'] } },
+    { name: 'android-galaxy', use: { ...devices['Galaxy S24'] } },
+    // Oscuro forzado por el navegador (como Samsung Internet o el «oscuro
+    // automático» de Chrome): sólo el spec que lo comprueba.
+    {
+      name: 'android-forced-dark',
+      testMatch: /android-forced-dark\.spec\.js/,
+      use: {
+        ...devices['Galaxy S8'],
+        // El oscuro automático se activa en el spec por CDP
+        // (Emulation.setAutoDarkModeOverride): los flags no funcionan en headless.
+        colorScheme: 'dark'
+      }
+    },
     ...(useInstalledChrome
       ? [{ name: 'chrome-mobile', use: { ...devices['Pixel 7'], channel: 'chrome' } }]
       : [])

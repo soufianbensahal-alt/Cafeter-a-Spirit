@@ -30,6 +30,7 @@ import {
 import { displayText } from '../services/display-text.js';
 import { createLiveAnnouncer } from '../services/live-announcer.js';
 import { createBusinessOrdersPanel } from './business-orders.js';
+import { createBackNavigation, createExitHint, isInstalledApp, panelDepth } from '../services/back-navigation.js';
 import jsQR from 'jsqr';
 
 const isBusinessRoute = /^\/cafeteria\/?$/.test(window.location.pathname);
@@ -176,7 +177,41 @@ if (isBusinessRoute) {
       if (heading) announcer.announce(heading.textContent);
     }
     if (state.view === 'scanner') startScanner();
+    backNavigation.sync();
   }
+
+  // Botón/gesto atrás (Android): cierra el diálogo, vuelve a «Hoy», cierra el
+  // escáner o la vista previa, vuelve a Pedidos y, ahí, pide una segunda
+  // pulsación para salir.
+  const exitHint = createExitHint();
+  const ordersNavigation = () => ordersPanel?.navigation;
+  function showBackHint(text) {
+    const toast = document.querySelector('#toast');
+    if (!toast) return;
+    toast.textContent = text;
+    toast.classList.add('toast--back', 'toast--show');
+    announcer.announce(text);
+    clearTimeout(showBackHint.timer);
+    showBackHint.timer = setTimeout(() => toast.classList.remove('toast--show', 'toast--back'), 2200);
+  }
+  function handlePanelBack() {
+    const orders = ordersNavigation();
+    if (orders?.modalOpen()) { orders.closeModal(); return undefined; }
+    if (state.view === 'scanner') { stopScanner(); resetCustomer(); return undefined; }
+    if (state.view === 'preview') { if (!state.confirming) resetCustomer(); return undefined; }
+    if (state.view === 'success') { resetCustomer(); return undefined; }
+    if (state.view === 'home' && state.tab === 'orders' && orders?.historyOpen()) { orders.showToday(); return undefined; }
+    if (state.view === 'home' && state.tab !== 'orders') { selectTab('orders'); return undefined; }
+    if (!exitHint.shouldWarn()) return 'exit';
+    showBackHint('Pulsa atrás otra vez para salir');
+    return undefined;
+  }
+  const backNavigation = createBackNavigation({
+    getDepth: () => panelDepth({ view: state.view, tab: state.tab, historyOpen: Boolean(ordersNavigation()?.historyOpen()) })
+      + (ordersNavigation()?.modalOpen() ? 1 : 0),
+    onBack: handlePanelBack,
+    guardRoot: () => isInstalledApp()
+  });
 
   function readableError(error) {
     if (error instanceof StampSessionError || error instanceof MfaServiceError) return displayText(error, 'Ha ocurrido un error inesperado. Inténtalo de nuevo.');
@@ -224,6 +259,7 @@ if (isBusinessRoute) {
       announcer,
       appRoot: app,
       modalRoot,
+      onNavigationChange: () => backNavigation.sync(),
       onSessionLost: () => {
         stopOrdersPanel();
         state.employee = null;
@@ -663,5 +699,6 @@ if (isBusinessRoute) {
 
   addEventListener('pagehide', stopScanner);
   addEventListener('beforeunload', stopScanner);
+  backNavigation.start();
   restoreAccess();
 }

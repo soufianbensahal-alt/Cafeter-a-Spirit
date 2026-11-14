@@ -99,6 +99,7 @@ import {
 } from './client/guest-view.js';
 import { SIGNUP_PROMO_COPY, promoDurationMs, promoSlots, renderSignupPromo } from './client/signup-promo.js';
 import { getPublicLoyaltyProgram } from './services/public-loyalty-program.js';
+import { createBackNavigation, createExitHint, customerScreenDepth, isCustomerTab, isInstalledApp } from './services/back-navigation.js';
 import { guestScreen, isGuestUser, validateGuestName } from './services/guest-rules.js';
 import {
   confirmGuestConversion,
@@ -153,7 +154,7 @@ import {
   subscribeToProducts
 } from './services/order-service.js';
 import { createRealtimeWithFallback, orderStatusChanged, shouldWatchProducts } from './services/order-monitor.js';
-import { checkoutViewportLayout, scrollDeltaToReveal } from './services/checkout-viewport.js';
+import { checkoutViewportLayout, createViewportBaseline, scrollDeltaToReveal } from './services/checkout-viewport.js';
 
 const PRIVACY_POLICY_VERSION = '2026-08-05';
 
@@ -219,6 +220,9 @@ Object.assign(copy.es, GUEST_COPY.es);
 Object.assign(copy.ca, GUEST_COPY.ca);
 Object.assign(copy.es, SIGNUP_PROMO_COPY.es);
 Object.assign(copy.ca, SIGNUP_PROMO_COPY.ca);
+// Botón atrás de Android en la pantalla raíz.
+Object.assign(copy.es, { backExitHint: 'Pulsa atrás otra vez para salir' });
+Object.assign(copy.ca, { backExitHint: 'Prem enrere un altre cop per sortir' });
 Object.assign(copy.es, LEGAL_COPY.es);
 Object.assign(copy.ca, LEGAL_COPY.ca);
 
@@ -294,11 +298,19 @@ const state = {
 const app = document.querySelector('#app');
 const modalRoot = document.querySelector('#modal-root');
 const announcer = createLiveAnnouncer(document.querySelector('#app-announcer'));
+// Se crea más abajo (necesita el estado de las pantallas); hasta entonces
+// replaceUrl/sync no hacen nada especial.
+let backNavigation = { sync() {}, replaceUrl: (url) => window.history.replaceState(window.history.state, '', url) };
 const modalController = createAccessibleModalController({
   appRoot: app,
   modalRoot,
-  canClose: ({ backdrop }) => !backdrop.querySelector('[data-delete-account-modal][data-deleting="true"]'),
+  // No se cierra (ni con atrás, Escape o tocando fuera) mientras se borra la
+  // cuenta o se está enviando el pedido.
+  canClose: ({ backdrop }) => !backdrop.querySelector('[data-delete-account-modal][data-deleting="true"]')
+    && !(state.checkoutSubmitting && backdrop.querySelector('[data-form="checkout"]')),
+  onOpen: () => backNavigation.sync(),
   onClose: ({ backdrop, reason }) => {
+    if (reason !== 'replace') queueMicrotask(() => backNavigation.sync());
     if (backdrop.querySelector('[data-stamp-request-sheet]')) clearStampRequest(false);
     const closingCheckout = backdrop.querySelector('[data-form="checkout"]');
     if (closingCheckout) {
@@ -674,11 +686,15 @@ function startCheckoutViewport() {
   const backdrop = dialog?.closest('[data-sheet-backdrop]');
   if (!dialog?.querySelector('[data-form="checkout"]') || !backdrop) return;
   const viewport = window.visualViewport;
+  // Android encoge el layout con el teclado: hace falta el alto «sin teclado».
+  const baseline = createViewportBaseline();
   const update = () => {
+    const layoutHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
     const layout = checkoutViewportLayout({
-      layoutHeight: Math.max(window.innerHeight, document.documentElement.clientHeight),
+      layoutHeight,
       viewportHeight: viewport?.height,
-      offsetTop: viewport?.offsetTop
+      offsetTop: viewport?.offsetTop,
+      baselineHeight: baseline.update({ width: window.innerWidth, height: layoutHeight })
     });
     backdrop.classList.add('modal-backdrop--viewport');
     backdrop.classList.toggle('modal-backdrop--keyboard', layout.keyboardOpen);
@@ -1692,7 +1708,7 @@ async function submitGuestPassword(form) {
     const user = await setConvertedAccountPassword(password);
     applyCustomerContext(await getCustomerContext(user));
     await refreshCustomerLoyaltySafely();
-    window.history.replaceState({}, '', '/');
+    backNavigation.replaceUrl('/');
     state.guestPassword = { busy: false, error: '' };
     state.screen = 'home';
     render();
@@ -1711,9 +1727,9 @@ function openLegalPage(page, { push = true } = {}) {
   if (state.screen !== 'legal') state.legalReturn = { screen: state.screen };
   state.legalPage = page;
   state.legalLang = null;
-  if (push) window.history.pushState({ legal: page }, '', LEGAL_ROUTES[page]);
   state.screen = 'legal';
   render();
+  if (push) backNavigation.replaceUrl(LEGAL_ROUTES[page]);
   scrollTo(0, 0);
   focusScreenHeading();
 }
@@ -1722,7 +1738,7 @@ function closeLegalPage({ fromHistory = false } = {}) {
   const back = state.legalReturn?.screen;
   state.legalReturn = null;
   state.legalLang = null;
-  if (!fromHistory) window.history.replaceState({}, '', '/');
+  if (!fromHistory || legalPageFromPath(window.location.pathname)) backNavigation.replaceUrl('/');
   state.screen = back && back !== 'legal'
     ? back
     : state.authStatus === 'authenticated' ? (state.isGuest ? 'menu' : 'home') : 'login';
@@ -1749,11 +1765,47 @@ document.addEventListener('click', (event) => {
   }
 });
 
-addEventListener('popstate', () => {
-  if (isBusinessMode) return;
-  const page = legalPageFromPath(window.location.pathname);
-  if (page) openLegalPage(page, { push: false });
-  else if (state.screen === 'legal') closeLegalPage({ fromHistory: true });
+// ---------------------------------------------------------------------------
+// Botón/gesto atrás (Android): cierra el diálogo abierto, vuelve a la pantalla
+// anterior y, en la raíz, pide una segunda pulsación para salir.
+// ---------------------------------------------------------------------------
+const exitHint = createExitHint();
+const navigationContext = () => ({
+  isGuest: state.isGuest,
+  ordersBackTarget: state.ordersBackTarget,
+  orderBackTarget: state.orderBackTarget,
+  legalReturn: state.legalReturn
+});
+
+function handleCustomerBack() {
+  if (modalController.isOpen()) {
+    modalController.close({ reason: 'back' });
+    return undefined;
+  }
+  const view = customerView();
+  if (customerScreenDepth(view, navigationContext()) > 0) {
+    if (isCustomerTab(view)) {
+      state.screen = 'home';
+      render();
+      scrollTo(0, 0);
+      return undefined;
+    }
+    const back = app.querySelector('[data-screen-back]');
+    if (back) {
+      back.click();
+      return undefined;
+    }
+  }
+  if (!exitHint.shouldWarn()) return 'exit';
+  showToast(t('backExitHint'));
+  return undefined;
+}
+
+backNavigation = createBackNavigation({
+  getDepth: () => customerScreenDepth(customerView(), navigationContext()) + (modalController.isOpen() ? 1 : 0),
+  onBack: handleCustomerBack,
+  // Aviso de salida solo con la app instalada; en una pestaña, como siempre.
+  guardRoot: () => isInstalledApp()
 });
 
 function clearCustomerIdentity() {
@@ -1801,13 +1853,13 @@ function normalizePasswordRecoveryRoute() {
     || window.location.search
     || window.location.hash
   ) {
-    window.history.replaceState({}, '', '/reset-password');
+    backNavigation.replaceUrl('/reset-password');
   }
 }
 
 async function abandonPasswordRecovery(nextMode = 'signin') {
   passwordRecoveryState.clear();
-  window.history.replaceState({}, '', '/');
+  backNavigation.replaceUrl('/');
   try {
     await signOutCurrentSession();
   } catch (error) {
@@ -1874,7 +1926,7 @@ async function initializeEmailConfirmation() {
   if (!emailConfirmationRoute.shouldVerify) {
     if (emailConfirmationRoute.status === 'processing') {
       state.emailConfirmationStatus = 'invalid';
-      window.history.replaceState({}, '', emailConfirmationResultUrl('invalid'));
+      backNavigation.replaceUrl(emailConfirmationResultUrl('invalid'));
       render();
     }
     return;
@@ -1883,7 +1935,7 @@ async function initializeEmailConfirmation() {
   const tokenHash = emailConfirmationRoute.tokenHash;
   state.authError = '';
   state.authNotice = '';
-  window.history.replaceState({}, '', `${emailConfirmationResultUrl('invalid')}&pending=1`);
+  backNavigation.replaceUrl(`${emailConfirmationResultUrl('invalid')}&pending=1`);
   state.emailConfirmationStatus = 'processing';
   render();
 
@@ -1891,7 +1943,7 @@ async function initializeEmailConfirmation() {
     if (emailConfirmationRoute.type === 'email_change') {
       // Invitado que crea su cuenta: misma fila de usuario, mismos pedidos.
       await confirmGuestConversion(tokenHash);
-      window.history.replaceState({}, '', '/');
+      backNavigation.replaceUrl('/');
       state.isGuest = false;
       state.authStatus = 'authenticated';
       state.guestPassword = { busy: false, error: '' };
@@ -1902,12 +1954,12 @@ async function initializeEmailConfirmation() {
     }
     await confirmCustomerEmail(tokenHash);
     state.emailConfirmationStatus = 'confirmed';
-    window.history.replaceState({}, '', emailConfirmationResultUrl('confirmed'));
+    backNavigation.replaceUrl(emailConfirmationResultUrl('confirmed'));
   } catch (error) {
     const networkError = error?.code === 'network_error'
       || error?.code === 'email_confirmation_cleanup_failed';
     state.emailConfirmationStatus = networkError ? 'network' : 'invalid';
-    window.history.replaceState({}, '', emailConfirmationResultUrl(state.emailConfirmationStatus));
+    backNavigation.replaceUrl(emailConfirmationResultUrl(state.emailConfirmationStatus));
   }
   render();
 }
@@ -1992,7 +2044,7 @@ async function permanentlyDeleteCustomerAccount(form) {
     state.authMode = 'signin';
     state.authNotice = t('accountDeletedSuccess');
     state.screen = 'login';
-    window.history.replaceState({}, '', '/');
+    backNavigation.replaceUrl('/');
     modalController.close({ force: true, restoreFocus: false, reason: 'account-deleted' });
     render();
     scrollTo(0, 0);
@@ -2175,22 +2227,27 @@ function bindMenuInteractions() {
 
 let lastAnnouncedScreen = '';
 
+// Con el reconsentimiento pendiente, la cuenta sólo ve la política nueva
+// (o /privacidad); al aceptar vuelve a la pantalla que tocaba.
+function customerView() {
+  const consentBlocked = state.authStatus === 'authenticated'
+    && !state.isGuest
+    && ['checking', 'required'].includes(state.consentStatus)
+    && !['legal', 'emailConfirmation', 'guestPassword'].includes(state.screen);
+  return consentBlocked ? 'consent' : state.screen;
+}
+
 function render() {
   document.documentElement.lang = state.lang;
   syncIntroPresentation();
   cleanupMenuInteractions();
   if (state.isGuest) state.screen = guestScreen(state.screen);
-  // Con el reconsentimiento pendiente, la cuenta sólo ve la política nueva
-  // (o /privacidad); al aceptar vuelve a la pantalla que tocaba.
-  const consentBlocked = state.authStatus === 'authenticated'
-    && !state.isGuest
-    && ['checking', 'required'].includes(state.consentStatus)
-    && !['legal', 'emailConfirmation', 'guestPassword'].includes(state.screen);
-  const view = consentBlocked ? 'consent' : state.screen;
+  const view = customerView();
   app.innerHTML = ({intro,onboarding,login,emailConfirmation,authLoading,home,menu,rewards,history,profile,cart:cartScreen,orders,orderTracking,guestSignup,guestPassword,legal,consent})[view]();
   bind();
   syncOrderMonitor();
   syncProductMonitor();
+  backNavigation.sync();
   if (lastAnnouncedScreen !== view) {
     lastAnnouncedScreen = view;
     const heading = app.querySelector('h1');
@@ -2318,7 +2375,7 @@ function bind() {
     if(action==='signup-promo-start'){ state.authMode='signup'; state.authError=''; state.authNotice=''; render(); document.querySelector('#signup-first-name')?.focus(); }
     if(action==='auth-forgot'){ state.authMode='forgot'; state.authError=''; state.authNotice=''; render(); }
     if(action==='recovery-request'){ await abandonPasswordRecovery('forgot'); }
-    if(action==='recovery-continue'){ passwordRecoveryState.clear(); window.history.replaceState({},'', '/'); state.authMode='signin'; state.screen='login'; render(); scrollTo(0,0); }
+    if(action==='recovery-continue'){ passwordRecoveryState.clear(); backNavigation.replaceUrl('/'); state.authMode='signin'; state.screen='login'; render(); scrollTo(0,0); }
     if(action==='email-confirmation-login'){ window.location.assign(CUSTOMER_LOGIN_PATH); }
     if(action==='email-confirmation-home'){ window.location.assign('/'); }
     if(action==='email-confirmation-retry'){ await initializeEmailConfirmation(); }
@@ -2399,7 +2456,7 @@ function bind() {
   });
   document.querySelector('[data-form="customer-forgot"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const form=e.currentTarget;const data=new FormData(form);state.authLoading=true;state.authError='';state.authNotice='';render();try{await requestCustomerPasswordReset(data.get('email'));state.authNotice=t('recoverySent');state.authMode='signin';}catch(error){state.authError=readableAuthError(error);}finally{state.authLoading=false;state.screen='login';render();}});
   document.querySelector('[data-form="email-confirmation-resend"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);state.authLoading=true;state.authError='';state.authNotice='';render();try{await resendCustomerEmailConfirmation(data.get('email'));state.authNotice=t('emailConfirmationResent');}catch(error){state.authError=readableAuthError(error);}finally{state.authLoading=false;render();}});
-  document.querySelector('[data-form="customer-recovery"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);const password=String(data.get('password')||'');const confirmation=String(data.get('confirmation')||'');if(!passwordMeetsPolicy(password)){state.authError=t('passwordLength');render();return;}if(password!==confirmation){state.authError=t('passwordMismatch');render();return;}const tokenHash=passwordRecoveryState.getTokenHash();if(!tokenHash){passwordRecoveryState.clear();window.history.replaceState({},'', '/');clearCustomerIdentity();state.authMode='forgot';state.authError=t('recoveryInvalidCopy');state.screen='login';render();return;}state.authLoading=true;state.authError='';render();try{await completeCustomerPasswordRecovery(tokenHash,password);passwordRecoveryState.clear();window.history.replaceState({},'', '/');clearCustomerIdentity();state.authMode='signin';state.authNotice=t('recoveryCompleteSignIn');state.screen='login';}catch(error){const invalidRecovery=['session_not_found','otp_expired','access_denied','recovery_link_invalid','recovery_link_consumed'].includes(error?.code);if(invalidRecovery){passwordRecoveryState.clear();window.history.replaceState({},'', '/');clearCustomerIdentity();state.authMode='forgot';state.authError=t('recoveryInvalidCopy');state.screen='login';}else{state.authError=readableAuthError(error);}}finally{state.authLoading=false;render();}});
+  document.querySelector('[data-form="customer-recovery"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);const password=String(data.get('password')||'');const confirmation=String(data.get('confirmation')||'');if(!passwordMeetsPolicy(password)){state.authError=t('passwordLength');render();return;}if(password!==confirmation){state.authError=t('passwordMismatch');render();return;}const tokenHash=passwordRecoveryState.getTokenHash();if(!tokenHash){passwordRecoveryState.clear();backNavigation.replaceUrl('/');clearCustomerIdentity();state.authMode='forgot';state.authError=t('recoveryInvalidCopy');state.screen='login';render();return;}state.authLoading=true;state.authError='';render();try{await completeCustomerPasswordRecovery(tokenHash,password);passwordRecoveryState.clear();backNavigation.replaceUrl('/');clearCustomerIdentity();state.authMode='signin';state.authNotice=t('recoveryCompleteSignIn');state.screen='login';}catch(error){const invalidRecovery=['session_not_found','otp_expired','access_denied','recovery_link_invalid','recovery_link_consumed'].includes(error?.code);if(invalidRecovery){passwordRecoveryState.clear();backNavigation.replaceUrl('/');clearCustomerIdentity();state.authMode='forgot';state.authError=t('recoveryInvalidCopy');state.screen='login';}else{state.authError=readableAuthError(error);}}finally{state.authLoading=false;render();}});
   document.querySelector('[data-form="profile"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);try{const context=await updateCustomerProfile(`${data.get('firstName')} ${data.get('lastName')}`);applyCustomerContext(context);modalController.close({ reason: 'submit' });render();}catch(error){showToast(readableAuthError(error));}});
   document.querySelector('[data-form="password"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const form=e.currentTarget;if(form.dataset.submitting==='true')return;const data=new FormData(form);const current=String(data.get('currentPassword')||'');const next=String(data.get('newPassword')||'');const confirmation=String(data.get('confirmPassword')||'');const error=form.querySelector('[data-password-error]');const submit=form.querySelector('[type="submit"]');error.textContent='';if(!current){error.textContent=t('currentPasswordRequired');return;}if(!passwordMeetsPolicy(next)){error.textContent=t('passwordLength');return;}if(next!==confirmation){error.textContent=t('passwordMismatch');return;}form.dataset.submitting='true';submit.disabled=true;try{await updateCustomerPassword(state.profile.email,current,next);form.reset();modalController.close({ reason: 'submit' });showToast(t('passwordSaved'));}catch(authError){error.textContent=readablePasswordChangeError(authError);}finally{delete form.dataset.submitting;if(submit.isConnected)submit.disabled=false;}});
   document.querySelector('[data-delete-account-confirmation]:not([data-bound])')?.addEventListener('input',(event)=>{event.currentTarget.dataset.bound='1';const submit=event.currentTarget.form?.querySelector('[data-delete-account-submit]');if(submit&&!state.accountDeleting)submit.disabled=event.currentTarget.value!==t('deleteAccountConfirmation');});
@@ -2477,6 +2534,7 @@ function bindOrderInteractions() {
 
 if (!isBusinessMode) {
   render();
+  backNavigation.start();
   if (emailConfirmationRoute.active) {
     initializeEmailConfirmation();
   } else {
@@ -2532,7 +2590,7 @@ if (!isBusinessMode) {
           applyCustomerContext(await getCustomerContext(user));
           await refreshCustomerLoyaltySafely();
           await refreshPushNotificationPreference();
-          if (state.screen === 'authLoading') window.history.replaceState({}, '', '/');
+          if (state.screen === 'authLoading') backNavigation.replaceUrl('/');
           if (state.screen === 'login' || state.screen === 'authLoading') state.screen = 'home';
           render();
         } catch (error) {

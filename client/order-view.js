@@ -16,7 +16,7 @@ import {
 import { renderGuestNameField } from './guest-view.js';
 
 const screenHeader = ({ action, label, icons, eyebrow, title, extra = '' }) => `<header class="order-header">
-  <button class="menu-icon-button" type="button" data-action="${action}" aria-label="${label}">${icons.arrowLeft}</button>
+  <button class="menu-icon-button" type="button" data-screen-back data-action="${action}" aria-label="${label}">${icons.arrowLeft}</button>
   ${extra}
 </header>
 <p class="eyebrow">${eyebrow}</p>

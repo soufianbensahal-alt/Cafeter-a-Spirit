@@ -72,7 +72,7 @@ test('la aplicación limpia la URL, evita Auth global y ofrece acceso manual', a
     read('../bootstrap.js')
   ]);
 
-  assert.match(app, /window\.history\.replaceState\(\{\}, '', `\$\{emailConfirmationResultUrl\('invalid'\)\}&pending=1`\)/);
+  assert.match(app, /backNavigation\.replaceUrl\(`\$\{emailConfirmationResultUrl\('invalid'\)\}&pending=1`\)/);
   assert.doesNotMatch(app, /emailConfirmationRoute\.shouldConsumeSession/);
   assert.match(app, /await confirmCustomerEmail\(tokenHash\)/);
   assert.match(app, /if \(emailConfirmationRoute\.active\) \{\s*initializeEmailConfirmation\(\)/);

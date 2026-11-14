@@ -55,7 +55,7 @@ export function renderGuestExitContent({ translate: t }) {
 }
 
 const header = ({ t, icons, eyebrow, title }) => `<header class="order-header">
-    <button class="menu-icon-button" type="button" data-action="guest-signup-back" aria-label="${t('guestSignupBack')}">${icons.arrowLeft}</button>
+    <button class="menu-icon-button" type="button" data-screen-back data-action="guest-signup-back" aria-label="${t('guestSignupBack')}">${icons.arrowLeft}</button>
   </header>
   <p class="eyebrow">${eyebrow}</p>
   <h1 tabindex="-1" data-screen-heading>${title}</h1>`;

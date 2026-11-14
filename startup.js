@@ -8,6 +8,9 @@
   const theme = preference === 'system' ? (systemIsDark ? 'dark' : 'light') : preference;
   const startsWithSplash = !isBusinessRoute && !/^\/reset-password\/?$/.test(location.pathname);
   document.documentElement.dataset.theme = theme;
+  // Tema elegido a mano: el navegador no debe oscurecer ni aclarar por su cuenta.
+  const colorScheme = document.querySelector('#color-scheme');
+  if (colorScheme) colorScheme.content = preference === 'light' ? 'only light' : preference === 'dark' ? 'dark' : 'light dark';
   document.documentElement.classList.toggle('splash-active', startsWithSplash);
   document.querySelector('#theme-color').content = startsWithSplash
     ? '#eecf62'

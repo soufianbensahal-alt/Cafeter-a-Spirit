@@ -70,7 +70,7 @@ export function renderLegalScreen({ page, lang = 'es', translate, escapeHTML, ic
   const otherLabel = other === 'privacy' ? t('legalPrivacyLink') : t('legalNoticeLink');
   return `<main class="app-shell"><section class="screen legal-screen" data-legal-page="${page}">
     <header class="order-header">
-      <button class="menu-icon-button" type="button" data-action="legal-back" aria-label="${t('legalBack')}">${icons.arrowLeft}</button>
+      <button class="menu-icon-button" type="button" data-screen-back data-action="legal-back" aria-label="${t('legalBack')}">${icons.arrowLeft}</button>
       <button class="text-btn legal-lang" type="button" data-action="legal-lang" lang="${lang === 'ca' ? 'es' : 'ca'}">${t('legalReadOther')}</button>
     </header>
     ${draftBanner(lang, escapeHTML)}

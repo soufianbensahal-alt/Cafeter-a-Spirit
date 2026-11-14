@@ -72,7 +72,7 @@ export function accessibleDialogMarkup({ content, labelledBy, describedBy = '', 
   return `<div class="modal-backdrop" data-sheet-backdrop><div class="modal ${className}" role="dialog" aria-modal="true" aria-labelledby="${labelledBy}"${description} tabindex="-1">${content}</div></div>`;
 }
 
-export function createAccessibleModalController({ appRoot, modalRoot, canClose, onClose } = {}) {
+export function createAccessibleModalController({ appRoot, modalRoot, canClose, onClose, onOpen } = {}) {
   if (!appRoot || !modalRoot) throw new TypeError('El controlador necesita appRoot y modalRoot.');
   installActivationTracker(document);
   let previousFocus = null;
@@ -153,6 +153,7 @@ export function createAccessibleModalController({ appRoot, modalRoot, canClose, 
       ? dialog?.querySelector(initialFocus)
       : defaultInitialFocus(dialog);
     (target || dialog)?.focus();
+    onOpen?.({ dialog, replacing });
     return dialog;
   };
 

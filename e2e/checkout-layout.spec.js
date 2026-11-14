@@ -90,7 +90,8 @@ test.beforeAll(async ({ browser }, testInfo) => {
   if (!e2eEnabled) return;
   await preparePilot();
   const { baseURL } = testInfo.project.use;
-  context = await browser.newContext({ ...testInfo.project.use, baseURL });
+  // Sin service worker: si controla la página, page.route no ve create_order.
+  context = await browser.newContext({ ...testInfo.project.use, baseURL, serviceWorkers: 'block' });
   page = await context.newPage();
   await customerLogin(page);
   await page.getByRole('button', { name: 'Carta: Ver menú' }).click();
@@ -170,6 +171,68 @@ e2eTest('con el teclado abierto el campo enfocado queda entre la cabecera y el p
   await expect(dialog()).not.toHaveClass(/modal--keyboard/);
   await expect(summary).toBeVisible();
   await expect(submit()).toBeInViewport({ ratio: 0.99 });
+  await closeCheckout();
+});
+
+// Android (interactive-widget=resizes-content): el teclado encoge el layout
+// entero, no solo visualViewport. Se simula reduciendo el viewport.
+e2eTest('Android: con el teclado el pie se compacta y el campo enfocado queda a la vista', async () => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await openCheckout();
+  const code = dialog().getByLabel('Código del local');
+  const table = dialog().getByLabel('Tu mesa');
+  const body = dialog().locator('[data-checkout-body]');
+  const summary = dialog().locator('[data-checkout-summary]');
+  await code.focus();
+  await page.setViewportSize({ width: 360, height: 400 });
+  await expect(dialog()).toHaveClass(/modal--keyboard/);
+  await expect(dialog()).toHaveClass(/modal--compact/);
+  await expect(summary).toBeHidden();
+  await expect(async () => expectWithin(await box(code), await box(body), 'código')).toPass();
+  await expect(async () => expectWithin(await box(submit()), { top: 0, bottom: 400 }, 'envío')).toPass();
+  await table.focus();
+  await expect(async () => expectWithin(await box(table), await box(body), 'mesa')).toPass();
+  await table.fill('Terraza 2');
+  // Se cierra el teclado: vuelve el total.
+  await page.setViewportSize({ width: 360, height: 740 });
+  await expect(dialog()).not.toHaveClass(/modal--keyboard/);
+  await expect(summary).toBeVisible();
+  await expect(submit()).toBeInViewport({ ratio: 0.99 });
+  // Botón atrás: cierra la confirmación, sigue en el carrito y conserva la mesa.
+  await page.goBack({ waitUntil: 'commit', timeout: 5000 }).catch(() => {});
+  await expect(dialog()).toBeHidden();
+  await expect(page.getByRole('heading', { level: 1, name: 'Tu pedido' })).toBeVisible();
+  await openCheckout();
+  await expect(dialog().getByLabel('Tu mesa')).toHaveValue('Terraza 2');
+  await dialog().getByLabel('Tu mesa').fill('');
+  await closeCheckout();
+});
+
+e2eTest('mientras se envía el pedido, ni atrás ni Escape cierran la confirmación', async () => {
+  await page.route('**/rest/v1/rpc/create_order', async (route) => {
+    await new Promise((resolve) => { setTimeout(resolve, 1500); });
+    await route.abort('internetdisconnected');
+  });
+  await openCheckout();
+  await dialog().getByLabel('Código del local').fill(ORDER_CODE);
+  await dialog().getByLabel('Recoger en barra').check();
+  await submit().click();
+  // Mientras envía, el botón se llama «Enviando pedido…».
+  const sending = dialog().locator('[data-checkout-submit]');
+  await expect(sending).toBeDisabled();
+  await expect(sending).toHaveText('Enviando pedido…');
+  await page.goBack({ waitUntil: 'commit', timeout: 5000 }).catch(() => {});
+  await page.keyboard.press('Escape');
+  await expect(dialog()).toBeVisible();
+  await expect(sending).toBeDisabled();
+  // Termina el envío (con error de red): el diálogo sigue abierto con el aviso.
+  await expect(submit()).toBeEnabled({ timeout: 5000 });
+  await expect(dialog().locator('[data-checkout-error]')).toContainText('Sin conexión');
+  await expect(dialog()).toBeVisible();
+  await page.unroute('**/rest/v1/rpc/create_order');
+  // El borrador se conserva al cerrar: se deja como estaba para el siguiente test.
+  await dialog().getByLabel('Recoger en barra').uncheck();
+  await dialog().getByLabel('Código del local').fill('');
   await closeCheckout();
 });
 
