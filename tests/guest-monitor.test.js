@@ -15,7 +15,7 @@ test('la RPC de vigilancia es sólo para owner/manager y cubre 14 días en Madri
 test('el Panel muestra la tarjeta sólo a owner/manager y no rompe si falla', async () => {
   const panel = await read('business/business-orders.js');
   assert.match(panel, /canManagePilot \? getGuestSignupsByDay\(businessId\)\.catch\(\(\) => null\) : Promise\.resolve\(\[\]\)/);
-  assert.match(panel, /\$\{canManagePilot \? guestSignupsHTML\(control\.guestSignups\) : ''\}/);
+  assert.match(panel, /\$\{canManagePilot \? guestSignupsHTML\(control\.guestSignups, Boolean\(settings\.guestOrderingEnabled\)\) : ''\}/);
   assert.match(panel, /<h2 id="control-guests-title">Invitados \(últimos 14 días\)<\/h2>/);
   assert.match(panel, /<caption class="sr-only">Invitados nuevos por día<\/caption>/);
   assert.match(panel, /No se ha podido cargar la vigilancia de invitados\./);

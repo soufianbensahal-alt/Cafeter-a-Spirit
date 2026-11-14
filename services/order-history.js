@@ -65,6 +65,23 @@ export function formatServiceDate(date, { today } = {}) {
   }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
+const utcDate = (date) => {
+  const [year, month, day] = date.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+};
+
+// Fecha visible del selector: «vie, 13 nov 2026».
+export function formatServiceDateShort(date) {
+  if (!isServiceDate(date)) return '';
+  return new Intl.DateTimeFormat('es-ES', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(utcDate(date));
+}
+
+// Descripción para lectores de pantalla: «viernes, 13 de noviembre de 2026».
+export function formatServiceDateLong(date) {
+  if (!isServiceDate(date)) return '';
+  return new Intl.DateTimeFormat('es-ES', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(utcDate(date));
+}
+
 const timeOf = (value) => (value ? new Date(value).getTime() : 0);
 
 export const sortByCreatedAt = (orders) => [...(orders || [])]

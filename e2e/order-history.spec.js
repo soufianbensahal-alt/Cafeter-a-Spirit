@@ -156,14 +156,15 @@ const card = (number) => history().getByRole('article', { name: `Pedido nº ${nu
 
 e2eTest('por defecto «Hoy» en directo; «Día anterior» abre ayer en solo consulta con su resumen', async () => {
   const bar = dateBar();
-  await expect(bar.getByRole('button', { name: 'Hoy' })).toHaveAttribute('aria-pressed', 'true');
+  // «Hoy» sólo aparece fuera de hoy, junto al título.
+  await expect(page.getByRole('button', { name: 'Hoy', exact: true })).toHaveCount(0);
   await expect(bar.getByLabel('Fecha')).toHaveValue(madridDate(0));
-  await expect(bar.getByRole('button', { name: 'Día siguiente' })).toBeDisabled();
+  await expect(bar.getByRole('button', { name: 'Día siguiente' })).toHaveAttribute('aria-disabled', 'true');
   await expect(page.locator('.orders-board')).toBeVisible();
 
   await bar.getByRole('button', { name: 'Día anterior' }).click();
   await expect(bar.getByLabel('Fecha')).toHaveValue(madridDate(1));
-  await expect(bar.getByRole('button', { name: 'Hoy' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('button', { name: 'Hoy', exact: true })).toBeVisible();
   await expect(page.locator('.orders-board')).toHaveCount(0);
   await expect(history().getByRole('heading', { level: 2 })).toHaveText(/^Pedidos del \S+, \d{1,2} de \S+$/);
 
@@ -216,7 +217,7 @@ e2eTest('calendario: hace 10 días; el employee no pasa de 30 días', async () =
   await expect(history().getByRole('article')).toHaveCount(1);
   await expect(card(numbers.thirtyDays)).toBeVisible();
   await expect(history().locator('[data-summary-amount]')).toHaveText(/^5,00\s€$/);
-  await expect(bar.getByRole('button', { name: 'Día anterior' })).toBeDisabled();
+  await expect(bar.getByRole('button', { name: 'Día anterior' })).toHaveAttribute('aria-disabled', 'true');
 
   // «Día siguiente» avanza un día.
   await bar.getByRole('button', { name: 'Día siguiente' }).click();
@@ -238,7 +239,7 @@ e2eTest('un pedido nuevo mientras se mira el historial: franja «Volver a Hoy» 
   // El historial sigue en pantalla, sin acciones.
   await expect(history()).toBeVisible();
   await alert.getByRole('button', { name: 'Volver a Hoy' }).click();
-  await expect(bar.getByRole('button', { name: 'Hoy' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Hoy', exact: true })).toHaveCount(0);
   await expect(announcer).toHaveText('Pedidos de hoy, en directo.');
   const fresh = page.locator('.orders-column--new').getByRole('article', { name: `Pedido nº ${number}`, exact: true });
   await expect(fresh).toBeVisible();
@@ -256,6 +257,6 @@ e2eTest('manager: sin límite de días (hace 40 días)', async () => {
   await expect(history()).toHaveAttribute('data-orders-history', madridDate(40));
   await expect(card(numbers.fortyDays)).toBeVisible();
   await expect(history().locator('[data-summary-amount]')).toHaveText(/^7,50\s€$/);
-  await bar.getByRole('button', { name: 'Hoy' }).click();
+  await page.getByRole('button', { name: 'Hoy', exact: true }).click();
   await expect(page.locator('.orders-board')).toBeVisible();
 });

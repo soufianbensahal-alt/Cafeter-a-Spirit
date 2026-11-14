@@ -164,7 +164,7 @@ test('temporizador: stop lo cancela y touch sin start no lo arma', () => {
 test('el panel: selector de día, vista de solo consulta y vuelta a Hoy', async () => {
   const source = await readFile(new URL('../business/business-orders.js', import.meta.url), 'utf8');
   // Selector con día anterior/siguiente, calendario y «Hoy».
-  for (const marker of ['data-orders-action="history-prev"', 'data-orders-action="history-next"', 'data-orders-action="history-today"', '<input type="date" data-history-date']) {
+  for (const marker of ["step('history-prev', 'Día anterior'", "step('history-next', 'Día siguiente'", 'data-orders-action="history-today"', 'type="date" data-history-date']) {
     assert.ok(source.includes(marker), marker);
   }
   // Solo consulta: sin acciones de estado en el historial.

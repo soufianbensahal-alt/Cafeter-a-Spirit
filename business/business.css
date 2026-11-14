@@ -60,9 +60,10 @@ body.business-mode #toast { display: none; }
 .employee-avatar, .customer-avatar { border-radius: 50%; display: grid; place-items: center; background: var(--business-ink); color: #fffaf0; font-weight: 800; }
 .employee-avatar { width: 44px; height: 44px; font-size: 13px; }
 .employee-strip > div:nth-child(2) { display: grid; gap: 2px; min-width: 0; }
-.employee-strip span { color: var(--business-muted); font-size: 11px; }
+/* Contraste ≥ 7:1 sobre el fondo translúcido de la franja (WCAG AA con margen). */
+.employee-strip span { color: #463f2f; font-size: 12px; font-weight: 700; }
 .employee-strip strong { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
-.employee-strip .employee-status { min-height: 30px; padding: 0 11px; border-radius: 999px; background: rgba(73,99,71,.12); display: inline-flex; align-items: center; color: #496347; font-weight: 800; text-decoration: none; }
+.employee-strip .employee-status { min-height: 30px; padding: 0 11px; border: 1px solid rgba(47,74,45,.4); border-radius: 999px; background: rgba(73,99,71,.12); display: inline-flex; align-items: center; color: #2f4a2d; font-size: 12px; font-weight: 800; text-decoration: none; }
 
 .business-profile-setting {
   min-height: 68px;
@@ -262,15 +263,24 @@ body.business-mode #toast { display: none; }
 .orders-column .business-empty, .orders-closed .business-empty { margin: 0; }
 .orders-closed { margin-top: 14px; }
 .orders-closed__list { display: grid; gap: 10px; }
-/* Selector de día (Europe/Madrid) e historial de solo consulta. */
-.orders-datebar { margin: 0 0 14px; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px auto; align-items: center; gap: 8px; }
-.orders-datebar__step, .orders-datebar__today { min-width: 44px; min-height: 44px; border: 1px solid var(--business-line); border-radius: 14px; background: #fffdf7; color: var(--business-ink); font: inherit; font-weight: 800; cursor: pointer; }
-.orders-datebar__step { padding: 0; font-size: 24px; line-height: 1; }
-.orders-datebar__today { padding: 0 16px; }
-.orders-datebar__today[aria-pressed="true"] { border-color: var(--business-ink); background: var(--business-ink); color: #fffaf0; }
-.orders-datebar__step:disabled { opacity: .4; cursor: not-allowed; }
-.orders-datebar__field input { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid var(--business-line); border-radius: 14px; background: #fffdf7; color: var(--business-ink); font: inherit; font-weight: 700; }
-.orders-datebar button:focus-visible, .orders-datebar__field input:focus-visible { outline: 3px solid #695c2c; outline-offset: 2px; }
+/* Selector de día (Europe/Madrid) e historial de solo consulta.
+   Rejilla fija «‹ · fecha · ›»: el input type=date de Safari tiene un ancho
+   mínimo propio, así que la columna central admite encogerse (minmax(0, 1fr))
+   y el input transparente ocupa exactamente su caja. */
+.orders-titlebar { margin: 6px 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.orders-titlebar .orders-title { margin: 0; }
+.orders-title:focus { outline: none; }
+.orders-title:focus-visible { outline: 3px solid #695c2c; outline-offset: 4px; border-radius: 6px; }
+.orders-today { min-width: 44px; min-height: 44px; padding: 0 18px; border: 1px solid var(--business-ink); border-radius: 999px; background: var(--business-ink); color: #fffaf0; font: inherit; font-weight: 800; cursor: pointer; }
+.orders-datebar { margin: 0 0 14px; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 10px; }
+.orders-datebar__step { width: 44px; height: 44px; padding: 0; border: 1px solid var(--business-line); border-radius: 50%; background: #fffdf7; color: var(--business-ink); display: grid; place-items: center; font: inherit; font-size: 24px; font-weight: 800; line-height: 1; cursor: pointer; }
+.orders-datebar__step[aria-disabled="true"] { opacity: .4; cursor: not-allowed; }
+.orders-datebar__field { position: relative; min-width: 0; height: 44px; border: 1px solid var(--business-line); border-radius: 14px; background: #fffdf7; }
+.orders-datebar__display { position: absolute; inset: 0; padding: 0 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; color: var(--business-ink); font-weight: 800; white-space: nowrap; text-overflow: ellipsis; pointer-events: none; }
+/* El control real: transparente, encima de la fecha visible y del mismo tamaño. */
+.orders-datebar__input { position: absolute; inset: 0; width: 100%; height: 100%; min-width: 0; margin: 0; padding: 0; border: 0; opacity: 0; font: inherit; cursor: pointer; -webkit-appearance: none; appearance: none; }
+.orders-datebar__field:focus-within { outline: 3px solid #695c2c; outline-offset: 2px; }
+.orders-datebar__step:focus-visible, .orders-today:focus-visible { outline: 3px solid #695c2c; outline-offset: 2px; }
 .orders-history { display: grid; gap: 12px; }
 .orders-history h2 { margin: 0; font-size: 22px; line-height: 1.2; }
 .orders-history h2::first-letter { text-transform: uppercase; }
@@ -494,3 +504,13 @@ html[data-theme="dark"] .ticket-sheet__print { border-color: #EECF62; background
 .control-guests th, .control-guests td { padding: 6px 4px; border-bottom: 1px solid var(--business-line); text-align: right; }
 .control-guests th:first-child, .control-guests thead th:first-child { text-align: left; font-weight: 700; text-transform: capitalize; }
 .control-guests thead th { color: var(--business-muted); font-size: 12px; font-weight: 800; }
+
+html[data-theme="dark"] .employee-strip span { color: #463f2f; }
+html[data-theme="dark"] .employee-strip .employee-status { color: #2f4a2d; }
+
+/* Vigilancia de invitados: resumen y tabla plegada en «Ver por día». */
+.control-guests__alert { margin: 0; padding: 10px 12px; border: 2px solid #b2412f; border-radius: 12px; background: rgba(178,65,47,.08); color: #7e2e22; font-size: 14px; font-weight: 800; }
+.control-guests__details summary { min-height: 44px; display: flex; align-items: center; font-weight: 800; cursor: pointer; }
+.control-guests__details summary:focus-visible { outline: 3px solid #695c2c; outline-offset: 2px; }
+.control-guests__row--alert th, .control-guests__row--alert td { background: rgba(178,65,47,.1); color: #7e2e22; }
+.control-guests__flag { margin-left: 6px; padding: 1px 6px; border: 1px solid #b2412f; border-radius: 999px; font-size: 11px; font-weight: 800; text-transform: none; }

@@ -37,11 +37,14 @@ import {
   ticketTranslator
 } from './order-ticket.js';
 import { canPrintKitchenTicket } from '../services/print-route.js';
+import { isSuspiciousGuestDay, shouldShowGuestMonitor } from '../services/guest-monitor-rules.js';
 import {
   HISTORY_IDLE_MS,
   clampServiceDate,
   createIdleTimer,
   formatServiceDate,
+  formatServiceDateLong,
+  formatServiceDateShort,
   historyMinDate,
   madridToday,
   pendingBannerText,
@@ -402,16 +405,28 @@ export function createBusinessOrdersPanel({
     return { today, min: historyMinDate(employee.role, today) };
   };
 
+  // Título con «Hoy» (sólo fuera de hoy) y fila «‹ · fecha · ›». La fecha
+  // legible es decorativa bajo el input type=date transparente, que es el
+  // único control: un solo punto de foco y de toque, con el calendario nativo.
   const dateBarHTML = () => {
     const { today, min } = historyBounds();
     const selected = state.history.date || today;
     const isToday = !state.history.date;
-    const prevDisabled = min && selected <= min;
-    return `<div class="orders-datebar" role="group" aria-label="Día de los pedidos">
-        <button class="orders-datebar__step" type="button" data-orders-action="history-prev" data-focus-key="history-prev" aria-label="Día anterior" ${prevDisabled ? 'disabled' : ''}><span aria-hidden="true">‹</span></button>
-        <label class="orders-datebar__field"><span class="sr-only">Fecha</span><input type="date" data-history-date data-focus-key="history-date" value="${selected}" max="${today}" ${min ? `min="${min}"` : ''}></label>
-        <button class="orders-datebar__step" type="button" data-orders-action="history-next" data-focus-key="history-next" aria-label="Día siguiente" ${isToday ? 'disabled' : ''}><span aria-hidden="true">›</span></button>
-        <button class="orders-datebar__today" type="button" data-orders-action="history-today" data-focus-key="history-today" aria-pressed="${isToday}">Hoy</button>
+    const prevDisabled = Boolean(min && selected <= min);
+    const step = (action, label, symbol, disabled) => `<button class="orders-datebar__step" type="button" data-orders-action="${action}" data-focus-key="${action}" aria-label="${label}" aria-disabled="${disabled}"><span aria-hidden="true">${symbol}</span></button>`;
+    return `<div class="orders-titlebar">
+        <h1 class="orders-title" tabindex="-1" data-orders-title>Pedidos</h1>
+        ${isToday ? '' : '<button class="orders-today" type="button" data-orders-action="history-today" data-focus-key="history-today">Hoy</button>'}
+      </div>
+      <div class="orders-datebar" role="group" aria-label="Día de los pedidos">
+        ${step('history-prev', 'Día anterior', '‹', prevDisabled)}
+        <div class="orders-datebar__field">
+          <span class="orders-datebar__display" aria-hidden="true" data-history-display>${escapeHTML(formatServiceDateShort(selected))}</span>
+          <label class="sr-only" for="orders-date">Fecha</label>
+          <input id="orders-date" class="orders-datebar__input" type="date" data-history-date data-focus-key="history-date" value="${selected}" max="${today}" ${min ? `min="${min}"` : ''} aria-describedby="orders-date-description">
+          <span id="orders-date-description" class="sr-only">${escapeHTML(formatServiceDateLong(selected))}</span>
+        </div>
+        ${step('history-next', 'Día siguiente', '›', isToday)}
       </div>`;
   };
 
@@ -450,10 +465,10 @@ export function createBusinessOrdersPanel({
   const ordersHTML = () => {
     const message = state.message ? `<p class="orders-message orders-message--${state.message.tone}" role="${state.message.tone === 'error' ? 'alert' : 'status'}">${escapeHTML(state.message.text)}</p>` : '';
     const error = state.loadError ? `<p class="orders-message orders-message--error" role="alert">${escapeHTML(state.loadError)}</p>` : '';
-    if (state.history.date) return `<h1 class="orders-title">Pedidos</h1>${dateBarHTML()}${historyHTML()}`;
-    if (!state.loaded) return `<h1 class="orders-title">Pedidos</h1>${dateBarHTML()}${error}${message}<p class="business-empty"><span class="business-spinner" aria-hidden="true"></span> Cargando pedidos…</p>`;
+    if (state.history.date) return `${dateBarHTML()}${historyHTML()}`;
+    if (!state.loaded) return `${dateBarHTML()}${error}${message}<p class="business-empty"><span class="business-spinner" aria-hidden="true"></span> Cargando pedidos…</p>`;
     const groups = groupBusinessOrders(state.orders);
-    return `<h1 class="orders-title">Pedidos</h1>${dateBarHTML()}${error}${message}
+    return `${dateBarHTML()}${error}${message}
       <div class="orders-board">
         ${columnHTML('new', 'Nuevos', groups.fresh, 'No hay pedidos nuevos.')}
         ${columnHTML('progress', 'En preparación', groups.inProgress, 'Nada en preparación.')}
@@ -517,6 +532,12 @@ export function createBusinessOrdersPanel({
     historyIdle.stop();
     watchInteraction(false);
     paintOrders();
+    // «Hoy» desaparece al volver: si el foco estaba ahí (o se perdió), pasa
+    // al título; nunca queda en el vacío.
+    const active = document.activeElement;
+    if (wasHistory && (!active || active === document.body || !active.isConnected)) {
+      appRoot.querySelector('[data-orders-title]')?.focus();
+    }
     if (wasHistory) {
       announcer?.announce(reason === 'idle'
         ? 'Sin actividad durante 3 minutos: de vuelta a los pedidos de hoy.'
@@ -625,28 +646,39 @@ export function createBusinessOrdersPanel({
           ${control.pilot.length ? `<ul class="control-pilot">${control.pilot.map((member) => `<li><div><strong>${escapeHTML(member.customer)}</strong><small>${escapeHTML(member.email)}</small></div><button type="button" class="order-action order-action--secondary" data-orders-action="remove-pilot" data-user-id="${escapeHTML(member.userId)}" data-focus-key="remove-${escapeHTML(member.userId)}">Quitar</button></li>`).join('')}</ul>` : '<p class="control-help">Todavía no hay usuarios en el piloto.</p>'}`
             : '<p class="control-help">Solo propietarios y responsables pueden gestionar quién participa en el piloto.</p>'}
         </section>
-        ${canManagePilot ? guestSignupsHTML(control.guestSignups) : ''}
+        ${canManagePilot ? guestSignupsHTML(control.guestSignups, Boolean(settings.guestOrderingEnabled)) : ''}
       </div>`;
   };
 
   // Vigilancia de «Pedidos sin cuenta»: invitados nuevos por día (Madrid).
   const signupDay = (day) => new Intl.DateTimeFormat('es-ES', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' })
     .format(new Date(`${day}T00:00:00Z`));
-  const guestSignupsHTML = (rows) => {
+  const guestSignupsHTML = (rows, guestOrderingEnabled) => {
     if (!rows) {
-      return `<section class="control-card" aria-labelledby="control-guests-title"><h2 id="control-guests-title">Invitados (últimos 14 días)</h2><p class="control-help">No se ha podido cargar la vigilancia de invitados.</p></section>`;
+      return guestOrderingEnabled
+        ? `<section class="control-card" aria-labelledby="control-guests-title"><h2 id="control-guests-title">Invitados (últimos 14 días)</h2><p class="control-help">No se ha podido cargar la vigilancia de invitados.</p></section>`
+        : '';
     }
+    if (!shouldShowGuestMonitor({ guestOrderingEnabled, rows })) return '';
     const total = rows.reduce((sum, row) => sum + row.guests, 0);
     const ordered = rows.reduce((sum, row) => sum + row.guestsWithOrders, 0);
+    const suspicious = rows.filter(isSuspiciousGuestDay).length;
     return `<section class="control-card control-card--guests" aria-labelledby="control-guests-title" data-guest-signups>
           <h2 id="control-guests-title">Invitados (últimos 14 días)</h2>
-          <p class="control-help">Altas sin cuenta por día y cuántas llegaron a pedir. Un salto brusco sin pedidos puede indicar abuso.</p>
-          <p class="control-guests__total"><strong data-guest-signups-total>${total}</strong> invitados · <strong>${ordered}</strong> con pedido</p>
-          <table class="control-guests">
-            <caption class="sr-only">Invitados nuevos por día</caption>
-            <thead><tr><th scope="col">Día</th><th scope="col">Invitados</th><th scope="col">Con pedido</th></tr></thead>
-            <tbody>${rows.map((row) => `<tr><th scope="row">${escapeHTML(signupDay(row.day))}</th><td>${row.guests}</td><td>${row.guestsWithOrders}</td></tr>`).join('')}</tbody>
-          </table>
+          <p class="control-guests__total"><strong data-guest-signups-total>${total}</strong> invitados · <strong data-guest-signups-ordered>${ordered}</strong> con pedido</p>
+          ${suspicious ? `<p class="control-guests__alert" data-guest-signups-alert>${suspicious === 1 ? 'Hay 1 día a revisar' : `Hay ${suspicious} días a revisar`}: muchos invitados y pocos pedidos.</p>` : ''}
+          <details class="control-guests__details" ${suspicious ? 'open' : ''}>
+            <summary>Ver por día</summary>
+            <p class="control-help">Altas sin cuenta por día y cuántas llegaron a pedir. Se marca «Revisar» con 20 o más invitados y menos de un 20 % con pedido.</p>
+            <table class="control-guests">
+              <caption class="sr-only">Invitados nuevos por día</caption>
+              <thead><tr><th scope="col">Día</th><th scope="col">Invitados</th><th scope="col">Con pedido</th></tr></thead>
+              <tbody>${rows.map((row) => {
+                const flagged = isSuspiciousGuestDay(row);
+                return `<tr class="${flagged ? 'control-guests__row--alert' : ''}" ${flagged ? 'data-guest-day-alert' : ''}><th scope="row">${escapeHTML(signupDay(row.day))}${flagged ? ' <span class="control-guests__flag">Revisar</span>' : ''}</th><td>${row.guests}</td><td>${row.guestsWithOrders}</td></tr>`;
+              }).join('')}</tbody>
+            </table>
+          </details>
         </section>`;
   };
 
@@ -891,8 +923,13 @@ export function createBusinessOrdersPanel({
   // Eventos (delegados en document: los contenedores se repintan).
   // ---------------------------------------------------------------------------
   const handleClick = async (event) => {
+    // En escritorio el input transparente abre el calendario al hacer clic.
+    const dateInput = event.target.closest?.('[data-history-date]');
+    if (dateInput && appRoot.contains(dateInput) && typeof dateInput.showPicker === 'function') {
+      try { dateInput.showPicker(); } catch { /* ya abierto o no permitido */ }
+    }
     const target = event.target.closest?.('[data-orders-action]');
-    if (!target || !appRoot.contains(target) || target.disabled) return;
+    if (!target || !appRoot.contains(target) || target.disabled || target.getAttribute('aria-disabled') === 'true') return;
     const action = target.dataset.ordersAction;
     const orderId = target.dataset.orderId;
     if (action === 'activate-alerts') {
@@ -962,7 +999,29 @@ export function createBusinessOrdersPanel({
     addPilot(form.querySelector('[data-control-input="pilot-email"]')?.value);
   };
 
+  // Selector de día: el input type=date es UNA parada de Tab en todos los
+  // navegadores (Chromium tiene paradas internas por segmento). Tab sale hacia
+  // las flechas; Enter o Espacio abren el calendario; las flechas del teclado
+  // siguen cambiando la fecha dentro del campo.
+  const handleKeydown = (event) => {
+    const input = event.target.closest?.('[data-history-date]');
+    if (!input || !appRoot.contains(input)) return;
+    if (event.key === 'Tab') {
+      const target = appRoot.querySelector(`[data-orders-action="${event.shiftKey ? 'history-prev' : 'history-next'}"]`);
+      if (target) {
+        event.preventDefault();
+        target.focus();
+      }
+      return;
+    }
+    if ((event.key === 'Enter' || event.key === ' ') && typeof input.showPicker === 'function') {
+      event.preventDefault();
+      try { input.showPicker(); } catch { /* no permitido */ }
+    }
+  };
+
   appRoot.addEventListener('click', handleClick);
+  appRoot.addEventListener('keydown', handleKeydown);
   appRoot.addEventListener('change', handleChange);
   appRoot.addEventListener('input', handleInput);
   appRoot.addEventListener('submit', handleSubmit);
@@ -971,6 +1030,7 @@ export function createBusinessOrdersPanel({
     stop();
     printCleanup?.();
     appRoot.removeEventListener('click', handleClick);
+    appRoot.removeEventListener('keydown', handleKeydown);
     appRoot.removeEventListener('change', handleChange);
     appRoot.removeEventListener('input', handleInput);
     appRoot.removeEventListener('submit', handleSubmit);

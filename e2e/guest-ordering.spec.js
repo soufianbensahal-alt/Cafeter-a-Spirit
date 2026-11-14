@@ -206,6 +206,9 @@ e2eTest('vigilancia: el manager ve en el Panel los invitados de hoy y cuántos p
   await employee.getByRole('tab', { name: 'Panel' }).click();
   const card = employee.locator('[data-guest-signups]');
   await expect(card.getByRole('heading', { name: 'Invitados (últimos 14 días)' })).toBeVisible();
+  // La tabla por día está plegada en «Ver por día».
+  const details = card.locator('details');
+  if (!(await details.evaluate((element) => element.open))) await card.getByText('Ver por día').click();
   const table = card.getByRole('table', { name: 'Invitados nuevos por día' });
   await expect(table.getByRole('row')).toHaveCount(15);
   // Hoy: al menos este invitado, que pidió.
