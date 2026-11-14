@@ -1,5 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
+-- Todas las consultas a reward_notifications se limitan a la tarjeta de esta
+-- prueba (86000000-…): filas de otras cuentas (E2E locales) no la alteran.
 select plan(23);
 
 insert into auth.users (id, email) values
@@ -60,7 +62,7 @@ insert into public.stamp_sessions (
 );
 
 select is(
-  (select count(*) from public.reward_notifications),
+  (select count(*) from public.reward_notifications where customer_card_id = '86000000-0000-4000-8000-000000000001'),
   0::bigint,
   'crear una tarjeta sin recompensas no encola emails'
 );
@@ -92,7 +94,7 @@ select results_eq(
   'repetir la confirmación conserva la idempotencia original'
 );
 select is(
-  (select count(*) from public.reward_notifications),
+  (select count(*) from public.reward_notifications where customer_card_id = '86000000-0000-4000-8000-000000000001'),
   1::bigint,
   'repetir la confirmación no duplica el email'
 );
@@ -101,7 +103,7 @@ update public.customer_cards
 set current_stamps = 1
 where id = '86000000-0000-4000-8000-000000000001';
 select is(
-  (select count(*) from public.reward_notifications),
+  (select count(*) from public.reward_notifications where customer_card_id = '86000000-0000-4000-8000-000000000001'),
   1::bigint,
   'un cambio no relacionado no crea notificaciones'
 );
@@ -115,7 +117,7 @@ select is(
   'canjear una recompensa no reduce la secuencia histórica'
 );
 select is(
-  (select count(*) from public.reward_notifications),
+  (select count(*) from public.reward_notifications where customer_card_id = '86000000-0000-4000-8000-000000000001'),
   1::bigint,
   'reducir el saldo no crea un email'
 );
@@ -129,7 +131,7 @@ select results_eq(
   'un incremento de dos genera dos secuencias nuevas'
 );
 select results_eq(
-  $$select reward_sequence from public.reward_notifications order by reward_sequence$$,
+  $$select reward_sequence from public.reward_notifications where customer_card_id = '86000000-0000-4000-8000-000000000001' order by reward_sequence$$,
   array[1::bigint, 2::bigint, 3::bigint],
   'cada unidad del incremento tiene una secuencia única'
 );
@@ -142,13 +144,13 @@ select throws_ok(
 
 reset role;
 select results_eq(
-  $$select reward_sequence || '|' || claim_attempt from public.claim_reward_email_notification((select id from public.reward_notifications where reward_sequence = 1), 5)$$,
+  $$select reward_sequence || '|' || claim_attempt from public.claim_reward_email_notification((select id from public.reward_notifications where customer_card_id = '86000000-0000-4000-8000-000000000001' and reward_sequence = 1), 5)$$,
   array['1|1'::text],
   'el worker reclama atómicamente el primer trabajo'
 );
 select is(
   (select count(*) from public.claim_reward_email_notification(
-    (select id from public.reward_notifications where reward_sequence = 1),
+    (select id from public.reward_notifications where customer_card_id = '86000000-0000-4000-8000-000000000001' and reward_sequence = 1),
     5
   )),
   0::bigint,
@@ -156,7 +158,7 @@ select is(
 );
 select is(
   public.complete_reward_email_notification(
-    (select id from public.reward_notifications where reward_sequence = 1),
+    (select id from public.reward_notifications where customer_card_id = '86000000-0000-4000-8000-000000000001' and reward_sequence = 1),
     2::smallint,
     'wrong-attempt'
   ),
@@ -165,7 +167,7 @@ select is(
 );
 select is(
   public.complete_reward_email_notification(
-    (select id from public.reward_notifications where reward_sequence = 1),
+    (select id from public.reward_notifications where customer_card_id = '86000000-0000-4000-8000-000000000001' and reward_sequence = 1),
     1::smallint,
     'resend-message-1'
   ),
@@ -174,7 +176,7 @@ select is(
 );
 select is(
   public.complete_reward_email_notification(
-    (select id from public.reward_notifications where reward_sequence = 1),
+    (select id from public.reward_notifications where customer_card_id = '86000000-0000-4000-8000-000000000001' and reward_sequence = 1),
     1::smallint,
     'resend-message-duplicate'
   ),
@@ -183,13 +185,13 @@ select is(
 );
 
 select results_eq(
-  $$select reward_sequence || '|' || claim_attempt from public.claim_reward_email_notification((select id from public.reward_notifications where reward_sequence = 2), 5)$$,
+  $$select reward_sequence || '|' || claim_attempt from public.claim_reward_email_notification((select id from public.reward_notifications where customer_card_id = '86000000-0000-4000-8000-000000000001' and reward_sequence = 2), 5)$$,
   array['2|1'::text],
   'el siguiente trabajo puede reclamarse sin esperar al anterior'
 );
 select is(
   public.fail_reward_email_notification(
-    (select id from public.reward_notifications where reward_sequence = 2),
+    (select id from public.reward_notifications where customer_card_id = '86000000-0000-4000-8000-000000000001' and reward_sequence = 2),
     1::smallint,
     E'error\ncontrolado'
   ),
@@ -197,12 +199,12 @@ select is(
   'un error libera el trabajo para reintento'
 );
 select results_eq(
-  $$select status || '|' || attempts || '|' || last_error from public.reward_notifications where reward_sequence = 2$$,
+  $$select status || '|' || attempts || '|' || last_error from public.reward_notifications where customer_card_id = '86000000-0000-4000-8000-000000000001' and reward_sequence = 2$$,
   array['failed|1|error controlado'::text],
   'el fallo se registra sin caracteres de control'
 );
 select results_eq(
-  $$select reward_sequence || '|' || claim_attempt from public.claim_reward_email_notification((select id from public.reward_notifications where reward_sequence = 2), 5)$$,
+  $$select reward_sequence || '|' || claim_attempt from public.claim_reward_email_notification((select id from public.reward_notifications where customer_card_id = '86000000-0000-4000-8000-000000000001' and reward_sequence = 2), 5)$$,
   array['2|2'::text],
   'el reintento incrementa su número sin duplicar el trabajo'
 );

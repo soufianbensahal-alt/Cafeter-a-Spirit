@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import pg from 'pg';
 import * as OTPAuth from 'otpauth';
 
 const required = [
@@ -11,6 +12,66 @@ const required = [
 const e2eEnabled = process.env.SPIRIT_E2E === '1' && required.every((name) => process.env[name]);
 const e2eTest = e2eEnabled ? test : test.skip;
 test.describe.configure({ mode: 'serial' });
+
+// Estado propio: la tarjeta del cliente de E2E empieza a 9 sellos (el sello
+// del test genera la recompensa y el canje la consume). Al terminar se deja
+// la tarjeta como estaba y se borran las notificaciones creadas por el test.
+// Solo contra la base local desechable.
+const DB_URL = process.env.SPIRIT_E2E_DB_URL || 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+const BUSINESS_NAME = 'Cafetería Spirit - Montcada';
+
+async function withDatabase(run) {
+  const { hostname } = new URL(DB_URL);
+  if (!['127.0.0.1', 'localhost', '::1'].includes(hostname) || DB_URL.includes('supabase.co')) throw new Error('Solo base local.');
+  const db = new pg.Client({ connectionString: DB_URL });
+  await db.connect();
+  try {
+    return await run(db);
+  } finally {
+    await db.end();
+  }
+}
+
+const CARD_QUERY = `select card.id, card.current_stamps, card.available_rewards, card.total_rewards_earned, program.stamps_required
+  from public.customer_cards as card
+  join public.loyalty_programs as program on program.id = card.loyalty_program_id
+  join public.businesses as business on business.id = program.business_id
+  join auth.users as customer on customer.id = card.customer_id
+  where lower(customer.email) = lower($1) and lower(btrim(business.name)) = lower(btrim($2))`;
+
+let savedCard = null;
+let startedAt = null;
+
+test.beforeAll(async () => {
+  if (!e2eEnabled) return;
+  await withDatabase(async (db) => {
+    const { rows: [card] } = await db.query(CARD_QUERY, [process.env.SPIRIT_E2E_CUSTOMER_EMAIL, BUSINESS_NAME]);
+    if (!card) throw new Error('El cliente de E2E no tiene tarjeta de Spirit Montcada en la base local.');
+    savedCard = card;
+    startedAt = (await db.query('select clock_timestamp() as now')).rows[0].now;
+    // Un sello menos que la recompensa y ninguna recompensa pendiente.
+    await db.query('update public.customer_cards set current_stamps = $2, available_rewards = 0 where id = $1', [card.id, card.stamps_required - 1]);
+  });
+});
+
+test.afterAll(async () => {
+  if (!e2eEnabled || !savedCard) return;
+  await withDatabase(async (db) => {
+    await db.query('begin');
+    try {
+      await db.query('delete from public.reward_notifications where customer_card_id = $1 and created_at >= $2', [savedCard.id, startedAt]);
+      // total_rewards_earned solo crece (trigger track_reward_sequence): para
+      // dejar la tarjeta como estaba se omiten los triggers en esta transacción.
+      await db.query('set local session_replication_role = replica');
+      await db.query('update public.customer_cards set current_stamps = $2, available_rewards = $3, total_rewards_earned = $4 where id = $1',
+        [savedCard.id, savedCard.current_stamps, savedCard.available_rewards, savedCard.total_rewards_earned]);
+      await db.query('commit');
+    } catch (error) {
+      await db.query('rollback');
+      throw error;
+    }
+  });
+});
 
 async function customerLogin(page) {
   await page.addInitScript(() => localStorage.setItem('spirit-onboarded', '1'));
