@@ -153,9 +153,12 @@ e2eTest('«Hoy» sólo fuera de hoy, junto al título; al volver el foco va al t
   await expect(todayButton()).toHaveCount(0);
   await prev().click();
   await expect(bar().getByLabel('Fecha')).not.toHaveValue(madridToday());
-  const [title, button] = await Promise.all([page.getByRole('heading', { level: 1, name: 'Pedidos' }).boundingBox(), todayButton().boundingBox()]);
-  expect(button.x).toBeGreaterThan(title.x + title.width - 1);
-  expect(Math.abs((button.y + button.height / 2) - (title.y + title.height / 2))).toBeLessThan(title.height);
+  // toPass: al terminar de cargar el día, el panel repinta y la caja puede ser null un instante.
+  await expect(async () => {
+    const [title, button] = await Promise.all([page.getByRole('heading', { level: 1, name: 'Pedidos' }).boundingBox(), todayButton().boundingBox()]);
+    expect(button.x).toBeGreaterThan(title.x + title.width - 1);
+    expect(Math.abs((button.y + button.height / 2) - (title.y + title.height / 2))).toBeLessThan(title.height);
+  }).toPass();
   await todayButton().focus();
   await page.keyboard.press('Enter');
   await expect(todayButton()).toHaveCount(0);

@@ -764,3 +764,86 @@ html[data-theme="dark"] .legal-placeholder { background: rgba(238,207,98,.3); co
 .guest-error { margin: 0; padding: 10px 12px; border-radius: var(--radius-sm); background: rgba(152,68,56,.1); color: var(--danger); font-size: 14px; font-weight: 700; line-height: 1.45; text-align: left; }
 .guest-menu-banner--error { justify-content: flex-start; }
 html[data-theme="dark"] .guest-error { background: rgba(240,160,149,.14); }
+
+/* Letra del sistema ampliada (Android, 130–200 %). Chrome la aplica como zoom
+   de página: el ancho útil de un móvil de 360 px baja a ~280–180 px. Samsung
+   Internet y los WebView escalan solo el texto: crece sin ganar ancho. Nada
+   debe recortarse ni salirse: los bloques en fila pasan a columna y los
+   botones crecen en alto. */
+.cart-line__controls { flex-wrap: wrap; }
+.order-summary__row { flex-wrap: wrap; }
+.menu-product { grid-template-columns: minmax(0, 1fr) minmax(94px, max-content); }
+.primary-button { padding-top: 10px; padding-bottom: 10px; line-height: 1.2; overflow-wrap: anywhere; }
+.loyalty-card__request { padding-top: 8px; padding-bottom: 8px; line-height: 1.2; overflow-wrap: anywhere; }
+/* Tarjeta de sellos: la etiqueta de recompensas baja de línea si no cabe. */
+.loyalty-card__top { flex-wrap: wrap; gap: 10px; }
+.reward-chip { max-width: 100%; overflow-wrap: anywhere; }
+@media (max-width: 300px) {
+  :root { --gutter: 12px; }
+  .loyalty-card { padding: 18px; }
+  .modal { padding: 18px; border-radius: 24px; }
+  .checkout-footer { margin: 0 -18px; padding: 12px 18px max(14px, env(safe-area-inset-bottom)); }
+  .sheet-head { gap: 8px; }
+  .sheet-head h2 { font-size: 26px; }
+  .loyalty-card__actions { grid-template-columns: minmax(0, 1fr); }
+  .menu-product { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .menu-product__price,
+  .menu-product__order { justify-items: start; text-align: left; }
+  .menu-add__count { text-align: left; }
+  .bottom-nav { padding: 8px; gap: 4px; }
+  /* Cabecera de la carta: sin el logo, el título conserva su sitio. */
+  .menu-titlebar { grid-template-columns: 44px minmax(0, 1fr); gap: 4px; }
+  .menu-titlebar--ordering { grid-template-columns: 44px minmax(0, 1fr) 44px; }
+  .menu-titlebar .menu-brand { display: none; }
+  .menu-titlebar h1 { font-size: 19px; text-align: center; overflow-wrap: break-word; }
+  /* Barra del carrito: número y total; «Ver carrito» va en su aria-label. */
+  .cart-bar { grid-template-columns: 44px minmax(0, 1fr); padding-right: 14px; }
+  .cart-bar__label { display: none; }
+  .cart-bar__total { justify-self: end; }
+  /* Accesos rápidos en una columna: las palabras no se parten. */
+  .quick-grid { grid-template-columns: minmax(0, 1fr); }
+  .quick-card, .quick-card:last-child:nth-child(odd) { grid-column: 1 / -1; min-height: 0; }
+  /* Solo iconos: cada botón conserva su aria-label. */
+  .nav-item span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+/* Aviso propio «Instalar app» (Android): discreto y descartable. */
+.install-banner { margin: 16px 0 0; padding: 10px 8px 10px 16px; border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: var(--surface-soft); display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.install-banner__text { flex: 1 1 10rem; min-width: 0; }
+.install-banner__title { margin: 0; color: var(--ink); font-size: .875rem; font-weight: 800; line-height: 1.3; }
+.install-banner__copy { margin: 2px 0 0; color: var(--muted); font-size: .8125rem; line-height: 1.35; }
+.install-banner__action { min-height: 44px; padding: 8px 16px; border: 0; border-radius: var(--radius-pill); background: var(--ink); color: #fffdf8; font: inherit; font-size: .875rem; font-weight: 800; cursor: pointer; }
+.install-banner__dismiss { width: 44px; height: 44px; flex: none; border: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 1.5rem; line-height: 1; cursor: pointer; }
+.install-banner__action:focus-visible, .install-banner__dismiss:focus-visible { outline: 3px solid var(--mustard-dark); outline-offset: 2px; }
+.install-slot { flex: 0 0 auto; padding: 0 max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left)); }
+.install-slot .install-banner { margin: 12px 0 0; }
+html[data-theme="dark"] .install-banner__title { color: #f7f0de; }
+html[data-theme="dark"] .install-banner__action { background: var(--mustard); color: #171612; }
+/* Pestañas del login con letra grande: cada una puede ir en dos líneas. */
+.auth-switch { grid-template-columns: repeat(2, minmax(0, 1fr)); border-radius: 26px; }
+.auth-switch button { padding: 6px 8px; line-height: 1.2; overflow-wrap: anywhere; border-radius: 22px; }
+/* Los campos no imponen su ancho intrínseco (crece con la letra). */
+.form { grid-template-columns: minmax(0, 1fr); }
+.field, .field input, .field select, .field textarea { min-width: 0; }
+/* Accesos rápidos: con letra grande el texto salta de línea y la tarjeta
+   crece en alto (antes se cortaba con «…»). */
+.quick-card { height: auto; min-height: 132px; }
+.quick-card__copy strong, .quick-card__copy small { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+/* Cabecera de los diálogos: el título se encoge antes que el botón de cerrar. */
+.sheet-head > div { min-width: 0; }
+.sheet-head h2 { overflow-wrap: anywhere; }
+/* Pantallas muy bajas (zoom de página grande): la confirmación compacta
+   cabecera y pie para que «Enviar pedido» se vea entero sin desplazar. */
+@media (max-height: 460px) {
+  .modal--checkout { padding-top: 14px; }
+  .modal--checkout .sheet-head { margin-bottom: 8px; }
+  .modal--checkout .sheet-head .eyebrow { display: none; }
+  .modal--checkout .sheet-head h2 { font-size: 22px; line-height: 1.05; }
+  .modal--checkout .checkout-footer { gap: 6px; padding-top: 8px; }
+  .modal--checkout .order-summary__row strong { font-size: 17px; }
+  .modal--checkout .primary-button { min-height: 48px; }
+}
+/* Sellos: las columnas pueden encoger (WebKit respetaba el mínimo del icono). */
+.stamps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.stamp { min-width: 0; }
+.stamp svg { width: min(23px, 60%); height: auto; }

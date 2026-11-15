@@ -341,6 +341,10 @@ select jsonb_pretty(private.purge_expired_data(true));
 - Decidir si el rol `employee` debe seguir pudiendo abrir y cerrar pedidos (`set_ordering_enabled`) y regenerar el código del día (`regenerate_order_code`). Hoy ya puede: esas acciones, igual que los agotados y el estado de los pedidos, sólo exigen ser miembro activo con sesión AAL2. Lo único que `manager` (u `owner`) añade es la gestión del piloto (`add/remove/list_ordering_pilot_members` y `set_ordering_pilot_only`).
 - Decidir si `empleado@spiritcoffee.es`, subido a `manager` en Montcada para el piloto, vuelve a `employee`.
 
+## Mejoras pendientes
+
+- Panel, selector de día con el selector nativo abierto: si llega un pedido mientras se elige la fecha (sobre todo en Android, donde el selector es un diálogo del sistema), el panel se repinta, sustituye el campo y la fecha que se estaba eligiendo se pierde. Hay que volver a elegirla; el pedido aparece y suena con normalidad. Mejora: repintar sin sustituir la barra de fecha mientras el campo tenga el foco. Test preparado y marcado como pendiente: `test.fixme` en `e2e/android-install-date-alerts.spec.js`.
+
 ## Limitaciones
 
 - La reversión de un canje no está implementada. El tipo `reversal` queda reservado, pero necesita una RPC separada, motivo obligatorio y autorización exclusiva de `owner` o `manager`.

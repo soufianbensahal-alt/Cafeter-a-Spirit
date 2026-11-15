@@ -100,6 +100,7 @@ import {
 import { SIGNUP_PROMO_COPY, promoDurationMs, promoSlots, renderSignupPromo } from './client/signup-promo.js';
 import { getPublicLoyaltyProgram } from './services/public-loyalty-program.js';
 import { createBackNavigation, createExitHint, customerScreenDepth, isCustomerTab, isInstalledApp } from './services/back-navigation.js';
+import { createInstallPrompt, renderInstallBanner } from './services/install-prompt.js';
 import { guestScreen, isGuestUser, validateGuestName } from './services/guest-rules.js';
 import {
   confirmGuestConversion,
@@ -223,6 +224,9 @@ Object.assign(copy.ca, SIGNUP_PROMO_COPY.ca);
 // Botón atrás de Android en la pantalla raíz.
 Object.assign(copy.es, { backExitHint: 'Pulsa atrás otra vez para salir' });
 Object.assign(copy.ca, { backExitHint: 'Prem enrere un altre cop per sortir' });
+// Aviso propio «Instalar app» (Android).
+Object.assign(copy.es, { installTitle: 'Instala Spirit en tu móvil', installCopy: 'Ábrela desde la pantalla de inicio, como una app.', installAction: 'Instalar', installDismiss: 'Ahora no' });
+Object.assign(copy.ca, { installTitle: 'Instal·la Spirit al mòbil', installCopy: 'Obre-la des de la pantalla d’inici, com una app.', installAction: 'Instal·lar', installDismiss: 'Ara no' });
 Object.assign(copy.es, LEGAL_COPY.es);
 Object.assign(copy.ca, LEGAL_COPY.ca);
 
@@ -377,7 +381,7 @@ function home() {
   const countLabel = state.loyaltyReady ? `${state.stamps}/${state.loyaltyGoal}` : '—';
   const loyaltyAction = state.customerCardId ? 'request-stamp' : 'join-loyalty';
   const loyaltyActionLabel = state.stampRequestLoading ? (state.customerCardId ? t('generatingStamp') : t('joiningClub')) : (state.customerCardId ? t('requestStamp') : t('joinClub'));
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${countLabel}</div></div><span class="reward-chip">${escapeHTML(rewardLabel)}</span></div><div class="stamps">${stamps}</div><div class="loyalty-card__footer"><div class="progress-copy">${progressLabel}</div><div class="loyalty-card__actions"><button class="loyalty-card__request" type="button" data-action="${loyaltyAction}" ${state.stampRequestLoading ? 'disabled' : ''}>${loyaltyActionLabel}</button><button class="loyalty-card__request loyalty-card__request--reward" type="button" data-action="use-reward" ${state.availableRewards < 1 || state.stampRequestLoading ? 'disabled' : ''}>${t('useFreeCoffee')}</button></div></div></article>${renderActiveOrdersBanner({ count: state.activeOrders.length, translate: t })}<div class="section-head" id="quick-access"><h2>${t('quickAccess')}</h2></div>${quickAccess()}${legalFooter()}</section>${nav('home')}</main>`;
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${countLabel}</div></div><span class="reward-chip">${escapeHTML(rewardLabel)}</span></div><div class="stamps">${stamps}</div><div class="loyalty-card__footer"><div class="progress-copy">${progressLabel}</div><div class="loyalty-card__actions"><button class="loyalty-card__request" type="button" data-action="${loyaltyAction}" ${state.stampRequestLoading ? 'disabled' : ''}>${loyaltyActionLabel}</button><button class="loyalty-card__request loyalty-card__request--reward" type="button" data-action="use-reward" ${state.availableRewards < 1 || state.stampRequestLoading ? 'disabled' : ''}>${t('useFreeCoffee')}</button></div></div></article>${installBanner()}${renderActiveOrdersBanner({ count: state.activeOrders.length, translate: t })}<div class="section-head" id="quick-access"><h2>${t('quickAccess')}</h2></div>${quickAccess()}${legalFooter()}</section>${nav('home')}</main>`;
 }
 
 const menuViewContext = () => ({
@@ -401,8 +405,33 @@ const menu = () => {
   } else if (state.authStatus !== 'authenticated' && (state.guestOrderingAvailable || state.guestError)) {
     banner = renderGuestMenuBanner({ translate: t, busy: state.guestBusy, error: state.guestError, escapeHTML });
   }
+  if (!banner) banner = installBanner() ? `<div class="install-slot">${installBanner()}</div>` : '';
   return renderMenuScreen({ ...menuViewContext(), banner, back });
 };
+
+// «Instalar app» (Android): en el inicio y en la carta, nunca en el login.
+const installPrompt = isBusinessMode ? null : createInstallPrompt({
+  isInstalled: () => isInstalledApp(),
+  onChange: () => { if (['home', 'menu'].includes(state.screen)) renderPreservingFocus(); }
+});
+function installBanner() {
+  if (!installPrompt?.visible()) return '';
+  return renderInstallBanner({ id: 'install-banner', title: t('installTitle'), copy: t('installCopy'), action: t('installAction'), dismissLabel: t('installDismiss') });
+}
+if (installPrompt) {
+  document.addEventListener('click', async (event) => {
+    const button = event.target.closest?.('[data-install-action]');
+    if (!button || !app.contains(button)) return;
+    if (button.dataset.installAction === 'install') await installPrompt.install();
+    else installPrompt.dismiss();
+    // El aviso desaparece: el foco pasa al título de la pantalla.
+    if (!document.querySelector('[data-install-banner]')) {
+      const heading = app.querySelector('[data-screen-heading], h1');
+      if (heading && !heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+      heading?.focus();
+    }
+  });
+}
 
 // Captación del invitado (carta, carrito y seguimiento): la misma promoción
 // del login en su variante compacta.

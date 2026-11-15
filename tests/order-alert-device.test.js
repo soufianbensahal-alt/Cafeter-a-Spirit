@@ -167,6 +167,41 @@ test('si el wake lock se deniega, se muestra el error', async () => {
   assert.equal(status.ready, false);
 });
 
+test('ahorro de batería (Android): el wake lock rechazado se reintenta y se recupera', async () => {
+  let fail = true;
+  const sentinels = [];
+  const wakeLock = {
+    request: async () => {
+      if (fail) throw new Error('NotAllowedError');
+      const sentinel = Object.assign(new EventTarget(), { released: false, release() { this.released = true; this.dispatchEvent(new Event('release')); } });
+      sentinels.push(sentinel);
+      return sentinel;
+    }
+  };
+  const { device, visibilityTarget } = setup({ wakeLock });
+  assert.equal((await device.activate()).wakeLock, 'error');
+  // Sigue con el ahorro activo: no cambia.
+  assert.equal((await device.retryWakeLock()).wakeLock, 'error');
+  fail = false;
+  const status = await device.retryWakeLock();
+  assert.equal(status.wakeLock, 'active');
+  assert.equal(status.ready, true);
+  // Ya activo: no vuelve a pedirlo; oculto: no lo intenta.
+  await device.retryWakeLock();
+  assert.equal(sentinels.length, 1);
+  sentinels[0].release();
+  visibilityTarget.visibilityState = 'hidden';
+  assert.equal((await device.retryWakeLock()).wakeLock, 'released');
+  assert.equal(sentinels.length, 1);
+});
+
+test('retryWakeLock sin activar los avisos no pide nada', async () => {
+  let requests = 0;
+  const { device } = setup({ wakeLock: { request: async () => { requests += 1; throw new Error('x'); } } });
+  await device.retryWakeLock();
+  assert.equal(requests, 0);
+});
+
 test('si activar no consigue el audio (sin gesto), el botón sigue visible', async () => {
   const audio = fakeAudio({ resumeMode: 'hang' });
   const { device, tones } = setup({ audio });

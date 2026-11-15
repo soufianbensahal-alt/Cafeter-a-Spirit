@@ -340,6 +340,8 @@ export function createBusinessOrdersPanel({
     if (wakeLock === 'active') return ['ok', 'Pantalla siempre encendida'];
     if (wakeLock === 'unsupported') return ['warn', 'Bloqueo de pantalla no compatible'];
     if (wakeLock === 'off') return ['muted', 'Pantalla sin bloquear'];
+    // Android lo rechaza con el ahorro de batería activo.
+    if (wakeLock === 'error') return ['warn', 'La pantalla puede apagarse: desactiva el ahorro de batería'];
     return ['warn', 'La pantalla puede apagarse'];
   };
   const connectionChip = () => {
@@ -935,7 +937,12 @@ export function createBusinessOrdersPanel({
   const handleClick = async (event) => {
     // En escritorio el input transparente abre el calendario al hacer clic.
     const dateInput = event.target.closest?.('[data-history-date]');
-    if (dateInput && appRoot.contains(dateInput) && typeof dateInput.showPicker === 'function') {
+    // Solo con ratón: al tocarlo, Android e iPhone ya abren su selector nativo
+    // (llamar además a showPicker podría abrir un segundo).
+    // El pointerdown dice si fue un toque (el click de Safari puede decir «mouse»).
+    const pointerType = lastPointerType || event.pointerType;
+    const touch = pointerType ? pointerType !== 'mouse' : globalThis.matchMedia?.('(hover: none)').matches;
+    if (dateInput && appRoot.contains(dateInput) && !touch && typeof dateInput.showPicker === 'function') {
       try { dateInput.showPicker(); } catch { /* ya abierto o no permitido */ }
     }
     const target = event.target.closest?.('[data-orders-action]');
@@ -976,7 +983,10 @@ export function createBusinessOrdersPanel({
   const handleChange = (event) => {
     const dateInput = event.target.closest?.('[data-history-date]');
     if (dateInput && appRoot.contains(dateInput)) {
+      // «Borrar» del selector nativo (Android) deja el valor vacío: vuelve a Hoy.
       if (dateInput.value) loadHistory(dateInput.value);
+      else if (state.history.date) showToday({ reason: 'cleared' });
+      else dateInput.value = historyBounds().today;
       return;
     }
     const input = event.target.closest?.('[data-control-switch]');
@@ -1030,6 +1040,14 @@ export function createBusinessOrdersPanel({
     }
   };
 
+  // Cualquier toque en el panel reintenta mantener la pantalla encendida si el
+  // sistema la soltó (ahorro de batería, pantalla apagada).
+  let lastPointerType = '';
+  const handlePointerDown = (event) => {
+    lastPointerType = event.pointerType || '';
+    if (state.alerts.activated && ['error', 'released'].includes(state.alerts.wakeLock)) void device.retryWakeLock();
+  };
+  appRoot.addEventListener('pointerdown', handlePointerDown);
   appRoot.addEventListener('click', handleClick);
   appRoot.addEventListener('keydown', handleKeydown);
   appRoot.addEventListener('change', handleChange);
@@ -1039,6 +1057,7 @@ export function createBusinessOrdersPanel({
   const destroy = () => {
     stop();
     printCleanup?.();
+    appRoot.removeEventListener('pointerdown', handlePointerDown);
     appRoot.removeEventListener('click', handleClick);
     appRoot.removeEventListener('keydown', handleKeydown);
     appRoot.removeEventListener('change', handleChange);

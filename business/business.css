@@ -497,6 +497,60 @@ html[data-theme="dark"] .ticket-sheet__print { border-color: #EECF62; background
   .business-preview { gap: 14px; }
 }
 
+/* Letra del sistema ampliada (Android, 130–200 %): con zoom de página el ancho
+   útil baja a ~280–180 px; con escalado solo del texto, el texto crece sin
+   más ancho. Nada se recorta ni se sale: lo que iba en fila pasa a columna. */
+.orders-board, .control-grid, .orders-closed__list, .orders-history__list { grid-template-columns: minmax(0, 1fr); }
+.orders-column, .orders-closed, .control-card { min-width: 0; grid-template-columns: minmax(0, 1fr); }
+.order-ticket { grid-template-columns: minmax(0, 1fr); }
+.orders-column h2, .orders-closed h2, .control-card h2 { flex-wrap: wrap; overflow-wrap: anywhere; }
+.ticket-sheet, .ticket-sheet__body, .ticket { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+.ticket__row { flex-wrap: wrap; }
+.business-tab { min-width: 0; padding: 4px 6px; flex-wrap: wrap; line-height: 1.15; text-align: center; overflow-wrap: anywhere; }
+.orders-titlebar { flex-wrap: wrap; }
+.orders-titlebar .orders-title { min-width: 0; overflow-wrap: anywhere; }
+.ticket__row dd { min-width: 0; }
+.order-ticket, .order-ticket > * { min-width: 0; }
+.employee-strip strong { white-space: normal; overflow-wrap: anywhere; }
+.control-row { flex-wrap: wrap; }
+.control-row > div { min-width: 0; flex: 1 1 10rem; }
+.order-ticket__foot { flex-wrap: wrap; }
+/* La fecha visible ocupa su sitio (puede ir en dos líneas); el input
+   transparente sigue cubriendo exactamente el campo. */
+.orders-datebar__display { position: relative; inset: auto; min-height: 42px; padding: 4px 8px; white-space: normal; text-align: center; line-height: 1.15; overflow-wrap: break-word; }
+.orders-datebar__field { height: auto; min-height: 44px; }
+@media (max-width: 300px) {
+  .business-header { grid-template-columns: auto minmax(0, 1fr); }
+  .business-header img { width: 48px; height: 48px; }
+  .business-header .session-badge { grid-column: 1 / -1; justify-self: start; }
+  .employee-strip { grid-template-columns: auto minmax(0, 1fr); }
+  .employee-strip .employee-status { grid-column: 1 / -1; justify-self: start; }
+  .orders-column, .orders-closed, .control-card { padding: 12px; }
+  .orders-datebar { gap: 6px; }
+  .orders-datebar__display { padding: 4px 2px; }
+  body.business-mode .modal.ticket-modal { padding: 12px; }
+  .ticket { padding: 16px 12px 14px; }
+  .order-ticket__actions { grid-auto-flow: row; }
+  /* Número, mesa y hora, uno debajo de otro. */
+  .order-ticket__head { grid-template-columns: minmax(0, 1fr); }
+  .order-ticket__number { font-size: 24px; }
+  /* Pestañas una debajo de otra: los nombres no se pisan. */
+  .business-tabs { grid-template-columns: minmax(0, 1fr); }
+  .business-tab { min-height: 44px; }
+  /* «Imprimir comanda» baja de línea antes que partir la mesa. */
+  .order-ticket__top { flex-wrap: wrap; }
+  .order-ticket__head { flex-basis: 8rem; }
+}
+
+@media (min-width: 900px) {
+  .orders-board { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .orders-closed__list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .control-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 700px) {
+  .orders-history__list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .business-spinner { animation-duration: 1.4s !important; }
   .order-ticket--fresh, .orders-activate--lost { animation: none; }
@@ -518,3 +572,12 @@ html[data-theme="dark"] .employee-strip .employee-status { color: #2f4a2d; }
 .control-guests__details summary:focus-visible { outline: 3px solid #695c2c; outline-offset: 2px; }
 .control-guests__row--alert th, .control-guests__row--alert td { background: rgba(178,65,47,.1); color: #7e2e22; }
 .control-guests__flag { margin-left: 6px; padding: 1px 6px; border: 1px solid #b2412f; border-radius: 999px; font-size: 11px; font-weight: 800; text-transform: none; }
+
+/* Aviso propio «Instalar app» en la tablet (Android). */
+.install-banner { margin: 0 0 14px; padding: 10px 8px 10px 16px; border: 1px solid var(--business-line); border-radius: 22px; background: rgba(255,253,248,.58); display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.install-banner__text { flex: 1 1 12rem; min-width: 0; }
+.install-banner__title { margin: 0; font-size: 14px; font-weight: 800; line-height: 1.3; }
+.install-banner__copy { margin: 2px 0 0; color: var(--business-muted); font-size: 13px; line-height: 1.35; }
+.install-banner__action { min-height: 44px; padding: 8px 16px; border: 0; border-radius: 999px; background: var(--business-ink); color: #fffaf0; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+.install-banner__dismiss { width: 44px; height: 44px; flex: none; border: 0; border-radius: 50%; background: transparent; color: var(--business-muted); font-size: 24px; line-height: 1; cursor: pointer; }
+.install-banner__action:focus-visible, .install-banner__dismiss:focus-visible { outline: 3px solid #695c2c; outline-offset: 2px; }

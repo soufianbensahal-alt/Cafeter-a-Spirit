@@ -31,4 +31,12 @@
   routeStyles.href = isBusinessRoute ? '/business/business.css' : '/styles.css';
   routeStyles.dataset.spiritStyles = isBusinessRoute ? 'business' : 'customer';
   document.head.append(routeStyles);
+
+  // «Instalar app» (Android): el navegador puede ofrecerlo antes de que cargue
+  // la app; se guarda el evento para el aviso propio (services/install-prompt.js).
+  window.__spiritInstallPrompt = null;
+  addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    window.__spiritInstallPrompt = event;
+  });
 })();

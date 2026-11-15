@@ -155,6 +155,16 @@ export function createOrderAlertDevice({
     return { sound, vibrated };
   };
 
+  // Android rechaza el wake lock con el ahorro de batería activo y lo libera
+  // al apagar la pantalla: se reintenta con la siguiente interacción.
+  const retryWakeLock = async () => {
+    if (!activated || destroyed || visibilityTarget?.visibilityState === 'hidden') return status();
+    if (wakeLockState === 'active' || wakeLockState === 'unsupported') return status();
+    await requestWakeLock();
+    emit();
+    return status();
+  };
+
   const destroy = () => {
     destroyed = true;
     visibilityTarget?.removeEventListener?.('visibilitychange', handleVisibility);
@@ -172,6 +182,7 @@ export function createOrderAlertDevice({
     alert,
     status,
     destroy,
+    retryWakeLock,
     // Expuesto para tests y para reintentar tras visibilitychange.
     handleVisibility
   };

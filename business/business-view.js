@@ -31,6 +31,7 @@ import { displayText } from '../services/display-text.js';
 import { createLiveAnnouncer } from '../services/live-announcer.js';
 import { createBusinessOrdersPanel } from './business-orders.js';
 import { createBackNavigation, createExitHint, isInstalledApp, panelDepth } from '../services/back-navigation.js';
+import { createInstallPrompt, renderInstallBanner } from '../services/install-prompt.js';
 import jsQR from 'jsqr';
 
 const isBusinessRoute = /^\/cafeteria\/?$/.test(window.location.pathname);
@@ -120,7 +121,29 @@ if (isBusinessRoute) {
     return loyaltyTab();
   };
 
-  const homeView = () => `<main class="business-app ${state.tab === 'loyalty' ? '' : 'business-app--wide'}">${brandHeader()}<section class="employee-strip"><div class="employee-avatar" aria-hidden="true">${escapeHTML(employeeInitials())}</div><div><span>${escapeHTML(roleLabel(state.employee?.role))}</span><strong>${escapeHTML(state.employee?.employeeName || '')}</strong></div>${state.employee?.isCustomer ? '<a class="employee-status" href="/">Vista cliente</a>' : '<span class="employee-status">Activa</span>'}</section><section class="business-profile-setting"><div><strong>Mantener sesión iniciada</strong><small>No cerrar automáticamente esta sesión</small></div><label class="business-switch"><input type="checkbox" data-business-session-persistence ${state.keepSession ? 'checked' : ''} aria-label="Mantener sesión iniciada"><span aria-hidden="true"></span></label></section><section class="orders-status" data-orders-status aria-label="Avisos de pedidos"></section>${tabsHTML()}<div class="business-tabpanel" role="tabpanel" id="business-tabpanel" aria-labelledby="business-tab-${state.tab}">${tabContent()}</div><button class="business-logout" type="button" data-business-action="logout">Cerrar sesión</button><p class="business-security-note">Acceso protegido con Supabase Auth · Validación, confirmación y recompensas se procesan de forma atómica en el servidor.</p></main>`;
+  // «Instalar app» en la tablet de la barra: pantalla completa y avisos más
+  // fiables. Discreto y descartable (30 días).
+  const installPrompt = createInstallPrompt({
+    storageKey: 'spirit-panel-install-dismissed-at',
+    isInstalled: () => isInstalledApp(),
+    onChange: () => { if (state.view === 'home') render(); }
+  });
+  const panelInstallBanner = () => (installPrompt.visible()
+    ? renderInstallBanner({ id: 'panel-install', title: 'Instala el panel en esta tablet', copy: 'Pantalla completa y avisos más fiables.', action: 'Instalar', dismissLabel: 'Ahora no' })
+    : '');
+  document.addEventListener('click', async (event) => {
+    const button = event.target.closest?.('[data-install-action]');
+    if (!button || !app.contains(button)) return;
+    if (button.dataset.installAction === 'install') await installPrompt.install();
+    else installPrompt.dismiss();
+    if (!document.querySelector('[data-install-banner]')) {
+      const heading = app.querySelector('h1');
+      if (heading && !heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+      heading?.focus();
+    }
+  });
+
+  const homeView = () => `<main class="business-app ${state.tab === 'loyalty' ? '' : 'business-app--wide'}">${brandHeader()}<section class="employee-strip"><div class="employee-avatar" aria-hidden="true">${escapeHTML(employeeInitials())}</div><div><span>${escapeHTML(roleLabel(state.employee?.role))}</span><strong>${escapeHTML(state.employee?.employeeName || '')}</strong></div>${state.employee?.isCustomer ? '<a class="employee-status" href="/">Vista cliente</a>' : '<span class="employee-status">Activa</span>'}</section><section class="business-profile-setting"><div><strong>Mantener sesión iniciada</strong><small>No cerrar automáticamente esta sesión</small></div><label class="business-switch"><input type="checkbox" data-business-session-persistence ${state.keepSession ? 'checked' : ''} aria-label="Mantener sesión iniciada"><span aria-hidden="true"></span></label></section>${panelInstallBanner()}<section class="orders-status" data-orders-status aria-label="Avisos de pedidos"></section>${tabsHTML()}<div class="business-tabpanel" role="tabpanel" id="business-tabpanel" aria-labelledby="business-tab-${state.tab}">${tabContent()}</div><button class="business-logout" type="button" data-business-action="logout">Cerrar sesión</button><p class="business-security-note">Acceso protegido con Supabase Auth · Validación, confirmación y recompensas se procesan de forma atómica en el servidor.</p></main>`;
 
   const progress = (value, goal) => `<div class="business-progress" role="img" aria-label="${value} de ${goal} sellos"><div><strong>${value}</strong><span>/ ${goal}</span></div><div class="business-progress__track"><span style="width:${(value / goal) * 100}%"></span></div></div>`;
 
