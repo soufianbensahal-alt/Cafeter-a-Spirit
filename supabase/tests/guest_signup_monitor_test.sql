@@ -27,10 +27,17 @@ insert into public.business_members (business_id, user_id, role, active) values
   ('e0000000-0000-4000-8000-000000000001', 'e2000000-0000-4000-8000-000000000002', 'manager', true),
   ('e0000000-0000-4000-8000-000000000001', 'e2000000-0000-4000-8000-000000000003', 'owner', true);
 
--- Referencia: lo que ya hubiera hoy en la base local (p. ej. E2E).
+-- Referencia: invitados que ya hubiera en la base local (p. ej. de los E2E),
+-- por día de Madrid. Las comprobaciones cuentan solo lo que añade este test.
 create temporary table monitor_baseline on commit drop as
-select coalesce(count(*) filter (where (created_at at time zone 'Europe/Madrid')::date = (now() at time zone 'Europe/Madrid')::date), 0)::integer as today_guests
-from auth.users where is_anonymous;
+select (created_at at time zone 'Europe/Madrid')::date as day, count(*)::integer as guests
+from auth.users where is_anonymous
+group by 1;
+
+create function pg_temp.baseline_guests(p_day date)
+returns integer language sql stable as $$
+  select coalesce((select guests from monitor_baseline where day = p_day), 0)
+$$;
 
 insert into auth.users (id, email, is_anonymous, created_at) values
   -- Hoy: dos invitados, uno pide en este local.
@@ -79,16 +86,18 @@ select results_eq(
 );
 select is(
   (select guests from public.get_guest_signups_by_day('e0000000-0000-4000-8000-000000000001') where day = (now() at time zone 'Europe/Madrid')::date)
-    - (select today_guests from monitor_baseline),
+    - pg_temp.baseline_guests((now() at time zone 'Europe/Madrid')::date),
   2,
   'hoy suma los dos invitados nuevos y no el registrado'
 );
-select ok(
-  (select guests_with_orders from public.get_guest_signups_by_day('e0000000-0000-4000-8000-000000000001') where day = (now() at time zone 'Europe/Madrid')::date) >= 1,
+-- Los pedidos solo pueden ser de este test: el local e0…01 es suyo.
+select is(
+  (select guests_with_orders from public.get_guest_signups_by_day('e0000000-0000-4000-8000-000000000001') where day = (now() at time zone 'Europe/Madrid')::date),
+  1,
   'el invitado que pidió aquí cuenta una vez aunque tenga dos pedidos'
 );
 select results_eq(
-  $$select guests, guests_with_orders from public.get_guest_signups_by_day('e0000000-0000-4000-8000-000000000001') where day = (now() at time zone 'Europe/Madrid')::date - 3$$,
+  $$select guests - pg_temp.baseline_guests(day), guests_with_orders from public.get_guest_signups_by_day('e0000000-0000-4000-8000-000000000001') where day = (now() at time zone 'Europe/Madrid')::date - 3$$,
   $$values (1, 0)$$,
   'hace 3 días: un invitado que no pidió en este local'
 );
