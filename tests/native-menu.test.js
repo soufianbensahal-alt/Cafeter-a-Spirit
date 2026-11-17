@@ -110,22 +110,28 @@ test('la carta implementa búsqueda, agrupación, categorías y scroll-spy', asy
   assert.match(menuView, /data-menu-category/);
   assert.match(menuView, /data-menu-section/);
   assert.match(app, /syncMenuFromScroll/);
-  assert.match(app, /menuScroller\.scrollTo\(\{ top: Math\.max\(0, top\), behavior: 'smooth' \}\)/);
-  assert.match(app, /menuScroller\.addEventListener\('scroll', menuScrollHandler/);
+  // Scroll de la página (Android): la ventana desplaza la carta.
+  assert.match(app, /window\.scrollTo\(\{ top: Math\.max\(0, top\), behavior: prefersReducedMotion\(\) \? 'auto' : 'smooth' \}\)/);
+  assert.match(app, /window\.addEventListener\('scroll', menuScrollHandler, \{ passive: true \}\)/);
+  assert.match(app, /- menuStickyBottom\(\)\n\s+\+ pageScrollY\(\)/);
   assert.match(app, /categories\.scrollLeft[\s\S]*categories\.scrollTo\(\{ left: Math\.max\(0, left\), behavior: 'smooth' \}\)/);
   assert.doesNotMatch(app, /scrollIntoView/);
   assert.match(app, /reachedBottom[\s\S]*sections\.at\(-1\)\.dataset\.menuSection/);
   assert.match(app, /menu-to-top--visible/);
 });
 
-test('la cabecera queda fija y solo el listado utiliza scroll vertical', async () => {
-  const styles = await read('styles.css');
-
-  assert.match(styles, /\.menu-screen\s*\{[^}]*display:\s*flex;[^}]*overflow:\s*hidden;/s);
-  assert.match(styles, /\.menu-sticky\s*\{[^}]*flex:\s*0 0 auto;/s);
-  assert.match(styles, /\.menu-content\s*\{[^}]*flex:\s*1 1 auto;[^}]*overflow-y:\s*auto;/s);
-  assert.match(styles, /\.menu-content\s*\{[^}]*-webkit-overflow-scrolling:\s*touch;[^}]*touch-action:\s*pan-y;/s);
-  assert.doesNotMatch(styles, /\.menu-screen\s*\{[^}]*overflow-y:\s*(?:auto|scroll)/s);
+test('la carta usa el scroll de la página con la cabecera pegajosa (sin caja con scroll interior)', async () => {
+  const [styles, base] = await Promise.all([read('styles.css'), read('base.css')]);
+  // En Android, una caja de altura fija con scroll interior dejaba zonas muertas
+  // (cabecera y barra del carrito): el gesto que empezaba ahí no movía nada.
+  assert.match(styles, /\.menu-sticky\s*\{[^}]*position:\s*sticky;\s*top:\s*0;/s);
+  assert.doesNotMatch(styles, /\.menu-content\s*\{[^}]*overflow-y:\s*auto/s);
+  assert.doesNotMatch(styles, /\.menu-(shell|screen)\s*\{[^}]*(?<!min-)height:\s*100(s|d)?vh/s);
+  assert.doesNotMatch(styles, /\.menu-(shell|screen)\s*\{[^}]*overflow:\s*hidden/s);
+  // body y .app-shell recortan con clip: hidden los volvería contenedores de scroll y rompería sticky.
+  assert.match(base, /body \{ overflow-x: clip; \}/);
+  assert.match(styles, /\.app-shell \{[^}]*overflow-x: hidden; overflow-x: clip;/);
+  assert.match(styles, /\.menu-category \{[^}]*scroll-margin-top: var\(--menu-sticky-height, 190px\);/);
 });
 
 test('los precios de la carta comparten columna y conservan su legibilidad', async () => {

@@ -88,6 +88,10 @@ export function createBackNavigation({ win = globalThis.window, getDepth, onBack
     start() {
       if (started) return;
       started = true;
+      // La app decide la posición de scroll de cada pantalla (la carta
+      // recupera la suya): el navegador no debe restaurarla por su cuenta al
+      // volver atrás, o pisa la de la app.
+      if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
       history.replaceState({ spiritDepth: 0 }, '', currentUrl());
       depth = 0;
       win.addEventListener('popstate', handlePop);

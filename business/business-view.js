@@ -32,6 +32,7 @@ import { createLiveAnnouncer } from '../services/live-announcer.js';
 import { createBusinessOrdersPanel } from './business-orders.js';
 import { createBackNavigation, createExitHint, isInstalledApp, panelDepth } from '../services/back-navigation.js';
 import { createInstallPrompt, renderInstallBanner } from '../services/install-prompt.js';
+import { releaseScrollLockIfIdle } from '../services/scroll-lock.js';
 import jsQR from 'jsqr';
 
 const isBusinessRoute = /^\/cafeteria\/?$/.test(window.location.pathname);
@@ -201,6 +202,9 @@ if (isBusinessRoute) {
     }
     if (state.view === 'scanner') startScanner();
     backNavigation.sync();
+    // Red de seguridad del bloqueo de scroll (diálogo quitado sin cerrarse).
+    ordersPanel?.navigation.verify();
+    releaseScrollLockIfIdle(document);
   }
 
   // Botón/gesto atrás (Android): cierra el diálogo, vuelve a «Hoy», cierra el
@@ -720,6 +724,9 @@ if (isBusinessRoute) {
     render();
   });
 
+  addEventListener('error', () => { ordersPanel?.navigation.verify(); releaseScrollLockIfIdle(document); });
+  addEventListener('unhandledrejection', () => { ordersPanel?.navigation.verify(); releaseScrollLockIfIdle(document); });
+  addEventListener('pageshow', () => releaseScrollLockIfIdle(document));
   addEventListener('pagehide', stopScanner);
   addEventListener('beforeunload', stopScanner);
   backNavigation.start();

@@ -9,7 +9,7 @@
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#EECF62",
-  "theme_color": "#EECF62",
+  "theme_color": "#171612",
   "icons": [
     {
       "src": "/assets/icons/spirit-192.png",

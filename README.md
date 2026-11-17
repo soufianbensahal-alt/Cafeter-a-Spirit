@@ -266,6 +266,8 @@ npx supabase test db --local
 npx supabase db lint --local --schema public --level warning
 ```
 
+Recorrido táctil de Android: `npx playwright test --project=android-auth --project=android-reach-*` (con `SPIRIT_E2E=1` y las cuentas de prueba locales). `android-auth` inicia sesión una sola vez y guarda las sesiones en `playwright/.auth/` (ignorada por git); cada perfil `android-reach-*` (360×640, 360×780, Pixel, Samsung/Xiaomi, 430 px, tablet, Oppo Reno 14 instalado con 3 botones, letra al 130/200 %, solo texto, zoom de pantalla, CPU lenta e instalada) llega al final de cada pantalla con gestos táctiles reales.
+
 `npm run check` ejecuta lint, comprobación estática, build y pruebas JavaScript. GitHub Actions reproduce esos cuatro pasos con Node.js 22 en cada push y pull request. Las pruebas SQL siguen separadas porque necesitan una base local desechable.
 
 Para recomprimir de forma explícita los recursos mantenidos por el proyecto:

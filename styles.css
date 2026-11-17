@@ -17,7 +17,7 @@ html.splash-active body { overscroll-behavior: none; }
 @keyframes intro-brand-in { from { opacity: 0; transform: scale(.72) translateY(12px); } 70% { transform: scale(1.025) translateY(0); } }
 @keyframes intro-copy-in { from { opacity: 0; transform: translateY(8px); } }
 @keyframes intro-ring { 0% { opacity: 0; transform: scale(.42); } 32% { opacity: .7; } 100% { opacity: 0; transform: scale(1.18); } }
-.app-shell { min-height: 100svh; max-width: 520px; margin: 0 auto; background: var(--mustard); position: relative; overflow-x: hidden; box-shadow: 0 0 80px rgba(75,63,26,.16); isolation: isolate; }
+.app-shell { min-height: 100svh; max-width: 520px; margin: 0 auto; background: var(--mustard); position: relative; overflow-x: hidden; overflow-x: clip; box-shadow: 0 0 80px rgba(75,63,26,.16); isolation: isolate; }
 .screen { min-height: 100svh; padding: max(24px, env(safe-area-inset-top)) var(--gutter) 28px; background: radial-gradient(circle at 100% 0, rgba(255,255,255,.16), transparent 28%), linear-gradient(180deg, rgba(255,255,255,.035), transparent 42%), var(--mustard); animation: screen-in .35s cubic-bezier(.2,.8,.2,1) both; }
 .screen--with-nav { padding-bottom: calc(var(--nav-height) + 44px + env(safe-area-inset-bottom)); }
 .screen--gold { background: var(--mustard); }
@@ -79,9 +79,12 @@ h3 { font-size: 21px; line-height: 1.16; margin: 0; letter-spacing: -.012em; }
 .quick-card__copy strong { font-size: 15px; line-height: 1.15; }
 .quick-card__copy small { color: var(--muted); font-size: 12px; line-height: 1.2; }
 
-.menu-shell { height: 100svh; max-width: 760px; background: var(--paper); overflow: hidden; }
-.menu-screen { height: 100svh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; background: radial-gradient(circle at 100% 0, rgba(238,207,98,.12), transparent 30%), var(--paper); }
-.menu-sticky { position: relative; z-index: 24; flex: 0 0 auto; padding: max(12px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) 12px max(20px, env(safe-area-inset-left)); border-bottom: 1px solid rgba(105,92,44,.15); background: rgba(238,207,98,.93); -webkit-backdrop-filter: blur(24px) saturate(125%); backdrop-filter: blur(24px) saturate(125%); box-shadow: 0 8px 24px rgba(75,63,26,.08); }
+/* Carta con el scroll de la página (Android): se desliza desde cualquier
+   punto, también sobre la cabecera y la barra del carrito; la cabecera es
+   pegajosa. Sin cajas de altura fija con scroll interior. */
+.menu-shell { min-height: 100svh; max-width: 760px; background: var(--paper); overflow: visible; overflow-x: clip; }
+.menu-screen { min-height: 100svh; display: flex; flex-direction: column; overflow: visible; background: radial-gradient(circle at 100% 0, rgba(238,207,98,.12), transparent 30%), var(--paper); }
+.menu-sticky { position: sticky; top: 0; z-index: 24; flex: 0 0 auto; padding: max(12px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) 12px max(20px, env(safe-area-inset-left)); border-bottom: 1px solid rgba(105,92,44,.15); background: rgba(238,207,98,.93); -webkit-backdrop-filter: blur(24px) saturate(125%); backdrop-filter: blur(24px) saturate(125%); box-shadow: 0 8px 24px rgba(75,63,26,.08); }
 .menu-titlebar { min-height: 56px; display: grid; grid-template-columns: 48px 66px minmax(0,1fr); align-items: center; gap: 10px; margin-bottom: 10px; }
 .menu-titlebar h1 { font-size: 38px; line-height: 1; }
 .menu-brand { display: grid; place-items: center; height: 56px; }
@@ -103,8 +106,8 @@ h3 { font-size: 21px; line-height: 1.16; margin: 0; letter-spacing: -.012em; }
 .menu-category-tab { min-height: 40px; flex: 0 0 auto; padding: 0 16px; border: 1px solid rgba(105,92,44,.2); border-radius: var(--radius-pill); background: rgba(255,253,248,.72); color: var(--ink); font-size: 12px; font-weight: 800; letter-spacing: .035em; text-transform: uppercase; scroll-snap-align: center; cursor: pointer; transition: background-color .2s ease, color .2s ease, border-color .2s ease, transform .2s ease; }
 .menu-category-tab:active { transform: scale(.96); }
 .menu-category-tab--active { border-color: var(--mustard-deep); background: var(--ink); color: var(--cream); box-shadow: 0 5px 13px rgba(46,45,41,.14); }
-.menu-content { min-height: 0; flex: 1 1 auto; padding: 10px max(22px, env(safe-area-inset-right)) max(40px, calc(env(safe-area-inset-bottom) + 24px)) max(22px, env(safe-area-inset-left)); overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; scroll-behavior: smooth; }
-.menu-category { padding-top: 28px; scroll-margin-top: 190px; }
+.menu-content { padding: 10px max(22px, env(safe-area-inset-right)) max(40px, calc(env(safe-area-inset-bottom) + 24px)) max(22px, env(safe-area-inset-left)); flex: 1 0 auto; }
+.menu-category { padding-top: 28px; scroll-margin-top: var(--menu-sticky-height, 190px); }
 .menu-category + .menu-category { margin-top: 20px; }
 .menu-category__head { padding-bottom: 18px; border-bottom: 1px solid var(--line); }
 .menu-category__head h2 { color: var(--mustard-dark); font-size: 30px; text-transform: uppercase; letter-spacing: .045em; }
@@ -491,7 +494,7 @@ html[data-theme="dark"] .toast { border-color: rgba(238,207,98,.14); background:
 @media (display-mode: standalone) {
   body { min-height: 100dvh; overscroll-behavior-y: none; }
   #app, .app-shell, .screen { min-height: 100dvh; }
-  .menu-shell, .menu-screen { height: 100dvh; min-height: 0; }
+  .menu-shell, .menu-screen { min-height: 100dvh; }
 }
 
 @media (max-width: 699px) and (max-height: 650px) {
@@ -674,6 +677,10 @@ html[data-theme="dark"] .check input[type="checkbox"] { border-color: rgba(247,2
 html[data-theme="dark"] .check input[type="checkbox"]:checked { border-color: var(--mustard); background-color: var(--mustard); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.4 8.6l3 3 6.2-7' fill='none' stroke='%23171612' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
 html[data-theme="dark"] .order-notice--warning { background: rgba(240,160,149,.14); color: var(--danger); }
 html[data-theme="dark"] .order-progress__dot { background: rgba(238,207,98,.16); }
+/* Tramos completados y actual: rellenos y visibles también en oscuro (antes
+   la regla de arriba los igualaba a los pendientes). */
+html[data-theme="dark"] .order-progress__step--done .order-progress__dot,
+html[data-theme="dark"] .order-progress__step--current .order-progress__dot { background: var(--mustard); }
 html[data-theme="dark"] .order-progress__step--current { color: #f7f0de; }
 html[data-theme="dark"] .active-orders-banner { background: var(--mustard); color: #171612; }
 html[data-theme="dark"] .order-status__chip--served,
@@ -847,3 +854,28 @@ html[data-theme="dark"] .install-banner__action { background: var(--mustard); co
 .stamps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .stamp { min-width: 0; }
 .stamp svg { width: min(23px, 60%); height: auto; }
+
+/* Rendimiento en móviles (sobre todo Android de gama media/baja): el
+   desenfoque de fondo es caro al desplazar. En pantallas pequeñas, con
+   prefers-reduced-transparency o sin soporte, se quita. Sobre un fondo liso
+   desenfocar no cambia nada; en las barras fijas por las que pasa contenido
+   se sube la opacidad para que se vean igual. */
+@media (max-width: 699px), (prefers-reduced-transparency: reduce) {
+  .intro-skip, .topbar-action, .quick-card, .reward-card, .timeline, .profile-card, .settings-list,
+  .skip, .form, .modal, .toast, .menu-sticky, .bottom-nav, .modal-backdrop {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .menu-sticky { background: rgba(238,207,98,.98); }
+  .bottom-nav { background: rgba(254,248,230,.96); }
+  .modal-backdrop { background: rgba(29,27,22,.6); }
+  html[data-theme="dark"] .menu-sticky { background: rgba(28,26,21,.98); }
+  html[data-theme="dark"] .bottom-nav { background: rgba(33,31,25,.97); }
+  html[data-theme="dark"] .modal-backdrop { background: rgba(0,0,0,.72); }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .menu-sticky { background: rgba(238,207,98,.98); }
+  .bottom-nav { background: rgba(254,248,230,.96); }
+  html[data-theme="dark"] .menu-sticky { background: rgba(28,26,21,.98); }
+  html[data-theme="dark"] .bottom-nav { background: rgba(33,31,25,.97); }
+}

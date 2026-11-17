@@ -19,6 +19,18 @@
   if (isBusinessRoute) {
     document.title = 'SPIRIT · Modo cafetería';
     document.querySelector('#apple-app-title').content = 'SPIRIT Equipo';
+    // El panel sigue al tema del sistema también con la app abierta: el tema
+    // de la página y el color de las barras del sistema (theme-color).
+    if (preference === 'system' && typeof matchMedia === 'function') {
+      const media = matchMedia('(prefers-color-scheme: dark)');
+      const follow = (event) => {
+        const next = event.matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = next;
+        document.querySelector('#theme-color').content = next === 'dark' ? '#171612' : '#eecf62';
+      };
+      if (typeof media.addEventListener === 'function') media.addEventListener('change', follow);
+      else if (typeof media.addListener === 'function') media.addListener(follow);
+    }
   }
 
   const manifest = document.createElement('link');

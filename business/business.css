@@ -360,6 +360,11 @@ body.business-mode #toast.toast--back.toast--show { opacity: 1; }
 .control-search input, .control-pilot-form input, .business-modal__form input { width: 100%; min-height: 52px; border: 1px solid var(--business-line); border-radius: 15px; background: rgba(255,255,255,.75); padding: 0 14px; color: var(--business-ink); font-size: 16px; }
 .control-search input:focus, .control-pilot-form input:focus, .business-modal__form input:focus { outline: none; border-color: #695c2c; box-shadow: 0 0 0 4px rgba(105,92,44,.13); background: #fff; }
 .control-products { max-height: 520px; overflow: auto; display: grid; gap: 12px; }
+/* En el móvil, sin caja con scroll propio dentro de la página: un gesto que
+   empezaba en la lista no movía la página (zona «que solo desliza ahí»). */
+@media (max-width: 699px) {
+  .control-products { max-height: none; overflow: visible; }
+}
 .control-products fieldset { margin: 0; padding: 0; border: 0; display: grid; gap: 4px; }
 .control-products legend { margin-bottom: 4px; color: #695c2c; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
 .control-product { min-height: 52px; padding: 4px 4px 4px 2px; border-bottom: 1px solid var(--business-line); display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; font-size: 15px; }
@@ -581,3 +586,13 @@ html[data-theme="dark"] .employee-strip .employee-status { color: #2f4a2d; }
 .install-banner__action { min-height: 44px; padding: 8px 16px; border: 0; border-radius: 999px; background: var(--business-ink); color: #fffaf0; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
 .install-banner__dismiss { width: 44px; height: 44px; flex: none; border: 0; border-radius: 50%; background: transparent; color: var(--business-muted); font-size: 24px; line-height: 1; cursor: pointer; }
 .install-banner__action:focus-visible, .install-banner__dismiss:focus-visible { outline: 3px solid #695c2c; outline-offset: 2px; }
+
+/* Rendimiento en móviles: sin desenfoque de fondo en pantallas pequeñas o con
+   prefers-reduced-transparency (sobre fondo liso el aspecto no cambia). */
+@media (max-width: 699px), (prefers-reduced-transparency: reduce) {
+  .employee-strip, .business-profile-setting, body.business-mode .modal-backdrop {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  body.business-mode .modal-backdrop { background: rgba(29,27,22,.6); }
+}

@@ -1,3 +1,5 @@
+import { lockScroll, releaseScrollLockIfIdle, unlockScroll } from './scroll-lock.js';
+
 const FOCUSABLE_SELECTOR = [
   'a[href]',
   'button:not([disabled])',
@@ -77,11 +79,15 @@ export function createAccessibleModalController({ appRoot, modalRoot, canClose, 
   installActivationTracker(document);
   let previousFocus = null;
   let previousAriaHidden = null;
+  // Clave de este controlador en el bloqueo de scroll (services/scroll-lock.js).
+  const lockOwner = Symbol('dialog');
+  let backgroundHidden = false;
   const currentBackdrop = () => modalRoot.querySelector('[data-sheet-backdrop]');
   const currentDialog = () => currentBackdrop()?.querySelector('[role="dialog"]');
 
   const restoreBackground = () => {
-    document.documentElement.classList.remove('modal-open');
+    unlockScroll(lockOwner);
+    backgroundHidden = false;
     appRoot.inert = false;
     if (previousAriaHidden === null) appRoot.removeAttribute('aria-hidden');
     else appRoot.setAttribute('aria-hidden', previousAriaHidden);
@@ -145,7 +151,8 @@ export function createAccessibleModalController({ appRoot, modalRoot, canClose, 
       previousAriaHidden = retainedAriaHidden;
     }
     modalRoot.innerHTML = markup;
-    document.documentElement.classList.add('modal-open');
+    lockScroll(lockOwner);
+    backgroundHidden = true;
     appRoot.inert = true;
     appRoot.setAttribute('aria-hidden', 'true');
     const dialog = currentDialog();
@@ -157,5 +164,15 @@ export function createAccessibleModalController({ appRoot, modalRoot, canClose, 
     return dialog;
   };
 
-  return { open, close, currentDialog, isOpen: () => Boolean(currentBackdrop()) };
+  // Red de seguridad: si el diálogo ya no está (lo quitó otra cosa que no
+  // fue close), el fondo vuelve a ser usable y se libera el scroll.
+  const verify = () => {
+    if (backgroundHidden && !currentBackdrop()) {
+      restoreBackground();
+      previousFocus = null;
+    }
+    releaseScrollLockIfIdle(document);
+  };
+
+  return { open, close, verify, currentDialog, isOpen: () => Boolean(currentBackdrop()) };
 }

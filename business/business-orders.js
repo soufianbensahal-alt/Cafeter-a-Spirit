@@ -1085,6 +1085,7 @@ export function createBusinessOrdersPanel({
     modalOpen: () => modal.isOpen(),
     historyOpen: () => Boolean(state.history.date),
     closeModal: () => modal.close({ reason: 'back' }),
+    verify: () => modal.verify(),
     showToday: () => showToday({ reason: 'back' })
   };
 

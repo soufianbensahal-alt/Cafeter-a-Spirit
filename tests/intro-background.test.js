@@ -46,9 +46,12 @@ test('la clase y theme-color temporales se restauran al abandonar la intro', asy
   assert.match(app, /function finishIntro\(\)[\s\S]*?state\.screen =[\s\S]*?render\(\)/);
 });
 
-test('el manifiesto instalado mantiene el amarillo Spirit', async () => {
-  const manifest = JSON.parse(await read('../manifest.webmanifest'));
-
-  assert.equal(manifest.background_color.toLowerCase(), '#eecf62');
-  assert.equal(manifest.theme_color.toLowerCase(), '#eecf62');
+test('manifiestos: arranque en amarillo Spirit y barras del sistema oscuras (cliente y /cafeteria)', async () => {
+  for (const path of ['../manifest.webmanifest', '../business/manifest.webmanifest']) {
+    const manifest = JSON.parse(await read(path));
+    // Pantalla de arranque de la marca.
+    assert.equal(manifest.background_color.toLowerCase(), '#eecf62', path);
+    // Barras del sistema oscuras en ambos temas (Android las fija al instalar).
+    assert.equal(manifest.theme_color.toLowerCase(), '#171612', path);
+  }
 });

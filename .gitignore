@@ -16,3 +16,6 @@ spirit-intro-remotion/
 
 # Volcados de producción: nunca en Git (datos personales y hashes de contraseñas).
 backups/
+
+# Sesiones de prueba de Playwright (solo base local)
+playwright/.auth/

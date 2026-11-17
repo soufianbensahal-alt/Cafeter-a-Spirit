@@ -96,7 +96,7 @@ test('app.js vigila products en tiempo real y no cierra la confirmación por un 
   const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
   assert.match(app, /subscribeToProducts\(watchedProductsBusinessId/);
   assert.match(app, /reconcile: reconcileProducts/);
-  assert.match(app, /syncProductMonitor\(\);\n  backNavigation\.sync\(\);\n  if \(lastAnnouncedScreen/);
+  assert.match(app, /syncProductMonitor\(\);\n  backNavigation\.sync\(\);\n[\s\S]{0,120}modalController\.verify\(\);\n  if \(returningToMenu\)/);
   assert.match(app, /productMonitor\.stop\(\);/);
   assert.match(app, /announcer\.announce\(names\(soldOut\)\.map\(\(name\) => t\('cartItemSoldOut', \{ name \}\)\)\.join\(' '\), \{ assertive: true \}\)/);
   // Consulta justo antes de create_order.

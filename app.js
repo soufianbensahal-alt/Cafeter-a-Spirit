@@ -580,13 +580,14 @@ function renderPreservingFocus() {
   let selector = null;
   if (active?.dataset?.action) selector = `[data-action="${CSS.escape(active.dataset.action)}"]`;
   else if (active?.matches?.('[data-screen-heading]')) selector = '[data-screen-heading]';
-  const menuTop = state.screen === 'menu' ? document.querySelector('[data-menu-content]')?.scrollTop || 0 : 0;
+  const menuTop = state.screen === 'menu' ? pageScrollY() : 0;
   render();
-  if (menuTop) {
-    const scroller = document.querySelector('[data-menu-content]');
-    if (scroller) scroller.scrollTop = menuTop;
+  if (menuTop && state.screen === 'menu') {
+    window.scrollTo({ top: menuTop, behavior: 'auto' });
+    syncMenuFromScroll();
   }
-  if (selector) document.querySelector(selector)?.focus();
+  // Sin desplazar: un repintado no debe mover la página (carta incluida).
+  if (selector) document.querySelector(selector)?.focus({ preventScroll: true });
 }
 
 let orderingLoadSequence = 0;
@@ -1772,7 +1773,8 @@ function closeLegalPage({ fromHistory = false } = {}) {
     ? back
     : state.authStatus === 'authenticated' ? (state.isGuest ? 'menu' : 'home') : 'login';
   render();
-  scrollTo(0, 0);
+  // De vuelta a la carta se conserva su posición (render la recupera).
+  if (state.screen !== 'menu') scrollTo(0, 0);
 }
 
 function openLegalSheet(page) {
@@ -1809,6 +1811,7 @@ const navigationContext = () => ({
 function handleCustomerBack() {
   if (modalController.isOpen()) {
     modalController.close({ reason: 'back' });
+    modalController.verify();
     return undefined;
   }
   const view = customerView();
@@ -1829,6 +1832,12 @@ function handleCustomerBack() {
   showToast(t('backExitHint'));
   return undefined;
 }
+
+// Ante un error inesperado o al volver a la página desde la caché del
+// navegador, la página nunca debe quedarse sin poder desplazarse.
+addEventListener('error', () => modalController.verify());
+addEventListener('unhandledrejection', () => modalController.verify());
+addEventListener('pageshow', () => modalController.verify());
 
 backNavigation = createBackNavigation({
   getDepth: () => customerScreenDepth(customerView(), navigationContext()) + (modalController.isOpen() ? 1 : 0),
@@ -2098,6 +2107,10 @@ async function permanentlyDeleteCustomerAccount(form) {
   }
 }
 
+// La carta se desplaza con la página (no con una caja interior de altura
+// fija): en Android se puede deslizar desde cualquier punto, también sobre la
+// cabecera pegajosa y la barra del carrito. menuScroller es el contenido de la
+// carta; el scroll y sus eventos son los de la ventana.
 let menuScrollHandler = null;
 let menuScrollFrame = 0;
 let menuScroller = null;
@@ -2105,12 +2118,16 @@ let menuNavigationTarget = null;
 let menuNavigationTimer = 0;
 let menuNavigationCancelHandler = null;
 
+const pageScrollY = () => window.scrollY || document.documentElement.scrollTop || 0;
+const prefersReducedMotion = () => Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+const menuStickyBottom = () => document.querySelector('.menu-sticky')?.getBoundingClientRect().bottom || 0;
+
 function cleanupMenuInteractions() {
-  if (menuScroller && menuScrollHandler) menuScroller.removeEventListener('scroll', menuScrollHandler);
-  if (menuScroller && menuNavigationCancelHandler) {
-    menuScroller.removeEventListener('pointerdown', menuNavigationCancelHandler);
-    menuScroller.removeEventListener('touchstart', menuNavigationCancelHandler);
-    menuScroller.removeEventListener('wheel', menuNavigationCancelHandler);
+  if (menuScrollHandler) window.removeEventListener('scroll', menuScrollHandler);
+  if (menuNavigationCancelHandler) {
+    window.removeEventListener('pointerdown', menuNavigationCancelHandler);
+    window.removeEventListener('touchstart', menuNavigationCancelHandler);
+    window.removeEventListener('wheel', menuNavigationCancelHandler);
   }
   if (menuScrollFrame) cancelAnimationFrame(menuScrollFrame);
   if (menuNavigationTimer) clearTimeout(menuNavigationTimer);
@@ -2158,11 +2175,14 @@ function syncMenuFromScroll() {
   menuScrollFrame = 0;
   if (!menuScroller) return;
   const sections = [...document.querySelectorAll('[data-menu-section]')];
-  const scrollerTop = menuScroller.getBoundingClientRect().top;
+  // Lo que queda bajo la cabecera pegajosa es lo que se está viendo.
+  const scrollerTop = menuStickyBottom();
   let active = sections[0]?.dataset.menuSection;
+  document.querySelector('.menu-screen')?.style.setProperty('--menu-sticky-height', `${Math.round(document.querySelector('.menu-sticky')?.offsetHeight || 0) + 8}px`);
 
   if (!menuNavigationTarget) {
-    const reachedBottom = menuScroller.scrollTop + menuScroller.clientHeight >= menuScroller.scrollHeight - 2;
+    const page = document.scrollingElement || document.documentElement;
+    const reachedBottom = pageScrollY() > 0 && pageScrollY() + window.innerHeight >= page.scrollHeight - 2;
     if (reachedBottom && sections.length) {
       active = sections.at(-1).dataset.menuSection;
     } else {
@@ -2174,7 +2194,7 @@ function syncMenuFromScroll() {
     setMenuActiveCategory(active);
   }
 
-  document.querySelector('.menu-to-top')?.classList.toggle('menu-to-top--visible', menuScroller.scrollTop > 440);
+  document.querySelector('.menu-to-top')?.classList.toggle('menu-to-top--visible', pageScrollY() > 440);
 }
 
 function refreshMenuContent({ resetScroll = false } = {}) {
@@ -2182,7 +2202,7 @@ function refreshMenuContent({ resetScroll = false } = {}) {
   if (content) content.innerHTML = menuContent();
   const clearButton = document.querySelector('[data-menu-clear]');
   if (clearButton) clearButton.hidden = !state.menuQuery;
-  if (resetScroll && menuScroller) menuScroller.scrollTop = 0;
+  if (resetScroll && menuScroller) window.scrollTo({ top: 0, behavior: 'auto' });
   syncMenuFromScroll();
 }
 
@@ -2228,10 +2248,11 @@ function bindMenuInteractions() {
     requestAnimationFrame(() => {
       const section = document.querySelector(`[data-menu-section="${categoryId}"]`);
       if (!section || !menuScroller) return;
+      // La sección queda justo bajo la cabecera pegajosa (su título, visible).
       const top = section.getBoundingClientRect().top
-        - menuScroller.getBoundingClientRect().top
-        + menuScroller.scrollTop
-        - 10;
+        - menuStickyBottom()
+        + pageScrollY()
+        - 8;
       cancelMenuNavigation();
       menuNavigationTarget = categoryId;
       menuNavigationTimer = setTimeout(() => {
@@ -2239,7 +2260,7 @@ function bindMenuInteractions() {
         menuNavigationTimer = 0;
         syncMenuFromScroll();
       }, 700);
-      menuScroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      window.scrollTo({ top: Math.max(0, top), behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
     });
   }));
 
@@ -2247,14 +2268,16 @@ function bindMenuInteractions() {
     if (!menuScrollFrame) menuScrollFrame = requestAnimationFrame(syncMenuFromScroll);
   };
   menuNavigationCancelHandler = cancelMenuNavigation;
-  menuScroller.addEventListener('scroll', menuScrollHandler, { passive: true });
-  menuScroller.addEventListener('pointerdown', menuNavigationCancelHandler, { passive: true });
-  menuScroller.addEventListener('touchstart', menuNavigationCancelHandler, { passive: true });
-  menuScroller.addEventListener('wheel', menuNavigationCancelHandler, { passive: true });
+  window.addEventListener('scroll', menuScrollHandler, { passive: true });
+  window.addEventListener('pointerdown', menuNavigationCancelHandler, { passive: true });
+  window.addEventListener('touchstart', menuNavigationCancelHandler, { passive: true });
+  window.addEventListener('wheel', menuNavigationCancelHandler, { passive: true });
   syncMenuFromScroll();
 }
 
 let lastAnnouncedScreen = '';
+let lastRenderedView = '';
+const MENU_RETURN_FROM = Object.freeze(['cart', 'orders', 'orderTracking', 'legal']);
 
 // Con el reconsentimiento pendiente, la cuenta sólo ve la política nueva
 // (o /privacidad); al aceptar vuelve a la pantalla que tocaba.
@@ -2272,11 +2295,22 @@ function render() {
   cleanupMenuInteractions();
   if (state.isGuest) state.screen = guestScreen(state.screen);
   const view = customerView();
+  // Posición de la carta: se guarda al salir hacia el carrito, los pedidos o
+  // el seguimiento y se recupera al volver (con su categoría activa).
+  if (lastRenderedView === 'menu' && view !== 'menu') state.menuScrollY = pageScrollY();
+  const returningToMenu = view === 'menu' && MENU_RETURN_FROM.includes(lastRenderedView);
+  lastRenderedView = view;
   app.innerHTML = ({intro,onboarding,login,emailConfirmation,authLoading,home,menu,rewards,history,profile,cart:cartScreen,orders,orderTracking,guestSignup,guestPassword,legal,consent})[view]();
   bind();
   syncOrderMonitor();
   syncProductMonitor();
   backNavigation.sync();
+  // Red de seguridad del bloqueo de scroll (diálogo quitado sin cerrarse).
+  modalController.verify();
+  if (returningToMenu) {
+    window.scrollTo({ top: state.menuScrollY || 0, behavior: 'auto' });
+    syncMenuFromScroll();
+  }
   if (lastAnnouncedScreen !== view) {
     lastAnnouncedScreen = view;
     const heading = app.querySelector('h1');
@@ -2372,11 +2406,11 @@ function bind() {
     if(action==='checkout-back-to-cart'){ modalController.close({ force: true, restoreFocus: false, reason: 'back-to-cart' }); state.screen='cart'; renderPreservingFocus(); focusScreenHeading(); }
     if(action==='open-checkout'){ if(orderingActive()&&canCheckout(state.cart,state.ordering.products)) { modalController.open(checkoutSheet(), { initialFocus: state.isGuest ? '[data-checkout-guest-name]' : '[data-checkout-code]' }); bind(); startCheckoutViewport(); } }
     if(action==='open-orders'){ openOrdersScreen(); }
-    if(action==='orders-back'){ state.screen=state.ordersBackTarget||'menu';render();scrollTo(0,0); }
-    if(action==='order-back'){ if(state.orderBackTarget==='orders'){ state.ordersLoading=!state.activeOrders.length;goToOrderScreen('orders');void refreshOrdersSafely(); } else { state.screen='menu';render();scrollTo(0,0); } }
+    if(action==='orders-back'){ state.screen=state.ordersBackTarget||'menu';render();if(state.screen!=='menu')scrollTo(0,0); }
+    if(action==='order-back'){ if(state.orderBackTarget==='orders'){ state.ordersLoading=!state.activeOrders.length;goToOrderScreen('orders');void refreshOrdersSafely(); } else { state.screen='menu';render(); } }
     if(action==='cancel-order'){ if(state.currentOrder?.status==='pending') openSheet(sheet(renderCancelOrderContent({ translate: t }), 'modal--form modal--danger', 'cancel-order-title', 'cancel-order-description')); }
     if(action==='confirm-cancel-order'){ await confirmCancelOrder(el); }
-    if(action==='menu-top'){ document.querySelector('[data-menu-content]')?.scrollTo({top:0,behavior:'smooth'}); }
+    if(action==='menu-top'){ window.scrollTo({top:0,behavior:prefersReducedMotion()?'auto':'smooth'}); }
     if(action==='join-loyalty'){
       if(state.stampRequestLoading)return;
       state.stampRequestLoading=true;state.stampRequestError='';render();
@@ -2588,6 +2622,9 @@ if (!isBusinessMode) {
         return;
       }
       if (event === 'SIGNED_OUT') {
+        // Sesión cerrada (también desde otra pestaña): ningún diálogo queda
+        // abierto ni bloqueando el scroll sobre la pantalla de acceso.
+        modalController.close({ force: true, restoreFocus: false, reason: 'signed-out' });
         clearStampRequest();
         clearCustomerIdentity();
         if (passwordRecoveryState.isPending()) {
