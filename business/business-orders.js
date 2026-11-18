@@ -20,6 +20,7 @@ import { createRealtimeWithFallback } from '../services/order-monitor.js';
 import {
   createOrderAlertTracker,
   groupBusinessOrders,
+  limitBoardList,
   newlyCancelled,
   normalizeRejectionReason,
   pendingTitle,
@@ -121,6 +122,8 @@ export function createBusinessOrdersPanel({
     busy: new Set(),
     freshIds: new Set(),
     message: null,
+    // «Ver todos» en «Cancelados y rechazados hoy» (si no, los 30 más recientes).
+    closedExpanded: false,
     // Historial: date === null es «Hoy» (tablero en directo).
     history: { date: null, loading: false, error: '', retryable: false, orders: [], byId: new Map() },
     control: {
@@ -476,13 +479,17 @@ export function createBusinessOrdersPanel({
     if (state.history.date) return `${dateBarHTML()}${historyHTML()}`;
     if (!state.loaded) return `${dateBarHTML()}${error}${message}<p class="business-empty"><span class="business-spinner" aria-hidden="true"></span> Cargando pedidos…</p>`;
     const groups = groupBusinessOrders(state.orders);
+    const closed = limitBoardList(groups.closed, { expanded: state.closedExpanded });
+    const closedMore = closed.hidden
+      ? `<div class="orders-closed__more"><span>y ${closed.hidden} más</span><button class="business-secondary" type="button" data-orders-action="closed-show-all" data-focus-key="closed-show-all" aria-label="Ver todos los cancelados y rechazados de hoy (${groups.closed.length})">Ver todos</button></div>`
+      : '';
     return `${dateBarHTML()}${error}${message}
       <div class="orders-board">
         ${columnHTML('new', 'Nuevos', groups.fresh, 'No hay pedidos nuevos.')}
         ${columnHTML('progress', 'En preparación', groups.inProgress, 'Nada en preparación.')}
-        ${columnHTML('served', 'Servidos', groups.served.slice(0, 30), 'Aún no se ha servido ningún pedido hoy.', { compact: true })}
+        ${columnHTML('served', 'Servidos', limitBoardList(groups.served).shown, 'Aún no se ha servido ningún pedido hoy.', { compact: true })}
       </div>
-      <section class="orders-closed" aria-labelledby="orders-closed-title"><h2 id="orders-closed-title">Cancelados y rechazados hoy <span class="orders-count">${groups.closed.length}</span></h2>${groups.closed.length ? `<div class="orders-closed__list">${groups.closed.map((order) => ticketHTML(order, { compact: true })).join('')}</div>` : '<p class="business-empty">Ninguno por ahora.</p>'}</section>`;
+      <section class="orders-closed" aria-labelledby="orders-closed-title"><h2 id="orders-closed-title">Cancelados y rechazados hoy <span class="orders-count">${groups.closed.length}</span></h2>${groups.closed.length ? `<div class="orders-closed__list">${closed.shown.map((order) => ticketHTML(order, { compact: true })).join('')}</div>${closedMore}` : '<p class="business-empty">Ninguno por ahora.</p>'}</section>`;
   };
 
   // Vista histórica abierta 3 minutos sin interacción: vuelve sola a «Hoy».
@@ -560,6 +567,17 @@ export function createBusinessOrdersPanel({
   const paintOrders = () => {
     paintInto('[data-orders-panel]', ordersHTML());
     refreshOpenTicket();
+  };
+
+  // «Ver todos»: despliega el resto de cancelados y rechazados en la misma
+  // pantalla y lleva el foco al primero que estaba oculto.
+  const showAllClosed = () => {
+    const closed = groupBusinessOrders(state.orders).closed;
+    const firstHidden = closed[limitBoardList(closed).shown.length];
+    state.closedExpanded = true;
+    paintOrders();
+    if (firstHidden) appRoot.querySelector(`[data-focus-key="ticket-${CSS.escape(firstHidden.id)}"]`)?.focus();
+    announcer?.announce(`Mostrando los ${closed.length} cancelados y rechazados de hoy`);
   };
 
   // ---------------------------------------------------------------------------
@@ -960,6 +978,7 @@ export function createBusinessOrdersPanel({
     if (action === 'history-next') return state.history.date ? loadHistory(shiftServiceDate(state.history.date, 1)) : null;
     if (action === 'history-today') return showToday();
     if (action === 'history-retry') return loadHistory(state.history.date);
+    if (action === 'closed-show-all') return showAllClosed();
     if (action === 'ticket') return openTicket(orderId);
     if (action === 'print') return printOrder(orderId);
     if (action === 'accept') return changeStatus(orderId, 'accepted');

@@ -1,9 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import {
+  BOARD_LIST_LIMIT,
   createOrderAlertTracker,
   groupBusinessOrders,
   isSilentReconcile,
+  limitBoardList,
   newlyCancelled,
   normalizeRejectionReason,
   pendingTitle,
@@ -144,4 +147,33 @@ test('motivo de rechazo obligatorio y breve', () => {
   assert.deepEqual(normalizeRejectionReason('   '), { ok: false, error: 'required', value: '' });
   assert.deepEqual(normalizeRejectionReason('  Cocina   cerrada '), { ok: true, value: 'Cocina cerrada' });
   assert.equal(normalizeRejectionReason('x'.repeat(201)).error, 'too_long');
+});
+
+test('cancelados y rechazados (y servidos): 30 más recientes; «Ver todos» los muestra todos', () => {
+  const t = Date.parse('2026-11-11T10:00:00Z');
+  const many = Array.from({ length: 35 }, (_, index) => order(`c${index}`, index % 2 ? 'rejected' : 'cancelled', t + index * minute));
+  const { closed } = groupBusinessOrders(many);
+  // Más recientes primero.
+  assert.equal(closed[0].id, 'c34');
+  assert.equal(BOARD_LIST_LIMIT, 30);
+  const limited = limitBoardList(closed);
+  assert.equal(limited.shown.length, 30);
+  assert.equal(limited.hidden, 5);
+  assert.deepEqual(limited.shown.map((o) => o.id), closed.slice(0, 30).map((o) => o.id));
+  const all = limitBoardList(closed, { expanded: true });
+  assert.equal(all.shown.length, 35);
+  assert.equal(all.hidden, 0);
+  assert.deepEqual(limitBoardList(closed.slice(0, 30)), { shown: closed.slice(0, 30), hidden: 0 });
+  assert.deepEqual(limitBoardList(null), { shown: [], hidden: 0 });
+});
+
+test('panel: «y N más» y «Ver todos» en cancelados y rechazados; foco al primero oculto', async () => {
+  const panel = await readFile(new URL('../business/business-orders.js', import.meta.url), 'utf8');
+  assert.match(panel, /const closed = limitBoardList\(groups\.closed, \{ expanded: state\.closedExpanded \}\);/);
+  assert.match(panel, /<span>y \$\{closed\.hidden\} más<\/span><button class="business-secondary" type="button" data-orders-action="closed-show-all"[^>]*>Ver todos<\/button>/);
+  assert.match(panel, /closed\.shown\.map\(\(order\) => ticketHTML\(order, \{ compact: true \}\)\)/);
+  assert.match(panel, /columnHTML\('served', 'Servidos', limitBoardList\(groups\.served\)\.shown,/);
+  assert.match(panel, /if \(action === 'closed-show-all'\) return showAllClosed\(\);/);
+  assert.match(panel, /const firstHidden = closed\[limitBoardList\(closed\)\.shown\.length\];\n    state\.closedExpanded = true;\n    paintOrders\(\);/);
+  assert.doesNotMatch(panel, /groups\.closed\.map\(/);
 });

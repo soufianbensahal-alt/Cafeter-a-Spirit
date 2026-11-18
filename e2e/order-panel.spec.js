@@ -283,3 +283,45 @@ e2eTest('panel de control: código del día en grande y confirmación segura al 
   // Los avisos siguen activos en cualquier pestaña.
   await expect(employee.locator('[data-alerts-indicator]')).toHaveText(/^Avisos activos/);
 });
+
+e2eTest('cancelados y rechazados: 30 más recientes, «y N más» y «Ver todos» los muestra todos en la misma pantalla', async () => {
+  const EXTRA = 32;
+  // Pedidos cancelados propios (con su número reservado) que se borran al terminar.
+  const inserted = await withDatabase(async (db) => {
+    const { rows: [business] } = await db.query('select id from public.businesses where lower(btrim(name)) = lower(btrim($1))', [BUSINESS_NAME]);
+    const { rows: [client] } = await db.query('select id from auth.users where lower(email) = lower($1)', [process.env.SPIRIT_E2E_CUSTOMER_EMAIL]);
+    const today = "(now() at time zone 'Europe/Madrid')::date";
+    const maxNumber = `coalesce((select max(order_number) from public.orders where business_id = $1 and service_date = ${today}), 0)`;
+    const { rows: [{ last }] } = await db.query(`insert into private.order_counters (business_id, service_date, last_number)
+      values ($1, ${today}, ${maxNumber} + $2)
+      on conflict (business_id, service_date) do update set last_number = greatest(private.order_counters.last_number, ${maxNumber}) + $2
+      returning last_number as last`, [business.id, EXTRA]);
+    const { rows } = await db.query(`insert into public.orders (business_id, customer_id, order_number, service_date, table_label, status, total_cents, created_at, cancelled_at)
+      select $1, $2, $3 - $4 + n, ${today}, 'Barra', 'cancelled', 250, now() - make_interval(mins => 120 - n), now() - make_interval(mins => 60 - n)
+      from generate_series(1, $4) as n
+      returning id, business_id`, [business.id, client.id, Number(last), EXTRA]);
+    await db.query(`insert into public.order_items (order_id, business_id, product_id, position, quantity, unit_price_cents, product_name, line_total_cents)
+      select id, business_id, 'cafes-latte', 1, 1, 250, 'Latte', 250 from public.orders where id = any($1::uuid[])`, [rows.map((row) => row.id)]);
+    return rows.map((row) => row.id);
+  });
+  try {
+    await employee.getByRole('tab', { name: /^Pedidos/ }).click();
+    const closed = employee.locator('section.orders-closed');
+    const heading = closed.getByRole('heading', { name: /^Cancelados y rechazados hoy/ });
+    // Llegan en directo (Realtime o, si no, la reconciliación periódica).
+    await expect.poll(async () => Number((await heading.locator('.orders-count').textContent()) || 0), { timeout: 20_000 }).toBeGreaterThanOrEqual(EXTRA);
+    const total = Number(await heading.locator('.orders-count').textContent());
+    const tickets = closed.locator('article.order-ticket');
+    await expect(tickets).toHaveCount(30);
+    await expect(closed.locator('.orders-closed__more')).toContainText(`y ${total - 30} más`);
+    const showAll = closed.getByRole('button', { name: /^Ver todos/ });
+    expect((await showAll.boundingBox()).height).toBeGreaterThanOrEqual(44);
+    await showAll.click();
+    await expect(tickets).toHaveCount(total);
+    await expect(closed.locator('.orders-closed__more')).toHaveCount(0);
+    // El foco pasa al primero que estaba oculto (el 31.º).
+    await expect(tickets.nth(30).locator('.order-ticket__head')).toBeFocused();
+  } finally {
+    await withDatabase((db) => db.query('delete from public.orders where id = any($1::uuid[])', [inserted]));
+  }
+});

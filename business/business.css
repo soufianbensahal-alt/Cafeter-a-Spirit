@@ -267,6 +267,9 @@ body.business-mode #toast.toast--back.toast--show { opacity: 1; }
 .orders-column .business-empty, .orders-closed .business-empty { margin: 0; }
 .orders-closed { margin-top: 14px; }
 .orders-closed__list { display: grid; gap: 10px; }
+/* Más de 30 cancelados y rechazados: «y N más» y «Ver todos». */
+.orders-closed__more { margin: 0 4px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; color: var(--business-muted); font-weight: 700; }
+.orders-closed__more .business-secondary { width: auto; min-height: 44px; margin-top: 0; padding: 0 20px; }
 /* Selector de día (Europe/Madrid) e historial de solo consulta.
    Rejilla fija «‹ · fecha · ›»: el input type=date de Safari tiene un ancho
    mínimo propio, así que la columna central admite encogerse (minmax(0, 1fr))

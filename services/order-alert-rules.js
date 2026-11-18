@@ -120,6 +120,15 @@ export function groupBusinessOrders(orders) {
   };
 }
 
+// «Servidos» y «Cancelados y rechazados hoy»: como mucho 30 (los más recientes,
+// ya ordenados por groupBusinessOrders). expanded = «Ver todos»: la lista entera.
+export const BOARD_LIST_LIMIT = 30;
+export function limitBoardList(orders, { expanded = false, limit = BOARD_LIST_LIMIT } = {}) {
+  const list = orders || [];
+  const shown = expanded ? list : list.slice(0, limit);
+  return { shown, hidden: list.length - shown.length };
+}
+
 // Pedidos cuyo estado cambió de pending a cancelado entre dos lecturas: el
 // cliente canceló. Se anuncian de forma destacada.
 export function newlyCancelled(previousById, orders) {
