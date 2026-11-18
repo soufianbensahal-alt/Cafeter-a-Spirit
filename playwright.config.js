@@ -1,4 +1,11 @@
+import { existsSync } from 'node:fs';
 import { defineConfig, devices } from '@playwright/test';
+
+// Credenciales E2E locales (solo base local, ignorado por git): si existe
+// .env.e2e.local se carga automáticamente. Las variables ya definidas en el
+// entorno tienen prioridad. En CI no existe y no cambia nada.
+const LOCAL_ENV = new URL('./.env.e2e.local', import.meta.url);
+if (existsSync(LOCAL_ENV)) process.loadEnvFile(LOCAL_ENV);
 
 const enabled = process.env.SPIRIT_E2E === '1';
 // Opcional y solo local: SPIRIT_E2E_CHROME=1 añade un proyecto que usa el
