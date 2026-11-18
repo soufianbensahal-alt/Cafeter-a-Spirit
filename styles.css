@@ -694,7 +694,6 @@ html[data-theme="dark"] .order-status--served .order-status__chip { color: #1716
 .guest-entry { margin-top: 26px; padding: 18px; border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: var(--surface-soft); display: grid; gap: 10px; text-align: center; }
 .guest-entry h2 { margin: 0; font-size: 20px; }
 .guest-entry p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
-.guest-menu-slot { flex: 0 0 auto; padding: 0 max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left)); }
 .guest-menu-banner { flex: 0 0 auto; margin: 12px max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left)); padding: 12px 14px; border-radius: var(--radius-md); background: var(--surface-soft); border: 1px solid var(--border-soft); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .guest-menu-banner p { margin: 0; font-size: 14px; font-weight: 700; }
 .guest-menu-banner .primary-button { width: auto; min-height: 44px; padding: 0 18px; }
@@ -715,18 +714,9 @@ html[data-theme="dark"] .order-status--served .order-status__chip { color: #1716
 .signup-promo__benefits { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .signup-promo__benefits li { display: grid; grid-template-columns: 1.125rem minmax(0, 1fr); gap: 10px; align-items: start; color: var(--promo-soft); font-size: .9375rem; line-height: 1.4; overflow-wrap: anywhere; }
 .signup-promo__benefits .signup-promo__paw { width: 1.125rem; height: 1.125rem; margin-top: .12em; color: var(--promo-accent); }
-.signup-promo__note { margin: 0; color: var(--promo-soft); font-size: .8125rem; line-height: 1.4; font-weight: 700; }
 .signup-promo .signup-promo__action { min-height: 52px; height: auto; padding: 12px 22px; background: var(--promo-accent); color: var(--promo-bg); font-size: 1rem; line-height: 1.2; box-shadow: 0 8px 20px rgba(0,0,0,.22); overflow-wrap: anywhere; }
 .signup-promo .signup-promo__action:focus-visible { outline: 3px solid var(--promo-accent); outline-offset: 3px; }
 @media (hover: hover) { html .signup-promo .signup-promo__action:hover { background: var(--promo-accent-hover); color: var(--promo-bg); } }
-.signup-promo--compact { margin: 22px 0 0; padding: 16px; gap: 10px; }
-.signup-promo--compact .signup-promo__title { display: flex; align-items: flex-start; gap: 10px; font-size: 1.25rem; }
-.signup-promo--compact .signup-promo__title .signup-promo__paw { flex: 0 0 auto; width: 1.375rem; height: 1.375rem; margin-top: .05em; color: var(--promo-accent); }
-.guest-menu-slot .signup-promo { margin: 12px 0 0; padding: 12px 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
-.guest-menu-slot .signup-promo__title { flex: 1 1 12rem; font-size: 1.0625rem; }
-.guest-menu-slot .signup-promo__benefits,
-.guest-menu-slot .signup-promo__note { display: none; }
-.guest-menu-slot .signup-promo .signup-promo__action { flex: 0 1 auto; width: auto; min-height: 44px; padding: 8px 16px; }
 html[data-theme="dark"] .signup-promo { --promo-bg: var(--mustard); --promo-fg: #171612; --promo-soft: #2b2718; --promo-accent: #171612; --promo-accent-hover: #2e2b22; --promo-slot: rgba(23,22,18,.42); --promo-glow: rgba(255,250,232,.85); background: radial-gradient(circle at 100% 0, rgba(255,255,255,.3), transparent 48%), var(--mustard); color: #171612; box-shadow: 0 14px 34px rgba(0,0,0,.36); }
 html[data-theme="dark"] .signup-promo .signup-promo__action { background: var(--promo-accent); color: var(--mustard); box-shadow: 0 8px 20px rgba(0,0,0,.24); }
 @media (hover: hover) { html[data-theme="dark"] .signup-promo .signup-promo__action:not(.primary-button--light):hover { background: var(--promo-accent-hover); color: var(--mustard); } }
@@ -765,6 +755,9 @@ html[data-theme="dark"] .signup-promo__slot--reward { color: var(--mustard); box
 .legal-footer a, .legal-other a, .check a, .guest-privacy a { color: inherit; font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
 .legal-footer a { display: inline-block; min-height: 44px; padding: 12px 6px; }
 .guest-privacy { margin: 2px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+/* Seguimiento del invitado: recordatorio discreto, sin botón ni enlace. */
+.guest-reminder { margin: 24px 0 0; color: var(--ink); opacity: .78; font-size: 14px; line-height: 1.45; text-align: center; overflow-wrap: anywhere; }
+html[data-theme="dark"] .guest-reminder { color: var(--muted); opacity: 1; }
 a.settings-row { text-decoration: none; color: inherit; }
 html[data-theme="dark"] .legal-section p, html[data-theme="dark"] .legal-section li { color: #f7f0de; }
 html[data-theme="dark"] .legal-placeholder { background: rgba(238,207,98,.3); color: #f7f0de; }

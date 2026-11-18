@@ -8,17 +8,15 @@ import {
   renderGuestEntry,
   renderGuestExitContent,
   renderGuestMenuBanner,
-  renderGuestPasswordScreen,
-  renderGuestSignupScreen
+  renderGuestTrackingReminder
 } from '../client/guest-view.js';
-import { SIGNUP_PROMO_COPY, renderSignupPromo } from '../client/signup-promo.js';
+import { SIGNUP_PROMO_COPY } from '../client/signup-promo.js';
 import { renderCheckoutContent } from '../client/order-view.js';
 import { renderMenuScreen } from '../client/menu-view.js';
 import { getMenuCategories } from '../data/menu.js';
 import { addToCart, emptyCart, orderErrorKey } from '../services/cart-rules.js';
 import {
   GUEST_SCREENS,
-  guestConversionMetadata,
   guestScreen,
   isGuestUser,
   normalizeGuestName,
@@ -44,10 +42,10 @@ test('nombre para el pedido: espacios normalizados, 2–30 caracteres y sin cont
   assert.equal(validateGuestName('Lau\u0007ra').ok, false);
 });
 
-test('el invitado sólo navega por carta, carrito y pedidos (y crear cuenta)', () => {
-  assert.deepEqual([...GUEST_SCREENS], ['menu', 'cart', 'orders', 'orderTracking', 'guestSignup', 'guestPassword', 'legal']);
-  for (const screen of ['menu', 'cart', 'orders', 'orderTracking', 'guestSignup']) assert.equal(guestScreen(screen), screen);
-  for (const screen of ['home', 'rewards', 'history', 'profile', 'login']) assert.equal(guestScreen(screen), 'menu', screen);
+test('el invitado sólo navega por carta, carrito y pedidos (sin pantallas de alta)', () => {
+  assert.deepEqual([...GUEST_SCREENS], ['menu', 'cart', 'orders', 'orderTracking', 'legal']);
+  for (const screen of ['menu', 'cart', 'orders', 'orderTracking']) assert.equal(guestScreen(screen), screen);
+  for (const screen of ['home', 'rewards', 'history', 'profile', 'login', 'guestSignup', 'guestPassword']) assert.equal(guestScreen(screen), 'menu', screen);
 });
 
 test('isGuestUser se basa en is_anonymous de Supabase', () => {
@@ -57,18 +55,6 @@ test('isGuestUser se basa en is_anonymous de Supabase', () => {
   assert.equal(isGuestUser(null), false);
 });
 
-test('la conversión guarda los mismos metadatos que el registro (perfil y consentimiento)', () => {
-  assert.deepEqual(guestConversionMetadata({ firstName: ' Laura ', lastName: ' Gómez  Puig ', consent: { accepted: true, version: '2026-08-05' } }), {
-    display_name: 'Laura Gómez Puig',
-    first_name: 'Laura',
-    last_name: 'Gómez Puig',
-    full_name: 'Laura Gómez Puig',
-    privacy_consent: true,
-    privacy_policy_version: '2026-08-05'
-  });
-  assert.equal(guestConversionMetadata({ firstName: 'Ana' }).privacy_consent, false);
-});
-
 test('textos en castellano y catalán con las mismas claves, sin pisar los existentes', async () => {
   assert.deepEqual(Object.keys(GUEST_COPY.ca).sort(), Object.keys(GUEST_COPY.es).sort());
   for (const lang of ['es', 'ca']) {
@@ -76,6 +62,15 @@ test('textos en castellano y catalán con las mismas claves, sin pisar los exist
   }
   assert.equal(GUEST_COPY.es.guestStart, 'Pedir sin cuenta');
   assert.equal(GUEST_COPY.es.guestName, 'Nombre para el pedido');
+  // Textos aprobados: recordatorio del seguimiento y hoja de salida.
+  assert.equal(GUEST_COPY.es.guestTrackingReminder, '¿Quieres sumar sellos? La próxima vez, crea tu cuenta desde el inicio de la app.');
+  assert.equal(GUEST_COPY.ca.guestTrackingReminder, 'Vols sumar segells? La propera vegada, crea el teu compte des de l’inici de l’app.');
+  assert.equal(GUEST_COPY.es.guestExitTitle, '¿Salir del modo invitado?');
+  assert.equal(GUEST_COPY.ca.guestExitTitle, 'Vols sortir del mode convidat?');
+  assert.equal(GUEST_COPY.es.guestExitStay, 'Seguir pidiendo');
+  assert.equal(GUEST_COPY.ca.guestExitStay, 'Continuar demanant');
+  // Sin textos de la conversión invitado → cuenta.
+  for (const key of Object.keys(GUEST_COPY.es)) assert.doesNotMatch(key, /^guest(Signup|Password|CreateAccount)/, key);
   const collisions = Object.keys(GUEST_COPY.es).filter((key) => key in ORDER_COPY.es);
   assert.deepEqual(collisions, []);
   const app = await read('app.js');
@@ -93,18 +88,19 @@ test('entrada del login: «Pedir sin cuenta» sólo si está disponible; «Ver l
   assert.match(renderGuestEntry({ translate: t, available: true, busy: true }), /data-action="guest-start" disabled>Preparando tu pedido…</);
 });
 
-test('captación y salida del invitado', () => {
-  // La captación es la promoción de registro compacta (client/signup-promo.js).
-  const prompt = renderSignupPromo({ translate: t, variant: 'compact', id: 'guest-prompt-cart', stampsRequired: 10 });
-  assert.match(prompt, /<aside class="signup-promo signup-promo--compact" aria-labelledby="guest-prompt-cart-title"/);
-  assert.match(prompt, /Crea tu cuenta y llévate un café gratis/);
-  assert.match(prompt, /Conservarás tus pedidos de hoy\./);
-  assert.match(prompt, /data-action="guest-create-account">Crear mi cuenta</);
+test('salida del invitado: «Seguir pidiendo» primero (opción segura), sin crear cuenta', () => {
   const exit = renderGuestExitContent({ translate: t });
-  assert.match(exit, /id="guest-exit-title"/);
-  assert.match(exit, /data-action="guest-exit-confirm"/);
-  assert.match(exit, /data-action="guest-create-account"/);
+  assert.match(exit, /<h2 id="guest-exit-title">¿Salir del modo invitado\?<\/h2>/);
+  assert.match(exit, /data-action="close-sheet" data-guest-exit-stay>Seguir pidiendo</);
+  assert.ok(exit.indexOf('data-guest-exit-stay') < exit.indexOf('data-action="guest-exit-confirm"'));
+  assert.doesNotMatch(exit, /guest-create-account|Crear/);
   assert.match(renderGuestMenuBanner({ translate: t }), /data-action="guest-start"/);
+});
+
+test('recordatorio del seguimiento: una línea de texto, sin botón ni enlace', () => {
+  const reminder = renderGuestTrackingReminder({ translate: t });
+  assert.equal(reminder, '<p class="guest-reminder" data-guest-reminder>¿Quieres sumar sellos? La próxima vez, crea tu cuenta desde el inicio de la app.</p>');
+  assert.doesNotMatch(reminder, /<(a|button)\b/);
 });
 
 test('la confirmación del invitado pide «Nombre para el pedido» antes del código', () => {
@@ -125,21 +121,11 @@ test('la carta acepta franja y botón de volver propios', () => {
   assert.match(normal, /data-action="close-menu"/);
 });
 
-test('conversión: formulario, correo enviado y contraseña', () => {
-  const form = renderGuestSignupScreen({ translate: t, escapeHTML, icons: CLIENT_ICONS });
-  for (const marker of ['data-form="guest-signup"', 'name="firstName"', 'name="email"', 'name="privacyConsent"', 'data-action="guest-signup-back"']) assert.ok(form.includes(marker), marker);
-  const sent = renderGuestSignupScreen({ translate: t, escapeHTML, icons: CLIENT_ICONS, sentTo: 'laura@<x>.es' });
-  assert.match(sent, /Te hemos enviado un enlace a laura@&lt;x&gt;\.es/);
-  assert.doesNotMatch(sent, /data-form="guest-signup"/);
-  const password = renderGuestPasswordScreen({ translate: t, escapeHTML, minLength: 12 });
-  assert.match(password, /data-form="guest-password"/);
-  assert.match(password, /minlength="12" autocomplete="new-password"/);
-});
-
-test('el enlace de conversión (type=email_change) se verifica en /auth/confirm', () => {
-  const route = readEmailConfirmationRoute({ pathname: '/auth/confirm', search: '?token_hash=abc&type=email_change' });
-  assert.equal(route.shouldVerify, true);
-  assert.equal(route.type, 'email_change');
+test('/auth/confirm sólo verifica el alta normal (type=email), ya no email_change', () => {
+  assert.equal(readEmailConfirmationRoute({ pathname: '/auth/confirm', search: '?token_hash=abc&type=email' }).shouldVerify, true);
+  const change = readEmailConfirmationRoute({ pathname: '/auth/confirm', search: '?token_hash=abc&type=email_change' });
+  assert.equal(change.shouldVerify, false);
+  assert.equal(change.status, 'invalid');
   assert.equal(readEmailConfirmationRoute({ pathname: '/auth/confirm', search: '?token_hash=abc&type=recovery' }).shouldVerify, false);
 });
 
@@ -148,17 +134,23 @@ test('estados nuevos de create_order con mensaje propio', () => {
   assert.equal(orderErrorKey('invalid_guest_name'), 'orderErrorGuestName');
 });
 
-test('app.js: invitado sin fidelización, con carta y conversión que conserva la cuenta', async () => {
+test('app.js: invitado sin fidelización ni conversión en cuenta; recordatorio sólo en el seguimiento', async () => {
   const app = await read('app.js');
   assert.match(app, /if \(state\.isGuest\) state\.screen = guestScreen\(state\.screen\);/);
   assert.match(app, /async function refreshCustomerLoyaltySafely\(options\) \{\n  if \(state\.isGuest\) return null;/);
   assert.match(app, /if \(isGuestUser\(user\)\) \{\n      applyGuestContext\(user\);/);
-  assert.match(app, /if \(emailConfirmationRoute\.type === 'email_change'\) \{/);
+  assert.doesNotMatch(app, /email_change|guestSignup|guestPassword|guest-create-account|startGuestConversion|setConvertedAccountPassword|confirmGuestConversion/);
+  assert.doesNotMatch(app, /variant: 'compact'/);
+  // Recordatorio: sólo envuelve el seguimiento, no el carrito ni la carta.
+  assert.match(app, /const orderTracking = \(\) => withGuestTrackingReminder\(renderOrderTrackingScreen\(\{/);
+  assert.match(app, /const cartScreen = \(\) => renderCartScreen\(\{/);
+  assert.equal((app.match(/withGuestTrackingReminder\(/g) || []).length, 1);
+  // «Seguir pidiendo» recibe el foco al abrir la hoja de salida.
+  assert.match(app, /'guest-exit-description'\), \{ initialFocus: '\[data-guest-exit-stay\]' \}\)/);
   assert.match(app, /guestName: guestNameInput \? guestName\.value : null/);
   const service = await read('services/guest-service.js');
   assert.match(service, /auth\.signInAnonymously\(/);
-  assert.match(service, /auth\.updateUser\(\{\n\s+email: /);
-  assert.match(service, /verifyOtp\(\{ token_hash: String\(tokenHash \|\| ''\)\.trim\(\), type: 'email_change' \}\)/);
+  assert.doesNotMatch(service, /updateUser|verifyOtp|email_change/);
   assert.match(service, /rpc\('get_guest_ordering_status'\)/);
   const orders = await read('services/order-service.js');
   assert.match(orders, /p_guest_name: guestName \|\| null/);
@@ -173,16 +165,18 @@ test('panel: interruptor «Pedidos sin cuenta» sólo para owner y manager', asy
   assert.match(service, /select\('ordering_enabled, pilot_only, guest_ordering_enabled'\)/);
 });
 
-test('local: anónimos activados, 50 por hora y plantilla de conversión', async () => {
+test('local: anónimos activados, 50 por hora y plantilla neutra de cambio de correo', async () => {
   const config = await read('supabase/config.toml');
   assert.match(config, /^enable_anonymous_sign_ins = true$/m);
   assert.match(config, /^anonymous_users = 50$/m);
-  assert.match(config, /\[auth\.email\.template\.email_change\]\nsubject = "Confirma tu correo para crear tu cuenta de Spirit Coffee"\ncontent_path = "\.\/supabase\/templates\/email_change\.html"/);
+  assert.match(config, /\[auth\.email\.template\.email_change\]\nsubject = "Confirma tu nuevo correo de Spirit Coffee"\ncontent_path = "\.\/supabase\/templates\/email_change\.html"/);
   const template = await read('supabase/templates/email_change.html');
-  assert.match(template, /\/auth\/confirm\?token_hash=\{\{ \.TokenHash \}\}&amp;type=email_change/);
+  // Enlace estándar de Supabase, sin rutas de la app ni mención a invitados.
+  assert.match(template, /<a href="\{\{ \.ConfirmationURL \}\}">Confirmar el nuevo correo<\/a>/);
+  assert.doesNotMatch(template, /auth\/confirm|TokenHash|invitado|tus pedidos/i);
 });
 
-test('los pedidos propios se cargan aunque no sea elegible para pedir (invitado recién convertido)', async () => {
+test('los pedidos propios se cargan aunque no sea elegible para pedir (p. ej. con los pedidos cerrados)', async () => {
   const app = await read('app.js');
   assert.match(app, /if \(context\) \{\n      \[products, activeOrders\] = await Promise\.all\(\[\n        context\.eligible && context\.orderingEnabled \? getOrderableProducts/);
 });

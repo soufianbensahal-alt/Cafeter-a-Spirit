@@ -4,8 +4,8 @@
 export const GUEST_NAME_MIN = 2;
 export const GUEST_NAME_MAX = 30;
 
-// Un invitado sólo usa la carta, el carrito y sus pedidos (más crear cuenta).
-export const GUEST_SCREENS = Object.freeze(['menu', 'cart', 'orders', 'orderTracking', 'guestSignup', 'guestPassword', 'legal']);
+// Un invitado sólo usa la carta, el carrito y sus pedidos (y las páginas legales).
+export const GUEST_SCREENS = Object.freeze(['menu', 'cart', 'orders', 'orderTracking', 'legal']);
 
 export const isGuestUser = (user) => user?.is_anonymous === true;
 
@@ -32,20 +32,4 @@ export function validateGuestName(value) {
     return Object.freeze({ ok: false, value: name });
   }
   return Object.freeze({ ok: true, value: name });
-}
-
-// Datos que se guardan al convertir la cuenta (mismos campos que el registro,
-// para que los triggers creen el perfil y el consentimiento).
-export function guestConversionMetadata({ firstName, lastName, consent }) {
-  const cleanFirstName = normalizeGuestName(firstName).slice(0, 28);
-  const cleanLastName = normalizeGuestName(lastName).slice(0, 42);
-  const displayName = `${cleanFirstName} ${cleanLastName}`.trim().slice(0, 80);
-  return Object.freeze({
-    display_name: displayName,
-    first_name: cleanFirstName,
-    last_name: cleanLastName,
-    full_name: displayName,
-    privacy_consent: consent?.accepted === true,
-    privacy_policy_version: String(consent?.version || '')
-  });
 }

@@ -28,8 +28,7 @@ test('textos aprobados en castellano y catalán, con las mismas claves', async (
     signupPromoRewardCount: 'Con {n} sellos, tu próximo café es gratis.',
     signupPromoReward: 'Completa tu tarjeta y tu próximo café es gratis.',
     signupPromoTracking: 'Sigue tus pedidos desde el móvil.',
-    signupPromoAction: 'Crear mi cuenta',
-    signupPromoGuestNote: 'Conservarás tus pedidos de hoy.'
+    signupPromoAction: 'Crear mi cuenta'
   });
   assert.deepEqual(SIGNUP_PROMO_COPY.ca, {
     signupPromoTitle: 'Crea el teu compte i emporta’t un cafè gratis',
@@ -37,8 +36,7 @@ test('textos aprobados en castellano y catalán, con las mismas claves', async (
     signupPromoRewardCount: 'Amb {n} segells, el teu pròxim cafè és gratis.',
     signupPromoReward: 'Completa la targeta i el teu pròxim cafè és gratis.',
     signupPromoTracking: 'Segueix les teves comandes des del mòbil.',
-    signupPromoAction: 'Crear el meu compte',
-    signupPromoGuestNote: 'Conservaràs les comandes d’avui.'
+    signupPromoAction: 'Crear el meu compte'
   });
   // Sin pisar claves existentes.
   const app = await read('app.js');
@@ -52,18 +50,18 @@ test('número de sellos: sólo un entero razonable; si no, texto sin número', (
   assert.equal(promoStampsRequired(10), 10);
   assert.equal(promoStampsRequired('8'), 8);
   for (const value of [null, undefined, 0, -3, 2.5, 'diez', 51, NaN]) assert.equal(promoStampsRequired(value), null, String(value));
-  const withCount = renderSignupPromo({ translate: es, variant: 'hero', stampsRequired: 10 });
+  const withCount = renderSignupPromo({ translate: es, stampsRequired: 10 });
   assert.match(withCount, /Con 10 sellos, tu próximo café es gratis\./);
   assert.doesNotMatch(withCount, /Completa tu tarjeta/);
-  const without = renderSignupPromo({ translate: es, variant: 'hero', stampsRequired: null });
+  const without = renderSignupPromo({ translate: es, stampsRequired: null });
   assert.match(without, /Completa tu tarjeta y tu próximo café es gratis\./);
   assert.doesNotMatch(without, /\d+ sellos/);
-  assert.match(renderSignupPromo({ translate: ca, variant: 'hero', stampsRequired: 10 }), /Amb 10 segells, el teu pròxim cafè és gratis\./);
-  assert.match(renderSignupPromo({ translate: ca, variant: 'hero' }), /Completa la targeta i el teu pròxim cafè és gratis\./);
+  assert.match(renderSignupPromo({ translate: ca, stampsRequired: 10 }), /Amb 10 segells, el teu pròxim cafè és gratis\./);
+  assert.match(renderSignupPromo({ translate: ca }), /Completa la targeta i el teu pròxim cafè és gratis\./);
 });
 
 test('hero: título h2, tres ventajas, tarjeta decorativa oculta y botón al registro', () => {
-  const html = renderSignupPromo({ translate: es, variant: 'hero', id: 'signup-promo', action: 'signup-promo-start', stampsRequired: 10 });
+  const html = renderSignupPromo({ translate: es, id: 'signup-promo', action: 'signup-promo-start', stampsRequired: 10 });
   assert.match(html, /^<section class="signup-promo signup-promo--hero" aria-labelledby="signup-promo-title" data-signup-promo>/);
   assert.match(html, /<h2 id="signup-promo-title" class="signup-promo__title">Crea tu cuenta y llévate un café gratis<\/h2>/);
   assert.equal((html.match(/<li>/g) || []).length, 3);
@@ -76,7 +74,7 @@ test('hero: título h2, tres ventajas, tarjeta decorativa oculta y botón al reg
   // Todas las huellas y la taza son decorativas.
   for (const svg of html.match(/<svg[^>]*>/g)) assert.match(svg, /aria-hidden="true" focusable="false"/);
   // En la pestaña de registro, sin botón.
-  assert.doesNotMatch(renderSignupPromo({ translate: es, variant: 'hero', showAction: false }), /<button/);
+  assert.doesNotMatch(renderSignupPromo({ translate: es, showAction: false }), /<button/);
 });
 
 test('mini tarjeta: los sellos reales si caben; si no, 6 decorativos', () => {
@@ -85,17 +83,17 @@ test('mini tarjeta: los sellos reales si caben; si no, 6 decorativos', () => {
   assert.equal(promoSlots(12), 12);
   for (const value of [null, 3, 13, 40]) assert.equal(promoSlots(value), PROMO_DEFAULT_SLOTS);
   // Pendiente de datos: huecos vacíos, sin animar.
-  const pending = renderSignupPromo({ translate: es, variant: 'hero', motion: 'pending' });
+  const pending = renderSignupPromo({ translate: es, motion: 'pending' });
   assert.doesNotMatch(pending, /signup-promo--animate/);
   assert.doesNotMatch(pending.slice(pending.indexOf('data-promo-card'), pending.indexOf('</div>')), /<svg/);
 });
 
 test('animación: una vez, continuando si se repinta, y estado final después', () => {
-  const animated = renderSignupPromo({ translate: es, variant: 'hero', stampsRequired: 10, motion: 'animate', elapsed: 412.6 });
+  const animated = renderSignupPromo({ translate: es, stampsRequired: 10, motion: 'animate', elapsed: 412.6 });
   assert.match(animated, /class="signup-promo signup-promo--hero signup-promo--animate"[^>]*style="--promo-elapsed:413ms"/);
   assert.match(animated, /style="--i:0"/);
   assert.match(animated, /style="--i:9"/);
-  const finished = renderSignupPromo({ translate: es, variant: 'hero', stampsRequired: 10, motion: 'static' });
+  const finished = renderSignupPromo({ translate: es, stampsRequired: 10, motion: 'static' });
   assert.doesNotMatch(finished, /signup-promo--animate|--promo-elapsed/);
   assert.match(finished, /signup-promo__cup/);
   // Línea de tiempo: huellas cada 90 ms, luego la taza y el brillo.
@@ -117,16 +115,16 @@ test('el CSS sigue la misma línea de tiempo y respeta el movimiento reducido', 
   assert.doesNotMatch(promoCss, /infinite/);
 });
 
-test('compact (invitado): misma promoción con la nota de sus pedidos', () => {
-  const html = renderSignupPromo({ translate: es, variant: 'compact', id: 'guest-prompt-menu', stampsRequired: 10 });
-  assert.match(html, /^<aside class="signup-promo signup-promo--compact" aria-labelledby="guest-prompt-menu-title" data-signup-promo>/);
-  assert.match(html, /Con 10 sellos, tu próximo café es gratis\./);
-  assert.match(html, /Conservarás tus pedidos de hoy\./);
-  assert.match(html, /data-action="guest-create-account">Crear mi cuenta</);
-  assert.doesNotMatch(html, /data-promo-card|signup-promo--animate/);
+test('sólo existe la promoción del login: sin variante compacta ni captación del invitado', async () => {
+  const promo = await read('client/signup-promo.js');
+  assert.doesNotMatch(promo, /compact|guest-create-account|signupPromoGuestNote/);
+  const css = await read('styles.css');
+  assert.doesNotMatch(css, /signup-promo--compact|guest-menu-slot|signup-promo__note/);
+  // Por defecto el botón lleva al registro normal.
+  assert.match(renderSignupPromo({ translate: es }), /data-action="signup-promo-start">Crear mi cuenta</);
 });
 
-test('app.js: la promoción va encima de «¿Solo quieres pedir?» y sustituye a la captación anterior', async () => {
+test('app.js: la promoción va encima de «¿Solo quieres pedir?» y sólo está en el login', async () => {
   const app = await read('app.js');
   // Entre la promoción y «¿Solo quieres pedir?», la fila «Instala la app».
   assert.match(app, /\$\{form\}\$\{signupPromo\}\$\{loginInstallRow\(\)\}\$\{guestEntry\}\$\{legalFooter\(\)\}/);
@@ -136,7 +134,8 @@ test('app.js: la promoción va encima de «¿Solo quieres pedir?» y sustituye a
   assert.doesNotMatch(app, /renderGuestPrompt/);
   // Al llegar el número de sellos no se repinta el login (no borra lo escrito).
   const load = app.slice(app.indexOf('async function loadPublicProgram'), app.indexOf('\n}\n', app.indexOf('async function loadPublicProgram')));
-  assert.match(load, /template\.innerHTML = \(hero \? loginSignupPromo\(\) : guestPrompt\(id\)\)\.trim\(\);/);
+  assert.match(load, /template\.innerHTML = loginSignupPromo\(\)\.trim\(\);/);
+  assert.doesNotMatch(app, /guestPrompt|withGuestPrompt/);
   assert.match(load, /if \(button && slot\) slot\.replaceWith\(button\);/);
   assert.doesNotMatch(load, /render(PreservingFocus)?\(\)/);
   const guestView = await read('client/guest-view.js');

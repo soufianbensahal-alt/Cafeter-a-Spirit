@@ -13,8 +13,8 @@ export function readEmailConfirmationRoute(location = window.location) {
   if (pathname === EMAIL_CONFIRMATION_VERIFY_PATH) {
     const tokenHash = String(query.get('token_hash') || '').trim();
     const type = String(query.get('type') || '').trim();
-    // email: alta normal. email_change: un invitado que crea su cuenta.
-    const shouldVerify = Boolean(tokenHash) && (type === 'email' || type === 'email_change');
+    // Sólo el alta normal (type=email).
+    const shouldVerify = Boolean(tokenHash) && type === 'email';
     return Object.freeze({
       active: true,
       shouldVerify,

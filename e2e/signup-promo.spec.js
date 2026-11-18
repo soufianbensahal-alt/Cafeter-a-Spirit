@@ -1,9 +1,8 @@
 import { expect, test } from '@playwright/test';
 import pg from 'pg';
 
-// Promoción de registro en el login y, compacta, en la captación del
-// invitado. El número de sellos sale de get_public_loyalty_program (10 en la
-// base local). Solo contra la base local desechable.
+// Promoción de registro en el login (el invitado no la ve en la carta). El
+// número de sellos sale de get_public_loyalty_program (10 en la base local). Solo contra la base local desechable.
 const e2eEnabled = process.env.SPIRIT_E2E === '1';
 const e2eTest = e2eEnabled ? test : test.skip;
 test.describe.configure({ mode: 'serial' });
@@ -215,18 +214,13 @@ for (const scale of ['150%', '200%']) {
   });
 }
 
-e2eTest('invitado: la misma promoción, compacta, en la carta', async ({ page }) => {
+e2eTest('invitado: en la carta no hay promoción ni botón de registro', async ({ page }) => {
   await setGuestOrdering(true);
   await openLogin(page);
   await guestCard(page).getByRole('button', { name: 'Pedir sin cuenta' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Carta' })).toBeVisible();
-  const compact = page.locator('.guest-menu-slot aside.signup-promo--compact');
-  await expect(compact.getByText(TITLE)).toBeVisible();
-  const action = compact.getByRole('button', { name: 'Crear mi cuenta' });
-  await expect(action).toBeVisible();
-  expect((await action.boundingBox()).height).toBeGreaterThanOrEqual(44);
-  expect(await contrastOf(compact.locator('.signup-promo__title > span'))).toBeGreaterThanOrEqual(4.5);
-  expect(await contrastOf(action)).toBeGreaterThanOrEqual(4.5);
-  await action.click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Tu cuenta Spirit' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Salir del modo invitado' })).toBeVisible();
+  await expect(page.locator('[data-signup-promo]')).toHaveCount(0);
+  await expect(page.getByText(TITLE)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Crear (mi )?cuenta/ })).toHaveCount(0);
 });

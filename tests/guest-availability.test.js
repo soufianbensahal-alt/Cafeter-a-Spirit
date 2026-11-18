@@ -55,7 +55,7 @@ test('el servicio consulta el interruptor y los ajustes de Auth a la vez', async
 
 test('app.js: el aviso no va al formulario de login y oculta el botón si Auth no lo permite', async () => {
   const app = await read('app.js');
-  const start = app.slice(app.indexOf('async function startGuestOrdering'), app.indexOf('function openGuestSignup'));
+  const start = app.slice(app.indexOf('async function startGuestOrdering'), app.indexOf('function openLegalPage'));
   assert.doesNotMatch(start, /state\.authError/);
   assert.match(start, /state\.guestError = error\?\.code === 'guest_disabled' \? t\('guestUnavailable'\) : t\('guestStartError'\);/);
   assert.match(start, /if \(error\?\.code === 'guest_disabled'\) state\.guestOrderingAvailable = false;/);

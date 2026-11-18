@@ -26,8 +26,9 @@ export function renderGuestEntry({ translate: t, available = false, busy = false
   </section>`;
 }
 
-// La captación del invitado (carta, carrito y seguimiento) es la promoción de
-// registro compacta: client/signup-promo.js.
+// Seguimiento del invitado: recordatorio en una línea, sin botón ni enlace.
+// Sólo aquí; nada en la carta, el carrito ni la confirmación.
+export const renderGuestTrackingReminder = ({ translate: t }) => `<p class="guest-reminder" data-guest-reminder>${t('guestTrackingReminder')}</p>`;
 
 // Carta sin sesión: entrar como invitado sin salir de la carta. Si el alta
 // falló, el aviso ocupa la franja (sin botón).
@@ -49,50 +50,7 @@ export function renderGuestExitContent({ translate: t }) {
   return `<div class="sheet-head"><div><h2 id="guest-exit-title">${t('guestExitTitle')}</h2></div></div>
     <p id="guest-exit-description" class="delete-account-warning">${t('guestExitCopy')}</p>
     <div class="delete-account-actions">
-      <button class="primary-button primary-button--light" type="button" data-action="guest-create-account">${t('guestCreateAccount')}</button>
+      <button class="primary-button primary-button--light" type="button" data-action="close-sheet" data-guest-exit-stay>${t('guestExitStay')}</button>
       <button class="primary-button primary-button--danger" type="button" data-action="guest-exit-confirm">${t('guestExitConfirm')}</button>
     </div>`;
-}
-
-const header = ({ t, icons, eyebrow, title }) => `<header class="order-header">
-    <button class="menu-icon-button" type="button" data-screen-back data-action="guest-signup-back" aria-label="${t('guestSignupBack')}">${icons.arrowLeft}</button>
-  </header>
-  <p class="eyebrow">${eyebrow}</p>
-  <h1 tabindex="-1" data-screen-heading>${title}</h1>`;
-
-// Paso 1 de la conversión: nombre, correo y consentimiento.
-export function renderGuestSignupScreen({ translate: t, escapeHTML, icons, sentTo = '', busy = false, error = '', privacyLabel = '' }) {
-  const head = header({ t, icons, eyebrow: t('guestSignupEyebrow'), title: sentTo ? t('guestSignupSentTitle') : t('guestSignupTitle') });
-  if (sentTo) {
-    return `<main class="app-shell"><section class="screen order-screen">${head}
-      <div class="form recovery-state recovery-state--success" role="status"><span class="recovery-state__icon" aria-hidden="true">✓</span><p>${t('guestSignupSentCopy', { email: escapeHTML(sentTo) })}</p>
-      <button class="primary-button" type="button" data-action="guest-signup-back">${t('guestSignupBack')}</button></div>
-    </section></main>`;
-  }
-  return `<main class="app-shell"><section class="screen order-screen">${head}
-    <p class="subtitle">${t('guestSignupCopy')}</p>
-    <form class="form" data-form="guest-signup" novalidate>
-      <div class="field"><label for="guest-first-name">${t('firstName')}</label><input id="guest-first-name" name="firstName" type="text" autocomplete="given-name" maxlength="28" required></div>
-      <div class="field"><label for="guest-last-name">${t('lastName')}</label><input id="guest-last-name" name="lastName" type="text" autocomplete="family-name" maxlength="42"></div>
-      <div class="field"><label for="guest-email">${t('email')}</label><input id="guest-email" name="email" type="email" autocomplete="email" inputmode="email" required></div>
-      <label class="check"><input type="checkbox" name="privacyConsent" value="accepted" required><span>${privacyLabel || t('privacy')}</span></label>
-      <p class="form-error" role="alert" data-guest-signup-error>${escapeHTML(error)}</p>
-      <button class="primary-button" type="submit" ${busy ? 'disabled' : ''}>${busy ? t('guestSignupSending') : t('guestSignupSubmit')}</button>
-    </form>
-  </section></main>`;
-}
-
-// Paso 2: tras confirmar el correo, la contraseña.
-export function renderGuestPasswordScreen({ translate: t, escapeHTML, busy = false, error = '', minLength }) {
-  return `<main class="app-shell"><section class="screen screen--gold screen--recovery">
-    <p class="eyebrow">${t('guestPasswordEyebrow')}</p>
-    <h1 tabindex="-1" data-screen-heading>${t('guestPasswordTitle')}</h1>
-    <p class="subtitle">${t('guestPasswordCopy')}</p>
-    <form class="form" data-form="guest-password" novalidate>
-      <div class="field"><label for="guest-password">${t('newPassword')}</label><input id="guest-password" name="password" type="password" minlength="${minLength}" autocomplete="new-password" aria-describedby="guest-password-note" required><small id="guest-password-note" class="field-note">${t('passwordLength')}</small></div>
-      <div class="field"><label for="guest-password-confirmation">${t('confirmPassword')}</label><input id="guest-password-confirmation" name="passwordConfirmation" type="password" minlength="${minLength}" autocomplete="new-password" required></div>
-      <p class="form-error" role="alert" data-guest-password-error>${escapeHTML(error)}</p>
-      <button class="primary-button" type="submit" ${busy ? 'disabled' : ''}>${t('guestPasswordSubmit')}</button>
-    </form>
-  </section></main>`;
 }

@@ -152,7 +152,6 @@ export function customerScreenDepth(screen, ctx = {}, seen = new Set()) {
     case 'cart': return depthOf('menu') + 1;
     case 'orders': return depthOf(ordersBackTarget === 'home' ? 'home' : 'menu') + 1;
     case 'orderTracking': return depthOf(orderBackTarget === 'orders' ? 'orders' : 'menu') + 1;
-    case 'guestSignup': return 1;
     case 'legal': return (legalReturn?.screen && legalReturn.screen !== 'legal' ? depthOf(legalReturn.screen) : 0) + 1;
     default: return 0;
   }

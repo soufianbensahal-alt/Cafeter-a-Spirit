@@ -4,8 +4,10 @@ import * as OTPAuth from 'otpauth';
 
 // Pedir sin cuenta: invitado con sesión anónima de Supabase. El manager activa
 // «Pedidos sin cuenta» en el Panel, el invitado pide con su nombre y el panel lo
-// ve como «Nombre · Invitado» en directo. Al crear su cuenta (correo en
-// Mailpit) conserva el pedido y no recibe sellos retroactivos.
+// ve como «Nombre · Invitado» en directo. El invitado no ve ningún botón de
+// registro; sólo en el seguimiento, una línea de recordatorio. Al salir llega
+// al inicio con la promoción y el registro normal (contraseña y correo en
+// Mailpit) funciona.
 // Solo contra la base local desechable (SPIRIT_E2E_DB_URL). Nunca producción.
 const required = ['SPIRIT_E2E_EMPLOYEE_EMAIL', 'SPIRIT_E2E_EMPLOYEE_PASSWORD', 'SPIRIT_E2E_EMPLOYEE_TOTP_SECRET'];
 const e2eEnabled = process.env.SPIRIT_E2E === '1' && required.every((name) => process.env[name]);
@@ -18,6 +20,14 @@ const BUSINESS_NAME = 'Cafetería Spirit - Montcada';
 const ORDER_CODE = '4826';
 const GUEST_NAME = 'Laura';
 const PASSWORD = 'Spirit-Guest-2026!';
+const REMINDER = '¿Quieres sumar sellos? La próxima vez, crea tu cuenta desde el inicio de la app.';
+
+// El invitado no ve nada de registro: ni la promoción ni botones de crear cuenta.
+async function expectNoSignup(page) {
+  await expect(page.getByRole('button', { name: /Crear (mi )?cuenta/ })).toHaveCount(0);
+  await expect(page.locator('[data-signup-promo]')).toHaveCount(0);
+  await expect(page.getByText('Crea tu cuenta y llévate un café gratis')).toHaveCount(0);
+}
 
 function assertDisposableDatabase(url) {
   const { hostname } = new URL(url);
@@ -99,7 +109,7 @@ async function latestEmailLink(request, recipient, matcher) {
       }
     }
     return '';
-  }, { timeout: 15_000, message: `Enlace de conversión para ${recipient}` }).not.toBe('');
+  }, { timeout: 15_000, message: `Enlace de confirmación para ${recipient}` }).not.toBe('');
   const url = new URL(found);
   return `${url.pathname}${url.search}`;
 }
@@ -109,7 +119,7 @@ let guestContext;
 let employee;
 let guest;
 let orderNumber;
-const guestEmail = `invitado-${Date.now()}@spirit.test`;
+const newEmail = `ex-invitado-${Date.now()}@spirit.test`;
 
 test.beforeAll(async ({ browser }, testInfo) => {
   if (!e2eEnabled) return;
@@ -160,17 +170,21 @@ e2eTest('el invitado pide con su nombre y el panel lo recibe como «Nombre · In
   await expect(guest.getByRole('heading', { level: 1, name: 'Carta' })).toBeVisible();
   // Navegación reducida: salir del modo invitado en lugar de volver al inicio.
   await expect(guest.getByRole('button', { name: 'Salir del modo invitado' })).toBeVisible();
-  await expect(guest.getByText('Crea tu cuenta y llévate un café gratis').first()).toBeVisible();
+  await expectNoSignup(guest);
+  await expect(guest.locator('[data-guest-reminder]')).toHaveCount(0);
 
   await guest.getByRole('button', { name: 'Añadir Latte al carrito', exact: true }).click();
   await guest.getByRole('button', { name: /^Ver carrito: 1 producto/ }).click();
   await expect(guest.getByRole('heading', { level: 1, name: 'Tu pedido' })).toBeVisible();
-  await expect(guest.getByRole('complementary').getByRole('button', { name: 'Crear mi cuenta' })).toBeVisible();
+  await expectNoSignup(guest);
+  await expect(guest.locator('[data-guest-reminder]')).toHaveCount(0);
 
   await guest.getByRole('button', { name: 'Continuar' }).click();
   const dialog = guest.getByRole('dialog', { name: 'Confirmar pedido' });
   const name = dialog.getByLabel('Nombre para el pedido');
   await expect(name).toBeFocused();
+  await expectNoSignup(guest);
+  await expect(guest.locator('[data-guest-reminder]')).toHaveCount(0);
   await dialog.getByLabel('Código del local').fill(ORDER_CODE);
   await dialog.getByLabel('Recoger en barra').check();
   await dialog.getByRole('button', { name: 'Enviar pedido' }).click();
@@ -183,7 +197,11 @@ e2eTest('el invitado pide con su nombre y el panel lo recibe como «Nombre · In
   const heading = guest.getByRole('heading', { level: 1, name: /^Pedido nº \d+$/ });
   await expect(heading).toBeVisible();
   orderNumber = Number((await heading.textContent()).match(/\d+/)[0]);
-  await expect(guest.getByText('Crea tu cuenta y llévate un café gratis')).toBeVisible();
+  // Seguimiento: sólo la línea de recordatorio, sin botón ni enlace.
+  await expectNoSignup(guest);
+  const reminder = guest.locator('[data-guest-reminder]');
+  await expect(reminder).toHaveText(REMINDER);
+  await expect(reminder.locator('a, button')).toHaveCount(0);
 
   // El panel lo recibe en directo con el nombre del invitado.
   await employee.getByRole('tab', { name: /^Pedidos/ }).click();
@@ -218,38 +236,55 @@ e2eTest('vigilancia: el manager ve en el Panel los invitados de hoy y cuántos p
   await employee.getByRole('tab', { name: /^Pedidos/ }).click();
 });
 
-e2eTest('el invitado crea su cuenta: confirma el correo, elige contraseña y conserva el pedido', async ({ request }) => {
+e2eTest('«Salir»: «Seguir pidiendo» primero; al salir, inicio con la promo y registro normal con contraseña', async ({ request }) => {
   // Incluye la espera del correo en Mailpit.
   test.setTimeout(60_000);
-  await guest.getByRole('complementary').getByRole('button', { name: 'Crear mi cuenta' }).click();
-  await expect(guest.getByRole('heading', { level: 1, name: 'Tu cuenta Spirit' })).toBeVisible();
+  // Del seguimiento a la carta, donde está «Salir del modo invitado».
+  await guest.locator('[data-screen-back]').first().click();
+  await expect(guest.getByRole('heading', { level: 1, name: 'Carta' })).toBeVisible();
+  await guest.getByRole('button', { name: 'Salir del modo invitado' }).click();
+  const exit = guest.getByRole('dialog', { name: '¿Salir del modo invitado?' });
+  const stay = exit.getByRole('button', { name: 'Seguir pidiendo' });
+  const leave = exit.getByRole('button', { name: 'Salir', exact: true });
+  // La opción segura va primero y recibe el foco; no hay «Crear cuenta».
+  await expect(stay).toBeFocused();
+  expect(await stay.evaluate((button, other) => Boolean(button.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING), await leave.elementHandle())).toBe(true);
+  await expectNoSignup(guest);
+  await stay.click();
+  await expect(exit).toHaveCount(0);
+  await expect(guest.getByRole('heading', { level: 1, name: 'Carta' })).toBeVisible();
+
+  await guest.getByRole('button', { name: 'Salir del modo invitado' }).click();
+  await exit.getByRole('button', { name: 'Salir', exact: true }).click();
+  // Inicio de sesión con la promoción de registro.
+  await expect(guest.getByRole('heading', { level: 2, name: 'Crea tu cuenta y llévate un café gratis' })).toBeVisible();
+  await expect(guest.locator('section.signup-promo').getByRole('button', { name: 'Crear mi cuenta' })).toBeVisible();
+
+  // Registro normal: contraseña, confirmación por correo e inicio de sesión.
+  await guest.locator('section.signup-promo').getByRole('button', { name: 'Crear mi cuenta' }).click();
   await guest.getByLabel('Nombre').fill('Laura');
   await guest.getByLabel('Apellidos').fill('Prueba');
-  await guest.getByLabel('Correo electrónico').fill(guestEmail);
-  await guest.getByText(/Acepto la política de privacidad/).click();
-  await guest.getByRole('button', { name: 'Enviar enlace de confirmación' }).click();
-  await expect(guest.getByRole('heading', { level: 1, name: 'Revisa tu correo' })).toBeVisible();
-  await expect(guest.getByText(guestEmail)).toBeVisible();
-
-  const link = await latestEmailLink(request, guestEmail, (value) => value.includes('type=email_change'));
-  await guest.goto(link);
-  await expect(guest.getByRole('heading', { level: 1, name: 'Elige tu contraseña' })).toBeVisible();
-  await guest.getByLabel('Nueva contraseña').fill(PASSWORD);
+  await guest.getByLabel('Correo electrónico').fill(newEmail);
+  await guest.getByLabel('Contraseña', { exact: true }).fill(PASSWORD);
   await guest.getByLabel('Confirmar contraseña').fill(PASSWORD);
-  await guest.getByRole('button', { name: 'Crear mi cuenta' }).click();
-  await expect(guest.getByRole('heading', { level: 1, name: /Laura/ })).toBeVisible({ timeout: 10000 });
+  await guest.getByRole('checkbox').check();
+  await guest.getByRole('button', { name: 'Crear mi cuenta' }).last().click();
+  await expect(guest.getByText(/Revisa tu correo/i)).toBeVisible();
 
-  // Misma cuenta: ya no es anónima, conserva el pedido, tiene perfil y
-  // consentimiento, y ningún sello por haber pedido como invitado.
-  const account = await withDatabase(async (db) => (await db.query(`select u.is_anonymous, u.email,
-      (select o.order_number from public.orders o where o.customer_id = u.id and o.business_id = $2 order by o.created_at desc limit 1) as last_order,
-      (select display_name from public.profiles p where p.id = u.id) as display_name,
-      (select count(*)::int from public.privacy_consents pc where pc.user_id = u.id) as consents,
-      (select coalesce(sum(current_stamps), 0)::int from public.customer_cards c where c.customer_id = u.id) as stamps
-    from auth.users u where lower(u.email) = lower($1)`, [guestEmail, await businessId(db)])).rows[0]);
-  expect(account).toEqual({ is_anonymous: false, email: guestEmail, last_order: orderNumber, display_name: 'Laura Prueba', consents: 1, stamps: 0 });
+  const link = await latestEmailLink(request, newEmail, (value) => /\/auth\/confirm\?.*token_hash=.*type=email(&|$)/.test(value));
+  await guest.goto(link);
+  await expect(guest.getByText('Correo confirmado')).toBeVisible();
+  await guest.getByRole('button', { name: 'Iniciar sesión' }).click();
+  await guest.getByLabel('Correo electrónico').fill(newEmail);
+  await guest.getByLabel('Contraseña').fill(PASSWORD);
+  await guest.getByRole('button', { name: 'Iniciar sesión' }).last().click();
+  await expect(guest.getByRole('heading', { level: 1, name: /Hoy toca café/i })).toBeVisible();
 
-  // Y sigue viendo su pedido en curso.
-  await guest.getByRole('button', { name: /Tienes 1 pedido en curso/ }).click();
-  await expect(guest.getByRole('button', { name: new RegExp(`Nº ${orderNumber}`) })).toBeVisible();
+  // Cuenta nueva y normal (no anónima), con perfil; el pedido del invitado
+  // sigue siendo del invitado y no pasa a la cuenta.
+  const account = await withDatabase(async (db) => (await db.query(`select u.is_anonymous,
+      (select count(*)::int from public.profiles p where p.id = u.id) as profiles,
+      (select count(*)::int from public.orders o where o.customer_id = u.id) as orders
+    from auth.users u where lower(u.email) = lower($1)`, [newEmail])).rows[0]);
+  expect(account).toEqual({ is_anonymous: false, profiles: 1, orders: 0 });
 });

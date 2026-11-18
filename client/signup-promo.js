@@ -1,6 +1,5 @@
-// Promoción de registro: un único componente para el login (variante «hero»,
-// con la mini tarjeta de sellos animada) y para la captación del invitado en
-// la carta, el carrito y el seguimiento (variante «compact»). Render puro
+// Promoción de registro de la pantalla de inicio de sesión/registro, con la
+// mini tarjeta de sellos animada. Render puro
 // (tests/signup-promo.test.js). El número de sellos sale de la configuración
 // real (get_public_loyalty_program); si no se conoce, el texto va sin número.
 
@@ -11,8 +10,7 @@ export const SIGNUP_PROMO_COPY = Object.freeze({
     signupPromoRewardCount: 'Con {n} sellos, tu próximo café es gratis.',
     signupPromoReward: 'Completa tu tarjeta y tu próximo café es gratis.',
     signupPromoTracking: 'Sigue tus pedidos desde el móvil.',
-    signupPromoAction: 'Crear mi cuenta',
-    signupPromoGuestNote: 'Conservarás tus pedidos de hoy.'
+    signupPromoAction: 'Crear mi cuenta'
   }),
   ca: Object.freeze({
     signupPromoTitle: 'Crea el teu compte i emporta’t un cafè gratis',
@@ -20,8 +18,7 @@ export const SIGNUP_PROMO_COPY = Object.freeze({
     signupPromoRewardCount: 'Amb {n} segells, el teu pròxim cafè és gratis.',
     signupPromoReward: 'Completa la targeta i el teu pròxim cafè és gratis.',
     signupPromoTracking: 'Segueix les teves comandes des del mòbil.',
-    signupPromoAction: 'Crear el meu compte',
-    signupPromoGuestNote: 'Conservaràs les comandes d’avui.'
+    signupPromoAction: 'Crear el meu compte'
   })
 });
 
@@ -70,7 +67,6 @@ const benefits = (t, stampsRequired) => {
 /**
  * @param {{
  *   translate: (key: string, values?: Record<string, string>) => string,
- *   variant?: 'hero' | 'compact',
  *   stampsRequired?: number | null,
  *   id?: string,
  *   action?: string,
@@ -81,26 +77,16 @@ const benefits = (t, stampsRequired) => {
  */
 export function renderSignupPromo({
   translate: t,
-  variant = 'compact',
   stampsRequired = null,
   id = 'signup-promo',
-  action = 'guest-create-account',
+  action = 'signup-promo-start',
   showAction = true,
   motion = 'static',
   elapsed = 0
 }) {
-  const hero = variant === 'hero';
   const button = showAction
     ? `<button class="primary-button signup-promo__action" type="button" data-action="${action}">${t('signupPromoAction')}</button>`
     : '';
-  if (!hero) {
-    return `<aside class="signup-promo signup-promo--compact" aria-labelledby="${id}-title" data-signup-promo>
-    <p id="${id}-title" class="signup-promo__title">${PAW}<span>${t('signupPromoTitle')}</span></p>
-    ${benefits(t, stampsRequired)}
-    <p class="signup-promo__note">${t('signupPromoGuestNote')}</p>
-    ${button}
-  </aside>`;
-  }
   const slots = promoSlots(stampsRequired);
   const animate = motion === 'animate';
   const offset = animate ? ` style="--promo-elapsed:${Math.max(0, Math.round(Number(elapsed) || 0))}ms"` : '';

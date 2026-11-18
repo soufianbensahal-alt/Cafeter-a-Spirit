@@ -94,8 +94,7 @@ import {
   renderGuestEntry,
   renderGuestExitContent,
   renderGuestMenuBanner,
-  renderGuestPasswordScreen,
-  renderGuestSignupScreen
+  renderGuestTrackingReminder
 } from './client/guest-view.js';
 import { SIGNUP_PROMO_COPY, promoDurationMs, promoSlots, renderSignupPromo } from './client/signup-promo.js';
 import { getPublicLoyaltyProgram } from './services/public-loyalty-program.js';
@@ -105,13 +104,7 @@ import { canOfferInstall, detectInstallPlatform } from './services/install-platf
 import { bindSheetSwipe } from './services/sheet-swipe.js';
 import { INSTALL_COPY } from './client/install-copy.js';
 import { guestScreen, isGuestUser, validateGuestName } from './services/guest-rules.js';
-import {
-  confirmGuestConversion,
-  getGuestOrderingStatus,
-  setConvertedAccountPassword,
-  signInAsGuest,
-  startGuestConversion
-} from './services/guest-service.js';
+import { getGuestOrderingStatus, signInAsGuest } from './services/guest-service.js';
 import {
   renderActiveOrdersBanner,
   renderCancelOrderContent,
@@ -297,8 +290,6 @@ const state = {
   guestOrderingAvailable: false,
   guestError: '',
   guestBusy: false,
-  guestSignup: { sentTo: '', busy: false, error: '' },
-  guestPassword: { busy: false, error: '' },
   // Programa de sellos público (promoción de registro): 'loading' o 'ready'.
   publicProgram: { status: 'loading', stampsRequired: null },
   orderCancelling: false,
@@ -402,11 +393,10 @@ const menuViewContext = () => ({
 });
 const menuContent = () => renderMenuContent(menuViewContext());
 const menu = () => {
-  // Invitado: captación y «Salir del modo invitado». Sin sesión: «Pedir sin cuenta».
+  // Invitado: «Salir del modo invitado». Sin sesión: «Pedir sin cuenta».
   let banner = '';
   let back = null;
   if (state.isGuest) {
-    banner = `<div class="guest-menu-slot">${guestPrompt('guest-prompt-menu')}</div>`;
     back = { action: 'guest-exit', label: t('guestExit') };
   } else if (state.authStatus !== 'authenticated' && (state.guestOrderingAvailable || state.guestError)) {
     banner = renderGuestMenuBanner({ translate: t, busy: state.guestBusy, error: state.guestError, escapeHTML });
@@ -516,17 +506,12 @@ const loginInstallRow = () => (['signin', 'signup'].includes(state.authMode) && 
   ? `<div class="install-row" data-install-row><span class="install-row__icon">${PHONE_ICON}</span><span class="install-row__text">${t('installRow')}</span><button class="install-row__action" type="button" data-action="open-install">${t('installRowAction')}</button></div>`
   : '');
 
-// Captación del invitado (carta, carrito y seguimiento): la misma promoción
-// del login en su variante compacta.
-function guestPrompt(id) {
-  return renderSignupPromo({ translate: t, variant: 'compact', id, stampsRequired: state.publicProgram.stampsRequired });
-}
-
-// Captación al final del carrito y del seguimiento del invitado.
-const withGuestPrompt = (html, id) => {
+// Invitado: sólo en su seguimiento, una línea de recordatorio (sin botón ni
+// enlace) al final de la pantalla. Nada en la carta, el carrito ni la confirmación.
+const withGuestTrackingReminder = (html) => {
   if (!state.isGuest) return html;
   const end = html.lastIndexOf('</section></main>');
-  return end < 0 ? html : `${html.slice(0, end)}${guestPrompt(id)}${html.slice(end)}`;
+  return end < 0 ? html : `${html.slice(0, end)}${renderGuestTrackingReminder({ translate: t })}${html.slice(end)}`;
 };
 
 // Mini tarjeta del login: se anima una sola vez por carga de página, desde
@@ -548,7 +533,6 @@ function loginSignupPromo() {
   if (!['signin', 'signup'].includes(state.authMode)) return '';
   return renderSignupPromo({
     translate: t,
-    variant: 'hero',
     id: 'signup-promo',
     action: 'signup-promo-start',
     showAction: state.authMode === 'signin',
@@ -563,11 +547,8 @@ async function loadPublicProgram() {
   const program = await getPublicLoyaltyProgram();
   state.publicProgram = { status: 'ready', stampsRequired: program?.stampsRequired ?? null };
   for (const current of document.querySelectorAll('[data-signup-promo]')) {
-    const hero = current.classList.contains('signup-promo--hero');
-    if (!hero && !state.publicProgram.stampsRequired) continue;
-    const id = String(current.getAttribute('aria-labelledby') || '').replace(/-title$/, '');
     const template = document.createElement('template');
-    template.innerHTML = (hero ? loginSignupPromo() : guestPrompt(id)).trim();
+    template.innerHTML = loginSignupPromo().trim();
     const next = template.content.firstElementChild;
     if (!next) continue;
     // Se conserva el botón ya enlazado (bind() no se repite para no duplicar
@@ -581,15 +562,12 @@ async function loadPublicProgram() {
   }
 }
 
-const guestSignup = () => renderGuestSignupScreen({ translate: t, escapeHTML, icons, privacyLabel: privacyLabel(), ...state.guestSignup });
-
 // Casilla de consentimiento con enlace a la política (se abre en un diálogo
 // para no perder lo escrito).
 const privacyLabel = () => t('privacy').replace(t('legalPrivacyInline'), privacyInlineLink(t));
 const legalFooter = () => renderLegalFooter({ translate: t });
 const consent = () => renderConsentScreen({ lang: state.lang, translate: t, escapeHTML, checking: state.consentStatus === 'checking', busy: state.consentBusy, error: state.consentError });
 const legal = () => renderLegalScreen({ page: state.legalPage || 'privacy', lang: state.legalLang || state.lang, translate: t, escapeHTML, icons });
-const guestPassword = () => renderGuestPasswordScreen({ translate: t, escapeHTML, ...state.guestPassword, minLength: PASSWORD_MIN_LENGTH });
 
 // ---------------------------------------------------------------------------
 // Pedidos (piloto). La carta sólo muestra controles de pedido si hay sesión,
@@ -938,7 +916,7 @@ function updateCartLine(kind, productId) {
   announcer.announce(count ? t('cartQuantity', { name, count }) : t('cartRemoved', { name }));
 }
 
-const cartScreen = () => withGuestPrompt(renderCartScreen({
+const cartScreen = () => renderCartScreen({
   cart: state.cart,
   products: state.ordering.products,
   productName,
@@ -948,9 +926,9 @@ const cartScreen = () => withGuestPrompt(renderCartScreen({
   escapeHTML,
   icons,
   lang: state.lang
-}), 'guest-prompt-cart');
+});
 
-const orderTracking = () => withGuestPrompt(renderOrderTrackingScreen({
+const orderTracking = () => withGuestTrackingReminder(renderOrderTrackingScreen({
   order: state.currentOrder,
   loading: state.orderLoading,
   offline: navigator.onLine === false,
@@ -959,7 +937,7 @@ const orderTracking = () => withGuestPrompt(renderOrderTrackingScreen({
   escapeHTML,
   icons,
   lang: state.lang
-}), 'guest-prompt-tracking');
+}));
 
 const orders = () => renderOrdersScreen({
   orders: state.activeOrders,
@@ -1769,69 +1747,6 @@ async function startGuestOrdering() {
   }
 }
 
-function openGuestSignup() {
-  modalController.close({ force: true, restoreFocus: false, reason: 'navigate' });
-  state.guestSignup = { sentTo: '', busy: false, error: '' };
-  goToOrderScreen('guestSignup');
-}
-
-async function submitGuestSignup(form) {
-  if (state.guestSignup.busy) return;
-  const data = new FormData(form);
-  const email = String(data.get('email') || '').trim();
-  const firstName = String(data.get('firstName') || '').trim();
-  const emailInput = form.querySelector('#guest-email');
-  let error = '';
-  if (!firstName || !email || !emailInput?.checkValidity()) error = t('guestSignupRequired');
-  else if (data.get('privacyConsent') !== 'accepted') error = t('guestSignupPrivacy');
-  if (error) {
-    form.querySelector('[data-guest-signup-error]').textContent = error;
-    return;
-  }
-  state.guestSignup = { ...state.guestSignup, busy: true, error: '' };
-  render();
-  try {
-    await startGuestConversion({
-      email,
-      firstName,
-      lastName: String(data.get('lastName') || ''),
-      consent: { accepted: true, version: PRIVACY_POLICY_VERSION }
-    });
-    state.guestSignup = { sentTo: email, busy: false, error: '' };
-    render();
-    focusScreenHeading();
-  } catch (failure) {
-    state.guestSignup = { sentTo: '', busy: false, error: failure?.code === 'email_exists' ? t('guestSignupEmailTaken') : t('guestSignupError') };
-    render();
-    document.querySelector('[data-guest-signup-error]')?.focus?.();
-  }
-}
-
-async function submitGuestPassword(form) {
-  if (state.guestPassword.busy) return;
-  const data = new FormData(form);
-  const password = String(data.get('password') || '');
-  const confirmation = String(data.get('passwordConfirmation') || '');
-  const errorElement = form.querySelector('[data-guest-password-error]');
-  if (!passwordMeetsPolicy(password)) { errorElement.textContent = t('passwordLength'); return; }
-  if (password !== confirmation) { errorElement.textContent = t('passwordMismatch'); return; }
-  state.guestPassword = { busy: true, error: '' };
-  render();
-  try {
-    const user = await setConvertedAccountPassword(password);
-    applyCustomerContext(await getCustomerContext(user));
-    await refreshCustomerLoyaltySafely();
-    backNavigation.replaceUrl('/');
-    state.guestPassword = { busy: false, error: '' };
-    state.screen = 'home';
-    render();
-    showToast(t('guestPasswordDone'));
-  } catch {
-    state.guestPassword = { busy: false, error: t('guestSignupError') };
-    render();
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Páginas legales: /privacidad y /aviso-legal dentro de la app.
 // ---------------------------------------------------------------------------
@@ -1935,7 +1850,6 @@ function clearCustomerIdentity() {
   state.consentStatus = 'ok';
   state.consentCheckedFor = null;
   state.consentError = '';
-  state.guestSignup = { sentTo: '', busy: false, error: '' };
   stopStampMonitoring();
   orderMonitor.stop();
   productMonitor.stop();
@@ -2061,18 +1975,6 @@ async function initializeEmailConfirmation() {
   render();
 
   try {
-    if (emailConfirmationRoute.type === 'email_change') {
-      // Invitado que crea su cuenta: misma fila de usuario, mismos pedidos.
-      await confirmGuestConversion(tokenHash);
-      backNavigation.replaceUrl('/');
-      state.isGuest = false;
-      state.authStatus = 'authenticated';
-      state.guestPassword = { busy: false, error: '' };
-      state.screen = 'guestPassword';
-      render();
-      focusScreenHeading();
-      return;
-    }
     await confirmCustomerEmail(tokenHash);
     state.emailConfirmationStatus = 'confirmed';
     backNavigation.replaceUrl(emailConfirmationResultUrl('confirmed'));
@@ -2368,7 +2270,7 @@ function customerView() {
   const consentBlocked = state.authStatus === 'authenticated'
     && !state.isGuest
     && ['checking', 'required'].includes(state.consentStatus)
-    && !['legal', 'emailConfirmation', 'guestPassword'].includes(state.screen);
+    && !['legal', 'emailConfirmation'].includes(state.screen);
   return consentBlocked ? 'consent' : state.screen;
 }
 
@@ -2383,7 +2285,7 @@ function render() {
   if (lastRenderedView === 'menu' && view !== 'menu') state.menuScrollY = pageScrollY();
   const returningToMenu = view === 'menu' && MENU_RETURN_FROM.includes(lastRenderedView);
   lastRenderedView = view;
-  app.innerHTML = ({intro,onboarding,login,emailConfirmation,authLoading,home,menu,rewards,history,profile,cart:cartScreen,orders,orderTracking,guestSignup,guestPassword,legal,consent})[view]();
+  app.innerHTML = ({intro,onboarding,login,emailConfirmation,authLoading,home,menu,rewards,history,profile,cart:cartScreen,orders,orderTracking,legal,consent})[view]();
   bind();
   syncOrderMonitor();
   syncProductMonitor();
@@ -2484,10 +2386,8 @@ function bind() {
     if(action==='legal-lang'){ state.legalLang=(state.legalLang||state.lang)==='ca'?'es':'ca'; renderPreservingFocus(); }
     if(action==='guest-start'){ await startGuestOrdering(); }
     if(action==='guest-view-menu'){ state.menuQuery='';state.menuActiveCategory=MENU_CATEGORIES[0].id;state.screen='menu';render();scrollTo(0,0);void refreshGuestAvailability({ repaint: true }); }
-    if(action==='guest-exit'){ openSheet(sheet(renderGuestExitContent({ translate: t }), 'modal--form modal--danger', 'guest-exit-title', 'guest-exit-description')); }
+    if(action==='guest-exit'){ modalController.open(sheet(renderGuestExitContent({ translate: t }), 'modal--form modal--danger', 'guest-exit-title', 'guest-exit-description'), { initialFocus: '[data-guest-exit-stay]' }); bind(); }
     if(action==='guest-exit-confirm'){ modalController.close({ force: true, restoreFocus: false, reason: 'action' }); await logout(); }
-    if(action==='guest-create-account'){ openGuestSignup(); }
-    if(action==='guest-signup-back'){ state.screen=state.isGuest?'menu':'login';render();scrollTo(0,0); }
     if(action==='back-to-menu'){ state.screen='menu';render();void loadOrderingState({ repaint: true }); }
     if(action==='checkout-back-to-cart'){ modalController.close({ force: true, restoreFocus: false, reason: 'back-to-cart' }); state.screen='cart'; renderPreservingFocus(); focusScreenHeading(); }
     if(action==='open-checkout'){ if(orderingActive()&&canCheckout(state.cart,state.ordering.products)) { modalController.open(checkoutSheet(), { initialFocus: state.isGuest ? '[data-checkout-guest-name]' : '[data-checkout-code]' }); bind(); startCheckoutViewport(); } }
@@ -2663,14 +2563,6 @@ function bindOrderInteractions() {
   document.querySelectorAll('[data-form="privacy-consent"]:not([data-bound])').forEach((form) => {
     form.dataset.bound = '1';
     form.addEventListener('submit', (event) => { event.preventDefault(); void submitPrivacyConsent(form); });
-  });
-  document.querySelectorAll('[data-form="guest-signup"]:not([data-bound])').forEach((form) => {
-    form.dataset.bound = '1';
-    form.addEventListener('submit', (event) => { event.preventDefault(); void submitGuestSignup(form); });
-  });
-  document.querySelectorAll('[data-form="guest-password"]:not([data-bound])').forEach((form) => {
-    form.dataset.bound = '1';
-    form.addEventListener('submit', (event) => { event.preventDefault(); void submitGuestPassword(form); });
   });
   document.querySelectorAll('[data-form="checkout"]:not([data-bound])').forEach((form) => {
     form.dataset.bound = '1';

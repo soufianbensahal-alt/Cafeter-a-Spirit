@@ -227,7 +227,8 @@ test('profundidad de las pantallas del cliente coincide con su botón «volver»
   const guest = { isGuest: true };
   assert.equal(customerScreenDepth('menu', guest), 0);
   assert.equal(customerScreenDepth('cart', guest), 1);
-  assert.equal(customerScreenDepth('guestSignup', guest), 1);
+  // Ya no hay pantallas de alta del invitado.
+  assert.equal(customerScreenDepth('guestSignup', guest), 0);
 });
 
 test('profundidad del panel: Pedidos es la raíz', () => {
@@ -241,9 +242,9 @@ test('profundidad del panel: Pedidos es la raíz', () => {
 });
 
 test('cliente y panel usan la navegación atrás; los botones «volver» están marcados', async () => {
-  const [app, panel, orders, menuView, orderView, legalView, guestView] = await Promise.all([
+  const [app, panel, orders, menuView, orderView, legalView] = await Promise.all([
     read('app.js'), read('business/business-view.js'), read('business/business-orders.js'),
-    read('client/menu-view.js'), read('client/order-view.js'), read('client/legal-view.js'), read('client/guest-view.js')
+    read('client/menu-view.js'), read('client/order-view.js'), read('client/legal-view.js')
   ]);
   assert.doesNotMatch(app, /window\.history\.(pushState|replaceState)\(\{\}/);
   assert.doesNotMatch(app, /addEventListener\('popstate'/);
@@ -260,7 +261,7 @@ test('cliente y panel usan la navegación atrás; los botones «volver» están 
   assert.match(panel, /onNavigationChange: \(\) => backNavigation\.sync\(\)/);
   assert.match(panel, /showBackHint\('Pulsa atrás otra vez para salir'\)/);
   assert.match(orders, /closeModal: \(\) => modal\.close\(\{ reason: 'back' \}\)/);
-  for (const view of [menuView, orderView, legalView, guestView]) assert.match(view, /data-screen-back/);
+  for (const view of [menuView, orderView, legalView]) assert.match(view, /data-screen-back/);
 });
 
 test('teclado de Android: se detecta frente al alto de referencia aunque el layout encoja', () => {

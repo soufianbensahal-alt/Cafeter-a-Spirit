@@ -260,10 +260,10 @@ content_path = "./supabase/templates/recovery.html"
 subject = "Confirma tu cuenta de Spirit Coffee"
 content_path = "./supabase/templates/confirmation.html"
 
-# Invitados (inicio de sesión anónimo) que crean su cuenta: Supabase vincula el
-# correo con un «cambio de email» y envía esta plantilla.
+# Cambio de correo (la app no lo ofrece; sólo llega por la API de Auth).
+# Texto neutro y enlace estándar de Supabase, sin rutas propias de la app.
 [auth.email.template.email_change]
-subject = "Confirma tu correo para crear tu cuenta de Spirit Coffee"
+subject = "Confirma tu nuevo correo de Spirit Coffee"
 content_path = "./supabase/templates/email_change.html"
 
 [auth.email.notification.password_changed]
