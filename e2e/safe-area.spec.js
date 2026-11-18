@@ -175,6 +175,13 @@ e2eTest('cliente: pantallas y diálogos fuera de la franja de la barra de estado
   await page.getByLabel('Contraseña').fill(process.env.SPIRIT_E2E_CUSTOMER_PASSWORD);
   await page.getByRole('button', { name: 'Iniciar sesión' }).last().click();
   await expect(page.getByRole('heading', { level: 1, name: /Hoy toca café/i })).toBeVisible();
+  // Primera visita: la hoja «Instala Spirit» sale sola en el inicio. También
+  // debe quedar fuera de la franja; se cierra y no vuelve en esta visita.
+  const installSheet = page.getByRole('dialog').filter({ has: page.locator('[data-install-sheet]') });
+  await expect(installSheet).toBeVisible();
+  await check(page, 'Cliente · hoja de instalación');
+  await installSheet.getByRole('button', { name: 'Ahora no' }).click();
+  await expect(installSheet).toBeHidden();
   await check(page, 'Cliente · inicio');
 
   const stamp = page.locator('[data-action="request-stamp"]').first();

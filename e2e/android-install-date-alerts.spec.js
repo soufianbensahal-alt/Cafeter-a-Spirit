@@ -123,10 +123,16 @@ panelTest('panel: «Instalar en este dispositivo» con pasos o diálogo nativo',
   await install.click();
   const sheet = panel.getByRole('dialog', { name: 'Instala el panel en este dispositivo' });
   await expect(sheet).toBeVisible();
-  await expect(sheet.getByText('Abre el menú ⋮ y elige «Instalar app» o «Añadir a pantalla de inicio».')).toBeVisible();
+  // iPhone/iPad: pasos con Compartir; Android sin el evento: el menú ⋮.
+  const ios = testInfo.project.use.defaultBrowserType === 'webkit';
+  await expect(ios
+    ? sheet.getByText('Elige «Añadir a pantalla de inicio»')
+    : sheet.getByText('Abre el menú ⋮ y elige «Instalar app» o «Añadir a pantalla de inicio».')).toBeVisible();
   await panel.goBack({ waitUntil: 'commit' });
   await expect(sheet).toHaveCount(0);
   await expect(panel.getByRole('tablist', { name: 'Secciones del modo cafetería' })).toBeVisible();
+  // iOS no tiene diálogo nativo de instalación.
+  if (ios) return;
   // Con el evento: el mismo botón abre el diálogo nativo.
   await panel.evaluate(() => window.__fireInstall());
   await panel.getByRole('button', { name: 'Instalar en este dispositivo' }).click();
