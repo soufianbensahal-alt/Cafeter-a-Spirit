@@ -100,7 +100,10 @@ import {
 import { SIGNUP_PROMO_COPY, promoDurationMs, promoSlots, renderSignupPromo } from './client/signup-promo.js';
 import { getPublicLoyaltyProgram } from './services/public-loyalty-program.js';
 import { createBackNavigation, createExitHint, customerScreenDepth, isCustomerTab, isInstalledApp } from './services/back-navigation.js';
-import { createInstallPrompt, renderInstallBanner } from './services/install-prompt.js';
+import { INSTALL_FIRST_VISIT_KEY, PHONE_ICON, createInstallPrompt, renderInstallSheet, shouldAutoShowInstall } from './services/install-prompt.js';
+import { canOfferInstall, detectInstallPlatform } from './services/install-platform.js';
+import { bindSheetSwipe } from './services/sheet-swipe.js';
+import { INSTALL_COPY } from './client/install-copy.js';
 import { guestScreen, isGuestUser, validateGuestName } from './services/guest-rules.js';
 import {
   confirmGuestConversion,
@@ -225,8 +228,11 @@ Object.assign(copy.ca, SIGNUP_PROMO_COPY.ca);
 Object.assign(copy.es, { backExitHint: 'Pulsa atrás otra vez para salir' });
 Object.assign(copy.ca, { backExitHint: 'Prem enrere un altre cop per sortir' });
 // Aviso propio «Instalar app» (Android).
-Object.assign(copy.es, { installTitle: 'Instala Spirit en tu móvil', installCopy: 'Ábrela desde la pantalla de inicio, como una app.', installAction: 'Instalar', installDismiss: 'Ahora no' });
-Object.assign(copy.ca, { installTitle: 'Instal·la Spirit al mòbil', installCopy: 'Obre-la des de la pantalla d’inici, com una app.', installAction: 'Instal·lar', installDismiss: 'Ara no' });
+Object.assign(copy.es, INSTALL_COPY.es);
+Object.assign(copy.ca, INSTALL_COPY.ca);
+// Primera visita (aún sin onboarding): la hoja «Instala Spirit» podrá salir
+// sola en inicio o en la carta.
+try { if (!localStorage.getItem('spirit-onboarded')) localStorage.setItem(INSTALL_FIRST_VISIT_KEY, '1'); } catch { /* sin almacenamiento */ }
 Object.assign(copy.es, LEGAL_COPY.es);
 Object.assign(copy.ca, LEGAL_COPY.ca);
 
@@ -381,7 +387,7 @@ function home() {
   const countLabel = state.loyaltyReady ? `${state.stamps}/${state.loyaltyGoal}` : '—';
   const loyaltyAction = state.customerCardId ? 'request-stamp' : 'join-loyalty';
   const loyaltyActionLabel = state.stampRequestLoading ? (state.customerCardId ? t('generatingStamp') : t('joiningClub')) : (state.customerCardId ? t('requestStamp') : t('joinClub'));
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${countLabel}</div></div><span class="reward-chip">${escapeHTML(rewardLabel)}</span></div><div class="stamps">${stamps}</div><div class="loyalty-card__footer"><div class="progress-copy">${progressLabel}</div><div class="loyalty-card__actions"><button class="loyalty-card__request" type="button" data-action="${loyaltyAction}" ${state.stampRequestLoading ? 'disabled' : ''}>${loyaltyActionLabel}</button><button class="loyalty-card__request loyalty-card__request--reward" type="button" data-action="use-reward" ${state.availableRewards < 1 || state.stampRequestLoading ? 'disabled' : ''}>${t('useFreeCoffee')}</button></div></div></article>${installBanner()}${renderActiveOrdersBanner({ count: state.activeOrders.length, translate: t })}<div class="section-head" id="quick-access"><h2>${t('quickAccess')}</h2></div>${quickAccess()}${legalFooter()}</section>${nav('home')}</main>`;
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar(true)}<p class="eyebrow">Brunch & specialty coffee</p><h1>${t('hello')}, ${escapeHTML(state.profile.firstName)} ✨<br>${t('coffeeToday')}</h1><article class="loyalty-card"><div class="loyalty-card__top"><div><span class="loyalty-card__label">${t('yourCard')}</span><div class="loyalty-card__count">${countLabel}</div></div><span class="reward-chip">${escapeHTML(rewardLabel)}</span></div><div class="stamps">${stamps}</div><div class="loyalty-card__footer"><div class="progress-copy">${progressLabel}</div><div class="loyalty-card__actions"><button class="loyalty-card__request" type="button" data-action="${loyaltyAction}" ${state.stampRequestLoading ? 'disabled' : ''}>${loyaltyActionLabel}</button><button class="loyalty-card__request loyalty-card__request--reward" type="button" data-action="use-reward" ${state.availableRewards < 1 || state.stampRequestLoading ? 'disabled' : ''}>${t('useFreeCoffee')}</button></div></div></article>${renderActiveOrdersBanner({ count: state.activeOrders.length, translate: t })}<div class="section-head" id="quick-access"><h2>${t('quickAccess')}</h2></div>${quickAccess()}${legalFooter()}</section>${nav('home')}</main>`;
 }
 
 const menuViewContext = () => ({
@@ -405,33 +411,110 @@ const menu = () => {
   } else if (state.authStatus !== 'authenticated' && (state.guestOrderingAvailable || state.guestError)) {
     banner = renderGuestMenuBanner({ translate: t, busy: state.guestBusy, error: state.guestError, escapeHTML });
   }
-  if (!banner) banner = installBanner() ? `<div class="install-slot">${installBanner()}</div>` : '';
   return renderMenuScreen({ ...menuViewContext(), banner, back });
 };
 
-// «Instalar app» (Android): en el inicio y en la carta, nunca en el login.
+// «Instala Spirit»: hoja con las instrucciones de cada plataforma. Sale sola
+// en la primera visita (inicio o carta, como mucho cada 30 días) y se abre
+// siempre desde el login y el perfil.
 const installPrompt = isBusinessMode ? null : createInstallPrompt({
   isInstalled: () => isInstalledApp(),
-  onChange: () => { if (['home', 'menu'].includes(state.screen)) renderPreservingFocus(); }
+  onChange: () => {
+    refreshInstallSheet();
+    if (['login', 'profile'].includes(state.screen) && !modalController.isOpen()) renderPreservingFocus();
+  },
+  onInstalled: () => {
+    if (installSheetOpen()) modalController.close({ reason: 'installed' });
+    showToast(t('installDone'));
+  }
 });
-function installBanner() {
-  if (!installPrompt?.visible()) return '';
-  return renderInstallBanner({ id: 'install-banner', title: t('installTitle'), copy: t('installCopy'), action: t('installAction'), dismissLabel: t('installDismiss') });
+const installPlatform = () => detectInstallPlatform({
+  userAgent: navigator.userAgent,
+  maxTouchPoints: navigator.maxTouchPoints,
+  standalone: Boolean(installPrompt?.installed()),
+  hasPrompt: Boolean(installPrompt?.hasNativePrompt())
+});
+const installOffered = () => Boolean(installPrompt) && canOfferInstall(installPlatform());
+const installSheetOpen = () => Boolean(modalRoot.querySelector('[data-install-sheet]'));
+const installSheetMarkup = (auto) => sheet(renderInstallSheet({ platform: installPlatform(), translate: t, url: `${location.origin}/`, auto }), 'modal--form modal--install', 'install-sheet-title', 'install-sheet-copy');
+
+function openInstallSheet({ auto = false } = {}) {
+  if (!installOffered()) return;
+  const dialog = modalController.open(installSheetMarkup(auto), { initialFocus: '[data-install-focus]' });
+  bindSheetSwipe(dialog, { onClose: () => modalController.close({ reason: 'swipe' }) });
+  bind();
 }
+
+// Si el navegador ofrece la instalación con la hoja abierta, pasa a mostrar
+// el botón nativo (o se cierra si ya no procede).
+function refreshInstallSheet() {
+  const current = modalRoot.querySelector('[data-install-sheet]');
+  if (!current) return;
+  if (!installOffered()) { modalController.close({ reason: 'installed' }); return; }
+  if (current.dataset.installKind === installPlatform().kind) return;
+  openInstallSheet({ auto: current.hasAttribute('data-install-auto') });
+}
+
+function safeStorageGet(key) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+let installAutoTimer = 0;
+const installAutoReady = (view) => shouldAutoShowInstall({
+  offer: installOffered(),
+  firstVisit: Boolean(safeStorageGet(INSTALL_FIRST_VISIT_KEY)),
+  screen: view,
+  modalOpen: modalController.isOpen(),
+  lastShownAt: installPrompt?.lastShownAt()
+});
+// Tras pintar inicio o carta se espera un instante (que se vea la pantalla)
+// y se vuelve a comprobar antes de abrir.
+function scheduleInstallAutoShow(view) {
+  clearTimeout(installAutoTimer);
+  if (!installAutoReady(view)) return;
+  installAutoTimer = setTimeout(() => {
+    if (customerView() !== view || !installAutoReady(view)) return;
+    installPrompt.markShown();
+    openInstallSheet({ auto: true });
+  }, 900);
+}
+
+async function copyInstallLink() {
+  const link = `${location.origin}/`;
+  try {
+    await navigator.clipboard.writeText(link);
+  } catch {
+    const field = document.createElement('textarea');
+    field.value = link;
+    field.setAttribute('readonly', '');
+    field.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+    modalRoot.append(field);
+    field.select();
+    try { document.execCommand('copy'); } catch { /* sin portapapeles */ }
+    field.remove();
+  }
+  showToast(t('installLinkCopied'));
+}
+
 if (installPrompt) {
-  document.addEventListener('click', async (event) => {
+  modalRoot.addEventListener('click', async (event) => {
     const button = event.target.closest?.('[data-install-action]');
-    if (!button || !app.contains(button)) return;
-    if (button.dataset.installAction === 'install') await installPrompt.install();
-    else installPrompt.dismiss();
-    // El aviso desaparece: el foco pasa al título de la pantalla.
-    if (!document.querySelector('[data-install-banner]')) {
-      const heading = app.querySelector('[data-screen-heading], h1');
-      if (heading && !heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
-      heading?.focus();
+    if (!button) return;
+    const action = button.dataset.installAction;
+    if (action === 'native') {
+      const outcome = await installPrompt.install();
+      if (outcome !== 'unavailable' && installSheetOpen()) modalController.close({ reason: 'action' });
+    } else if (action === 'copy') {
+      await copyInstallLink();
+    } else if (action === 'later' || action === 'close') {
+      modalController.close({ reason: 'action' });
     }
   });
 }
+
+// Fila «Instala la app» bajo la promoción del login (sin sesión).
+const loginInstallRow = () => (['signin', 'signup'].includes(state.authMode) && installOffered()
+  ? `<div class="install-row" data-install-row><span class="install-row__icon">${PHONE_ICON}</span><span class="install-row__text">${t('installRow')}</span><button class="install-row__action" type="button" data-action="open-install">${t('installRowAction')}</button></div>`
+  : '');
 
 // Captación del invitado (carta, carrito y seguimiento): la misma promoción
 // del login en su variante compacta.
@@ -1166,7 +1249,7 @@ function history() {
 
 function profile() {
   const loyaltyCount = state.loyaltyReady ? `${state.stamps} ${t('stamps')}` : t('cardUnavailable');
-  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('profileEyebrow')}</p><h1>${t('profileTitle')}</h1>${state.needsProfileCompletion ? `<button class="profile-completion" type="button" data-action="open-personal">${t('completeProfile')}</button>` : ''}<div class="section-head"><h2>${t('yourAccount')}</h2></div><article class="profile-card">${avatar()}<div><h3>${escapeHTML(state.profile.firstName)} ${escapeHTML(state.profile.lastName)}</h3><p>${escapeHTML(state.profile.email)} · ${loyaltyCount}</p></div></article><div class="section-head"><h2>${t('settings')}</h2></div><div class="settings-list"><button class="settings-row" data-action="open-personal"><span>${t('personalData')}</span><span aria-hidden="true">›</span></button>${state.hasBusinessAccess ? `<a class="settings-row settings-row--link" href="/cafeteria"><span>${t('businessMode')}</span><span aria-hidden="true">›</span></a>` : ''}<label class="settings-row settings-row--switch"><span class="settings-row__copy"><span>${t('notifications')}</span><small>${t('notificationsCopy')}</small></span><span class="switch"><input type="checkbox" data-notifications ${state.notifications?'checked':''} ${state.notificationsLoading?'disabled':''} aria-label="${t('notifications')}"><span class="switch__track" aria-hidden="true"></span></span></label><label class="settings-row settings-row--switch"><span class="settings-row__copy"><span>${t('keepSession')}</span><small>${t('keepSessionCopy')}</small></span><span class="switch"><input type="checkbox" data-session-persistence ${state.keepSession?'checked':''} aria-label="${t('keepSession')}"><span class="switch__track" aria-hidden="true"></span></span></label><button class="settings-row" data-action="open-appearance"><span>${t('appearance')}</span><small>${t(state.themePreference==='system'?'systemTheme':state.themePreference==='dark'?'darkTheme':'lightTheme')}</small></button><button class="settings-row" data-action="open-language"><span>${t('language')}</span><small>${state.lang==='ca'?t('catalan'):t('spanish')}</small></button><a class="settings-row" href="${LEGAL_ROUTES.privacy}" data-legal-link="privacy"><span>${t('legalPrivacyLink')}</span><small aria-hidden="true">›</small></a><a class="settings-row" href="${LEGAL_ROUTES.notice}" data-legal-link="notice"><span>${t('legalNoticeLink')}</span><small aria-hidden="true">›</small></a><button class="settings-row settings-row--danger" data-action="logout"><span>${t('logout')}</span><span aria-hidden="true">›</span></button></div><div class="section-head"><h2>Spirit Coffee</h2></div><p class="subtitle">Passeig Rocamora, 9<br>Montcada i Reixac · Barcelona</p><section class="danger-zone" aria-labelledby="danger-zone-title"><div class="section-head"><div><h2 id="danger-zone-title">${t('dangerZone')}</h2><p>${t('dangerZoneCopy')}</p></div></div><button class="danger-zone__button" type="button" data-action="open-delete-account">${t('deleteAccount')}</button></section>${legalFooter()}</section>${nav('profile')}</main>`;
+  return `<main class="app-shell"><section class="screen screen--with-nav">${topbar()}<p class="eyebrow">${t('profileEyebrow')}</p><h1>${t('profileTitle')}</h1>${state.needsProfileCompletion ? `<button class="profile-completion" type="button" data-action="open-personal">${t('completeProfile')}</button>` : ''}<div class="section-head"><h2>${t('yourAccount')}</h2></div><article class="profile-card">${avatar()}<div><h3>${escapeHTML(state.profile.firstName)} ${escapeHTML(state.profile.lastName)}</h3><p>${escapeHTML(state.profile.email)} · ${loyaltyCount}</p></div></article><div class="section-head"><h2>${t('settings')}</h2></div><div class="settings-list"><button class="settings-row" data-action="open-personal"><span>${t('personalData')}</span><span aria-hidden="true">›</span></button>${state.hasBusinessAccess ? `<a class="settings-row settings-row--link" href="/cafeteria"><span>${t('businessMode')}</span><span aria-hidden="true">›</span></a>` : ''}<label class="settings-row settings-row--switch"><span class="settings-row__copy"><span>${t('notifications')}</span><small>${t('notificationsCopy')}</small></span><span class="switch"><input type="checkbox" data-notifications ${state.notifications?'checked':''} ${state.notificationsLoading?'disabled':''} aria-label="${t('notifications')}"><span class="switch__track" aria-hidden="true"></span></span></label><label class="settings-row settings-row--switch"><span class="settings-row__copy"><span>${t('keepSession')}</span><small>${t('keepSessionCopy')}</small></span><span class="switch"><input type="checkbox" data-session-persistence ${state.keepSession?'checked':''} aria-label="${t('keepSession')}"><span class="switch__track" aria-hidden="true"></span></span></label><button class="settings-row" data-action="open-appearance"><span>${t('appearance')}</span><small>${t(state.themePreference==='system'?'systemTheme':state.themePreference==='dark'?'darkTheme':'lightTheme')}</small></button><button class="settings-row" data-action="open-language"><span>${t('language')}</span><small>${state.lang==='ca'?t('catalan'):t('spanish')}</small></button>${installOffered() ? `<button class="settings-row" data-action="open-install" data-install-access><span>${t('installAccess')}</span><span aria-hidden="true">›</span></button>` : ''}<a class="settings-row" href="${LEGAL_ROUTES.privacy}" data-legal-link="privacy"><span>${t('legalPrivacyLink')}</span><small aria-hidden="true">›</small></a><a class="settings-row" href="${LEGAL_ROUTES.notice}" data-legal-link="notice"><span>${t('legalNoticeLink')}</span><small aria-hidden="true">›</small></a><button class="settings-row settings-row--danger" data-action="logout"><span>${t('logout')}</span><span aria-hidden="true">›</span></button></div><div class="section-head"><h2>Spirit Coffee</h2></div><p class="subtitle">Passeig Rocamora, 9<br>Montcada i Reixac · Barcelona</p><section class="danger-zone" aria-labelledby="danger-zone-title"><div class="section-head"><div><h2 id="danger-zone-title">${t('dangerZone')}</h2><p>${t('dangerZoneCopy')}</p></div></div><button class="danger-zone__button" type="button" data-action="open-delete-account">${t('deleteAccount')}</button></section>${legalFooter()}</section>${nav('profile')}</main>`;
 }
 
 function login() {
@@ -1191,7 +1274,7 @@ function login() {
   const guestEntry = ['signin', 'signup'].includes(state.authMode)
     ? renderGuestEntry({ translate: t, available: state.guestOrderingAvailable, busy: state.guestBusy, error: state.guestError, escapeHTML })
     : '';
-  return `<main class="app-shell"><section class="screen screen--gold ${recoveryMode ? 'screen--recovery' : ''}">${topbar()}<p class="eyebrow">${t(recoveryMode ? 'recoveryEyebrow' : 'welcome')}</p><h1>${t(recoveryMode ? 'recoveryTitle' : 'loginTitle')}</h1>${recoveryMode && state.authMode === 'recovery' ? `<p class="subtitle recovery-intro">${t('recoveryCopy')}</p>` : ''}${form}${signupPromo}${guestEntry}${legalFooter()}</section></main>`;
+  return `<main class="app-shell"><section class="screen screen--gold ${recoveryMode ? 'screen--recovery' : ''}">${topbar()}<p class="eyebrow">${t(recoveryMode ? 'recoveryEyebrow' : 'welcome')}</p><h1>${t(recoveryMode ? 'recoveryTitle' : 'loginTitle')}</h1>${recoveryMode && state.authMode === 'recovery' ? `<p class="subtitle recovery-intro">${t('recoveryCopy')}</p>` : ''}${form}${signupPromo}${loginInstallRow()}${guestEntry}${legalFooter()}</section></main>`;
 }
 
 function emailConfirmation() {
@@ -2311,6 +2394,8 @@ function render() {
     window.scrollTo({ top: state.menuScrollY || 0, behavior: 'auto' });
     syncMenuFromScroll();
   }
+  // «Instala Spirit»: hoja automática de la primera visita (inicio o carta).
+  if (installPrompt) scheduleInstallAutoShow(view);
   if (lastAnnouncedScreen !== view) {
     lastAnnouncedScreen = view;
     const heading = app.querySelector('h1');
@@ -2389,6 +2474,7 @@ function bind() {
     if(action==='next-onboarding'){ if(state.onboarding<2) moveOnboarding(1); else enterSpirit(); }
     if(action==='finish-onboarding' && !onboardingTransitioning){ localStorage.setItem('spirit-onboarded','1'); state.screen='login'; render(); }
     if(action==='close-sheet'){ modalController.close({ reason: 'action' }); }
+    if(action==='open-install'){ openInstallSheet(); }
     if(action==='request-stamp'){ openStampRequest(); }
     if(action==='use-reward' && state.availableRewards > 0){ openRewardRequest(); }
     if(action==='open-menu'){ state.menuQuery='';state.menuActiveCategory=MENU_CATEGORIES[0].id;state.screen='menu';render();scrollTo(0,0);void loadOrderingState({ repaint: true }); }

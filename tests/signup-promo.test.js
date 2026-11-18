@@ -128,7 +128,8 @@ test('compact (invitado): misma promoción con la nota de sus pedidos', () => {
 
 test('app.js: la promoción va encima de «¿Solo quieres pedir?» y sustituye a la captación anterior', async () => {
   const app = await read('app.js');
-  assert.match(app, /\$\{form\}\$\{signupPromo\}\$\{guestEntry\}\$\{legalFooter\(\)\}/);
+  // Entre la promoción y «¿Solo quieres pedir?», la fila «Instala la app».
+  assert.match(app, /\$\{form\}\$\{signupPromo\}\$\{loginInstallRow\(\)\}\$\{guestEntry\}\$\{legalFooter\(\)\}/);
   assert.match(app, /showAction: state\.authMode === 'signin'/);
   assert.match(app, /const signupPromo = loginSignupPromo\(\);/);
   assert.match(app, /if\(action==='signup-promo-start'\)\{ state\.authMode='signup';[^\n]*#signup-first-name/);

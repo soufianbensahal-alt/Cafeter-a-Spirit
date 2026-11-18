@@ -2,9 +2,10 @@ import { expect, test } from '@playwright/test';
 import pg from 'pg';
 import * as OTPAuth from 'otpauth';
 
-// Android, fase 2: aviso propio «Instalar app» (beforeinstallprompt), selector
-// de día con el selector nativo y avisos del panel (vibración, Wake Lock con
-// ahorro de batería y sonido). Solo contra la base local desechable.
+// Android, fase 2: «Instalar en este dispositivo» del Panel, selector de día
+// con el selector nativo y avisos del panel (vibración, Wake Lock con ahorro de
+// batería y sonido). La hoja del cliente está en install-sheet.spec.js. Solo
+// contra la base local desechable.
 const panelVars = ['SPIRIT_E2E_CUSTOMER_EMAIL', 'SPIRIT_E2E_EMPLOYEE_EMAIL', 'SPIRIT_E2E_EMPLOYEE_PASSWORD', 'SPIRIT_E2E_EMPLOYEE_TOTP_SECRET'];
 const e2eEnabled = process.env.SPIRIT_E2E === '1';
 const panelEnabled = e2eEnabled && panelVars.every((name) => process.env[name]);
@@ -15,7 +16,6 @@ test.use({ serviceWorkers: 'block' });
 
 const DB_URL = process.env.SPIRIT_E2E_DB_URL || 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 const BUSINESS_NAME = 'Cafetería Spirit - Montcada';
-const INSTALL_TITLE = 'Instala Spirit en tu móvil';
 
 // beforeinstallprompt simulado: Playwright no lo dispara. __fireInstall() lo
 // lanza como Chrome; prompt() cuenta las llamadas.
@@ -37,62 +37,6 @@ async function fakeInstallPrompt(page, { outcome = 'accepted', installed = false
     }
   }, [outcome, installed]);
 }
-
-async function openMenu(page) {
-  await page.locator('section.guest-entry').getByRole('button', { name: 'Ver la carta' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Carta' })).toBeVisible();
-}
-
-const banner = (page) => page.locator('[data-install-banner]');
-
-e2eTest('instalar: no en el login; en la carta, discreto, y «Instalar» abre el diálogo del sistema', async ({ page }) => {
-  await fakeInstallPrompt(page);
-  await page.goto('/login');
-  await expect(page.locator('section.guest-entry')).toBeVisible();
-  await page.evaluate(() => window.__fireInstall());
-  await expect(banner(page)).toHaveCount(0);
-  await openMenu(page);
-  await expect(banner(page).getByText(INSTALL_TITLE)).toBeVisible();
-  const install = banner(page).getByRole('button', { name: 'Instalar' });
-  const dismiss = banner(page).getByRole('button', { name: 'Ahora no' });
-  expect((await install.boundingBox()).height).toBeGreaterThanOrEqual(44);
-  expect((await dismiss.boundingBox()).height).toBeGreaterThanOrEqual(44);
-  await install.click();
-  await expect.poll(() => page.evaluate(() => window.__installCalls)).toBe(1);
-  await expect(banner(page)).toHaveCount(0);
-});
-
-e2eTest('instalar: «Ahora no» lo oculta y no vuelve aunque el navegador lo ofrezca otra vez', async ({ page }) => {
-  await fakeInstallPrompt(page);
-  await page.goto('/login');
-  await page.evaluate(() => window.__fireInstall());
-  await openMenu(page);
-  await banner(page).getByRole('button', { name: 'Ahora no' }).click();
-  await expect(banner(page)).toHaveCount(0);
-  await expect(page.getByRole('heading', { level: 1, name: 'Carta' })).toBeFocused();
-  expect(Number(await page.evaluate(() => localStorage.getItem('spirit-install-dismissed-at')))).toBeGreaterThan(0);
-  await page.reload();
-  await page.evaluate(() => window.__fireInstall());
-  await openMenu(page);
-  await expect(banner(page)).toHaveCount(0);
-});
-
-e2eTest('instalar: con la app ya instalada o sin el evento del navegador, no aparece', async ({ browser }, testInfo) => {
-  const installedPage = await (await browser.newContext({ ...testInfo.project.use, serviceWorkers: 'block' })).newPage();
-  await fakeInstallPrompt(installedPage, { installed: true });
-  await installedPage.goto('/login');
-  await installedPage.evaluate(() => window.__fireInstall());
-  await openMenu(installedPage);
-  await expect(banner(installedPage)).toHaveCount(0);
-  await installedPage.context().close();
-
-  const plainPage = await (await browser.newContext({ ...testInfo.project.use, serviceWorkers: 'block' })).newPage();
-  await plainPage.addInitScript(() => localStorage.setItem('spirit-onboarded', '1'));
-  await plainPage.goto('/login');
-  await openMenu(plainPage);
-  await expect(banner(plainPage)).toHaveCount(0);
-  await plainPage.context().close();
-});
 
 // ---------------------------------------------------------------------------
 // Panel en la tablet: aviso de instalación, selector de día y avisos.
@@ -144,7 +88,7 @@ async function employeeLogin(page) {
 
 let panel;
 
-panelTest('panel: aviso de instalación propio, descartable', async ({ browser }, testInfo) => {
+panelTest('panel: «Instalar en este dispositivo» con pasos o diálogo nativo', async ({ browser }, testInfo) => {
   panel = await (await browser.newContext({ ...testInfo.project.use, serviceWorkers: 'block' })).newPage();
   await fakeInstallPrompt(panel);
   // Dispositivo simulado: vibración, Wake Lock (rechazado al principio, como
@@ -172,12 +116,21 @@ panelTest('panel: aviso de instalación propio, descartable', async ({ browser }
     HTMLInputElement.prototype.showPicker = function showPicker() { window.__showPickerCalls += 1; };
   });
   await employeeLogin(panel);
+  // Sin el evento del navegador: la hoja con los pasos de la plataforma.
+  const install = panel.getByRole('button', { name: 'Instalar en este dispositivo' });
+  await expect(install).toBeVisible();
+  expect((await install.boundingBox()).height).toBeGreaterThanOrEqual(44);
+  await install.click();
+  const sheet = panel.getByRole('dialog', { name: 'Instala el panel en este dispositivo' });
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByText('Abre el menú ⋮ y elige «Instalar app» o «Añadir a pantalla de inicio».')).toBeVisible();
+  await panel.goBack({ waitUntil: 'commit' });
+  await expect(sheet).toHaveCount(0);
+  await expect(panel.getByRole('tablist', { name: 'Secciones del modo cafetería' })).toBeVisible();
+  // Con el evento: el mismo botón abre el diálogo nativo.
   await panel.evaluate(() => window.__fireInstall());
-  const panelBanner = banner(panel);
-  await expect(panelBanner.getByText('Instala el panel en esta tablet')).toBeVisible();
-  await panelBanner.getByRole('button', { name: 'Ahora no' }).click();
-  await expect(panelBanner).toHaveCount(0);
-  expect(Number(await panel.evaluate(() => localStorage.getItem('spirit-panel-install-dismissed-at')))).toBeGreaterThan(0);
+  await panel.getByRole('button', { name: 'Instalar en este dispositivo' }).click();
+  await expect.poll(() => panel.evaluate(() => window.__installCalls)).toBe(1);
 });
 
 panelTest('selector de día: al tocarlo no abre un segundo selector; «Borrar» vuelve a Hoy', async () => {

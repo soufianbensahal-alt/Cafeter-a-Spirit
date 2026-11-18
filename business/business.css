@@ -578,14 +578,41 @@ html[data-theme="dark"] .employee-strip .employee-status { color: #2f4a2d; }
 .control-guests__row--alert th, .control-guests__row--alert td { background: rgba(178,65,47,.1); color: #7e2e22; }
 .control-guests__flag { margin-left: 6px; padding: 1px 6px; border: 1px solid #b2412f; border-radius: 999px; font-size: 11px; font-weight: 800; text-transform: none; }
 
-/* Aviso propio «Instalar app» en la tablet (Android). */
-.install-banner { margin: 0 0 14px; padding: 10px 8px 10px 16px; border: 1px solid var(--business-line); border-radius: 22px; background: rgba(255,253,248,.58); display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
-.install-banner__text { flex: 1 1 12rem; min-width: 0; }
-.install-banner__title { margin: 0; font-size: 14px; font-weight: 800; line-height: 1.3; }
-.install-banner__copy { margin: 2px 0 0; color: var(--business-muted); font-size: 13px; line-height: 1.35; }
-.install-banner__action { min-height: 44px; padding: 8px 16px; border: 0; border-radius: 999px; background: var(--business-ink); color: #fffaf0; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
-.install-banner__dismiss { width: 44px; height: 44px; flex: none; border: 0; border-radius: 50%; background: transparent; color: var(--business-muted); font-size: 24px; line-height: 1; cursor: pointer; }
-.install-banner__action:focus-visible, .install-banner__dismiss:focus-visible { outline: 3px solid #695c2c; outline-offset: 2px; }
+/* «Instalar en este dispositivo» (fila del inicio) y hoja con los pasos. */
+.business-install { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
+.business-install > div { flex: 1 1 10rem; min-width: 0; }
+.business-install__icon { width: 40px; height: 40px; flex: none; border-radius: 50%; background: rgba(238,207,98,.34); display: grid; place-items: center; }
+.business-install__icon svg { width: 22px; height: 22px; fill: none; stroke: var(--business-ink); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.business-install__action { min-height: 44px; padding: 8px 18px; border: 0; border-radius: 999px; background: var(--business-ink); color: #fffaf0; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+.business-install__action:focus-visible { outline: 3px solid #695c2c; outline-offset: 2px; }
+body.business-mode .modal--install { padding-top: 10px; text-align: left; }
+body.business-mode .modal--install.is-dragging { user-select: none; }
+.install-sheet__grab { display: flex; justify-content: center; padding: 4px 0 12px; cursor: grab; touch-action: none; }
+.install-sheet__grab span { width: 40px; height: 5px; border-radius: 999px; background: rgba(105,92,44,.28); }
+.install-sheet__head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; touch-action: none; }
+.install-sheet__icon { width: 52px; height: 52px; flex: none; border-radius: 14px; }
+.install-sheet__titles { flex: 1; min-width: 0; }
+.install-sheet__titles h2 { margin: 0; font-size: 22px; line-height: 1.2; }
+.install-sheet__benefit { margin: 4px 0 0; color: var(--business-muted); font-size: 15px; line-height: 1.4; }
+.install-sheet .sheet-close { width: 44px; height: 44px; flex: none; border: 1px solid var(--business-line); border-radius: 50%; background: transparent; color: inherit; font-size: 26px; line-height: 1; cursor: pointer; }
+.install-sheet__body { display: grid; gap: 12px; }
+.install-sheet__primary, .install-sheet__secondary { min-height: 48px; width: 100%; padding: 0 18px; border: 0; border-radius: 999px; background: var(--business-ink); color: #fffaf0; display: flex; align-items: center; justify-content: center; font: inherit; font-weight: 800; text-decoration: none; cursor: pointer; }
+.install-sheet__secondary { border: 1px solid var(--business-line); background: transparent; color: inherit; }
+.install-sheet__actions { display: grid; gap: 10px; }
+.install-sheet__steps-one { margin: 0; padding: 14px 16px; border: 1px solid var(--business-line); border-radius: 16px; line-height: 1.5; }
+.install-sheet__steps { margin: 0; padding: 0; list-style: none; counter-reset: install-step; display: grid; gap: 8px; }
+.install-sheet__steps li { counter-increment: install-step; min-height: 44px; padding: 8px 14px 8px 8px; border: 1px solid var(--business-line); border-radius: 16px; display: flex; align-items: center; gap: 12px; line-height: 1.35; }
+.install-sheet__steps li::before { content: counter(install-step); width: 28px; height: 28px; flex: none; border-radius: 50%; background: #eecf62; color: #2e2d29; display: grid; place-items: center; font-weight: 800; font-size: 14px; }
+.install-sheet__steps li span { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.install-sheet__share { width: 22px; height: 22px; fill: none; stroke: #2f6fde; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.install-sheet__hint { margin: 2px 4px 0; color: var(--business-muted); font-size: 13px; line-height: 1.45; }
+.install-sheet__hint--soft { margin-top: -6px; }
+.install-sheet__primary:focus-visible, .install-sheet__secondary:focus-visible, .install-sheet .sheet-close:focus-visible { outline: 3px solid #695c2c; outline-offset: 2px; }
+html[data-theme="dark"] body.business-mode .modal--install { border-color: rgba(238,207,98,.15); background: #211f19; color: #f7f0de; }
+html[data-theme="dark"] .install-sheet__primary { background: #eecf62; color: #171612; }
+html[data-theme="dark"] .install-sheet__share { stroke: #6ea2ff; }
+html[data-theme="dark"] .business-install__action { background: #eecf62; color: #171612; }
+html[data-theme="dark"] .business-install__icon svg { stroke: #f7f0de; }
 
 /* Rendimiento en móviles: sin desenfoque de fondo en pantallas pequeñas o con
    prefers-reduced-transparency (sobre fondo liso el aspecto no cambia). */

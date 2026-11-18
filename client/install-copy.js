@@ -1,0 +1,55 @@
+// Textos de «Instala Spirit» (hoja, fila del login, perfil y avisos). Las
+// opciones entre «» siguen el nombre que usa el sistema en cada idioma.
+
+export const INSTALL_COPY = Object.freeze({
+  es: Object.freeze({
+    installTitle: 'Instala Spirit en tu móvil',
+    installBenefit: 'Abre la carta y pide en un toque, sin buscar la web.',
+    installClose: 'Cerrar',
+    installLater: 'Ahora no',
+    installNative: 'Instalar app',
+    installAndroidMenu: 'Abre el menú ⋮ y elige «Instalar app» o «Añadir a pantalla de inicio».',
+    installIosStep1: 'Toca Compartir',
+    installIosStep2: 'Elige «Añadir a pantalla de inicio»',
+    installIosStep3: 'Si aparece «Abrir como app web», actívalo',
+    installIosStep4: 'Toca «Añadir»',
+    installIosHintIphone: 'En Safari, Compartir está abajo o en el menú ···. En Chrome, arriba a la derecha.',
+    installIosHintIpad: 'Compartir está arriba, junto a la barra de direcciones.',
+    installIosFallback: 'Si no ves la opción, abre esta página en Safari.',
+    installIosOld: 'Desde este navegador no se puede instalar. Abre esta página en Safari.',
+    installInAppBlocked: 'Desde {app} no se puede instalar.',
+    installInAppOpen: 'Abre esta página en {browser}: toca ··· y elige «Abrir en el navegador».',
+    installCopyLink: 'Copiar enlace',
+    installOpenChrome: 'Abrir en Chrome',
+    installLinkCopied: 'Enlace copiado',
+    installAccess: 'Instalar la app',
+    installRow: 'Instala la app',
+    installRowAction: 'Instalar',
+    installDone: '¡Listo! Ya tienes Spirit en tu pantalla de inicio'
+  }),
+  ca: Object.freeze({
+    installTitle: 'Instal·la Spirit al mòbil',
+    installBenefit: 'Obre la carta i demana en un toc, sense buscar la web.',
+    installClose: 'Tancar',
+    installLater: 'Ara no',
+    installNative: 'Instal·lar l’app',
+    installAndroidMenu: 'Obre el menú ⋮ i tria «Instal·la l’aplicació» o «Afegeix a la pantalla d’inici».',
+    installIosStep1: 'Toca Compartir',
+    installIosStep2: 'Tria «Afegeix a la pantalla d’inici»',
+    installIosStep3: 'Si apareix «Obre com a app web», activa-ho',
+    installIosStep4: 'Toca «Afegeix»',
+    installIosHintIphone: 'A Safari, Compartir és a baix o al menú ···. A Chrome, a dalt a la dreta.',
+    installIosHintIpad: 'Compartir és a dalt, al costat de la barra d’adreces.',
+    installIosFallback: 'Si no veus l’opció, obre aquesta pàgina a Safari.',
+    installIosOld: 'Des d’aquest navegador no es pot instal·lar. Obre aquesta pàgina a Safari.',
+    installInAppBlocked: 'Des {deApp} no es pot instal·lar.',
+    installInAppOpen: 'Obre aquesta pàgina a {browser}: toca ··· i tria «Obre al navegador».',
+    installCopyLink: 'Copiar l’enllaç',
+    installOpenChrome: 'Obrir a Chrome',
+    installLinkCopied: 'Enllaç copiat',
+    installAccess: 'Instal·lar l’app',
+    installRow: 'Instal·la l’app',
+    installRowAction: 'Instal·lar',
+    installDone: 'Fet! Ja tens Spirit a la pantalla d’inici'
+  })
+});

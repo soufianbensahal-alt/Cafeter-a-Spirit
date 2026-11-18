@@ -31,7 +31,11 @@ import { displayText } from '../services/display-text.js';
 import { createLiveAnnouncer } from '../services/live-announcer.js';
 import { createBusinessOrdersPanel } from './business-orders.js';
 import { createBackNavigation, createExitHint, isInstalledApp, panelDepth } from '../services/back-navigation.js';
-import { createInstallPrompt, renderInstallBanner } from '../services/install-prompt.js';
+import { PHONE_ICON, createInstallPrompt, renderInstallSheet } from '../services/install-prompt.js';
+import { detectInstallPlatform } from '../services/install-platform.js';
+import { accessibleDialogMarkup, createAccessibleModalController } from '../services/accessible-modal.js';
+import { bindSheetSwipe } from '../services/sheet-swipe.js';
+import { INSTALL_COPY } from '../client/install-copy.js';
 import { releaseScrollLockIfIdle } from '../services/scroll-lock.js';
 import jsQR from 'jsqr';
 
@@ -122,29 +126,67 @@ if (isBusinessRoute) {
     return loyaltyTab();
   };
 
-  // «Instalar app» en la tablet de la barra: pantalla completa y avisos más
-  // fiables. Discreto y descartable (30 días).
+  // «Instalar en este dispositivo»: pantalla completa y avisos más fiables.
+  // Diálogo nativo si el navegador lo ofrece; si no, la hoja con los pasos de
+  // cada plataforma (la misma del cliente, con su propio contenedor).
   const installPrompt = createInstallPrompt({
     storageKey: 'spirit-panel-install-dismissed-at',
     isInstalled: () => isInstalledApp(),
-    onChange: () => { if (state.view === 'home') render(); }
+    onChange: () => {
+      if (installModal.isOpen() && !panelInstallOffered()) installModal.close({ reason: 'installed' });
+      if (state.view === 'home' && !installModal.isOpen()) render();
+    },
+    onInstalled: () => { if (installModal.isOpen()) installModal.close({ reason: 'installed' }); }
   });
-  const panelInstallBanner = () => (installPrompt.visible()
-    ? renderInstallBanner({ id: 'panel-install', title: 'Instala el panel en esta tablet', copy: 'Pantalla completa y avisos más fiables.', action: 'Instalar', dismissLabel: 'Ahora no' })
+  const panelInstallPlatform = () => detectInstallPlatform({
+    userAgent: navigator.userAgent,
+    maxTouchPoints: navigator.maxTouchPoints,
+    standalone: installPrompt.installed(),
+    hasPrompt: installPrompt.hasNativePrompt()
+  });
+  // En el ordenador solo si el navegador ofrece la instalación nativa.
+  const panelInstallOffered = () => {
+    const platform = panelInstallPlatform();
+    return platform.kind !== 'installed' && (platform.kind !== 'desktop' || installPrompt.hasNativePrompt());
+  };
+  const installRoot = document.createElement('div');
+  installRoot.dataset.panelInstallRoot = '';
+  document.body.append(installRoot);
+  const installModal = createAccessibleModalController({
+    appRoot: app,
+    modalRoot: installRoot,
+    onOpen: () => backNavigation.sync(),
+    onClose: ({ reason }) => { if (reason !== 'replace') queueMicrotask(() => backNavigation.sync()); }
+  });
+  const panelT = (key, values = {}) => Object.entries(values).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, value), INSTALL_COPY.es[key] || key);
+  const panelInstallRow = () => (panelInstallOffered()
+    ? `<section class="business-profile-setting business-install"><span class="business-install__icon">${PHONE_ICON}</span><div><strong>Instala el panel</strong><small>Pantalla completa y avisos más fiables</small></div><button class="business-install__action" type="button" data-business-action="install-panel">Instalar en este dispositivo</button></section>`
     : '');
-  document.addEventListener('click', async (event) => {
+  async function startPanelInstall() {
+    if (installPrompt.hasNativePrompt()) { await installPrompt.install(); return; }
+    const platform = panelInstallPlatform();
+    if (platform.kind === 'installed') return;
+    const dialog = installModal.open(accessibleDialogMarkup({
+      content: renderInstallSheet({ platform, translate: panelT, url: `${location.origin}/cafeteria`, id: 'panel-install', title: 'Instala el panel en este dispositivo', benefit: 'Pantalla completa y avisos más fiables.' }),
+      labelledBy: 'panel-install-title',
+      describedBy: 'panel-install-copy',
+      className: 'modal--install'
+    }), { initialFocus: '[data-install-focus]' });
+    bindSheetSwipe(dialog, { onClose: () => installModal.close({ reason: 'swipe' }) });
+  }
+  installRoot.addEventListener('click', async (event) => {
     const button = event.target.closest?.('[data-install-action]');
-    if (!button || !app.contains(button)) return;
-    if (button.dataset.installAction === 'install') await installPrompt.install();
-    else installPrompt.dismiss();
-    if (!document.querySelector('[data-install-banner]')) {
-      const heading = app.querySelector('h1');
-      if (heading && !heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
-      heading?.focus();
+    if (!button) return;
+    const action = button.dataset.installAction;
+    if (action === 'copy') {
+      try { await navigator.clipboard.writeText(`${location.origin}/cafeteria`); } catch { /* sin portapapeles */ }
+      button.textContent = 'Enlace copiado';
+    } else if (action === 'close' || action === 'later') {
+      installModal.close({ reason: 'action' });
     }
   });
 
-  const homeView = () => `<main class="business-app ${state.tab === 'loyalty' ? '' : 'business-app--wide'}">${brandHeader()}<section class="employee-strip"><div class="employee-avatar" aria-hidden="true">${escapeHTML(employeeInitials())}</div><div><span>${escapeHTML(roleLabel(state.employee?.role))}</span><strong>${escapeHTML(state.employee?.employeeName || '')}</strong></div>${state.employee?.isCustomer ? '<a class="employee-status" href="/">Vista cliente</a>' : '<span class="employee-status">Activa</span>'}</section><section class="business-profile-setting"><div><strong>Mantener sesión iniciada</strong><small>No cerrar automáticamente esta sesión</small></div><label class="business-switch"><input type="checkbox" data-business-session-persistence ${state.keepSession ? 'checked' : ''} aria-label="Mantener sesión iniciada"><span aria-hidden="true"></span></label></section>${panelInstallBanner()}<section class="orders-status" data-orders-status aria-label="Avisos de pedidos"></section>${tabsHTML()}<div class="business-tabpanel" role="tabpanel" id="business-tabpanel" aria-labelledby="business-tab-${state.tab}">${tabContent()}</div><button class="business-logout" type="button" data-business-action="logout">Cerrar sesión</button><p class="business-security-note">Acceso protegido con Supabase Auth · Validación, confirmación y recompensas se procesan de forma atómica en el servidor.</p></main>`;
+  const homeView = () => `<main class="business-app ${state.tab === 'loyalty' ? '' : 'business-app--wide'}">${brandHeader()}<section class="employee-strip"><div class="employee-avatar" aria-hidden="true">${escapeHTML(employeeInitials())}</div><div><span>${escapeHTML(roleLabel(state.employee?.role))}</span><strong>${escapeHTML(state.employee?.employeeName || '')}</strong></div>${state.employee?.isCustomer ? '<a class="employee-status" href="/">Vista cliente</a>' : '<span class="employee-status">Activa</span>'}</section><section class="business-profile-setting"><div><strong>Mantener sesión iniciada</strong><small>No cerrar automáticamente esta sesión</small></div><label class="business-switch"><input type="checkbox" data-business-session-persistence ${state.keepSession ? 'checked' : ''} aria-label="Mantener sesión iniciada"><span aria-hidden="true"></span></label></section>${panelInstallRow()}<section class="orders-status" data-orders-status aria-label="Avisos de pedidos"></section>${tabsHTML()}<div class="business-tabpanel" role="tabpanel" id="business-tabpanel" aria-labelledby="business-tab-${state.tab}">${tabContent()}</div><button class="business-logout" type="button" data-business-action="logout">Cerrar sesión</button><p class="business-security-note">Acceso protegido con Supabase Auth · Validación, confirmación y recompensas se procesan de forma atómica en el servidor.</p></main>`;
 
   const progress = (value, goal) => `<div class="business-progress" role="img" aria-label="${value} de ${goal} sellos"><div><strong>${value}</strong><span>/ ${goal}</span></div><div class="business-progress__track"><span style="width:${(value / goal) * 100}%"></span></div></div>`;
 
@@ -222,6 +264,7 @@ if (isBusinessRoute) {
     showBackHint.timer = setTimeout(() => toast.classList.remove('toast--show', 'toast--back'), 2200);
   }
   function handlePanelBack() {
+    if (installModal.isOpen()) { installModal.close({ reason: 'back' }); return undefined; }
     const orders = ordersNavigation();
     if (orders?.modalOpen()) { orders.closeModal(); return undefined; }
     if (state.view === 'scanner') { stopScanner(); resetCustomer(); return undefined; }
@@ -235,7 +278,7 @@ if (isBusinessRoute) {
   }
   const backNavigation = createBackNavigation({
     getDepth: () => panelDepth({ view: state.view, tab: state.tab, historyOpen: Boolean(ordersNavigation()?.historyOpen()) })
-      + (ordersNavigation()?.modalOpen() ? 1 : 0),
+      + (ordersNavigation()?.modalOpen() || installModal.isOpen() ? 1 : 0),
     onBack: handlePanelBack,
     guardRoot: () => isInstalledApp()
   });
@@ -697,6 +740,7 @@ if (isBusinessRoute) {
       if (action === 'cancel-preview' && !state.confirming) resetCustomer();
       if (action === 'confirm-session') confirmSession();
       if (action === 'next-customer') resetCustomer();
+      if (action === 'install-panel') await startPanelInstall();
       if (action === 'load-more-history') { try { await loadHistory(false); } catch (error) { state.error = readableError(error); } render(); }
       if (action === 'logout') {
         manualSignOut = true;
