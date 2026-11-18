@@ -127,7 +127,7 @@ test('sólo existe la promoción del login: sin variante compacta ni captación 
 test('app.js: la promoción va encima de «¿Solo quieres pedir?» y sólo está en el login', async () => {
   const app = await read('app.js');
   // Entre la promoción y «¿Solo quieres pedir?», la fila «Instala la app».
-  assert.match(app, /\$\{form\}\$\{signupPromo\}\$\{loginInstallRow\(\)\}\$\{guestEntry\}\$\{legalFooter\(\)\}/);
+  assert.match(app, /\$\{form\}\$\{signupPromo\}\$\{installRow\}\$\{guestEntry\}\$\{legalFooter\(\)\}/);
   assert.match(app, /showAction: state\.authMode === 'signin'/);
   assert.match(app, /const signupPromo = loginSignupPromo\(\);/);
   assert.match(app, /if\(action==='signup-promo-start'\)\{ state\.authMode='signup';[^\n]*#signup-first-name/);

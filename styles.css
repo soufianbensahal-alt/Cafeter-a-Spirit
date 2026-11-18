@@ -755,6 +755,8 @@ html[data-theme="dark"] .signup-promo__slot--reward { color: var(--mustard); box
 .legal-footer a, .legal-other a, .check a, .guest-privacy a { color: inherit; font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
 .legal-footer a { display: inline-block; min-height: 44px; padding: 12px 6px; }
 .guest-privacy { margin: 2px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+/* Huecos que se sustituyen sin repintar la pantalla: no cuentan en el diseño. */
+.slot-contents { display: contents; }
 /* Seguimiento del invitado: recordatorio discreto, sin botón ni enlace. */
 .guest-reminder { margin: 24px 0 0; color: var(--ink); opacity: .78; font-size: 14px; line-height: 1.45; text-align: center; overflow-wrap: anywhere; }
 html[data-theme="dark"] .guest-reminder { color: var(--muted); opacity: 1; }

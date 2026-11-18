@@ -398,11 +398,38 @@ const menu = () => {
   let back = null;
   if (state.isGuest) {
     back = { action: 'guest-exit', label: t('guestExit') };
-  } else if (state.authStatus !== 'authenticated' && (state.guestOrderingAvailable || state.guestError)) {
-    banner = renderGuestMenuBanner({ translate: t, busy: state.guestBusy, error: state.guestError, escapeHTML });
+  } else if (state.authStatus !== 'authenticated') {
+    banner = `<div class="slot-contents" data-guest-banner-slot>${menuGuestBanner()}</div>`;
   }
   return renderMenuScreen({ ...menuViewContext(), banner, back });
 };
+
+// Bloques de «Pedir sin cuenta» (login y carta sin sesión).
+const loginGuestEntry = () => renderGuestEntry({ translate: t, available: state.guestOrderingAvailable, busy: state.guestBusy, error: state.guestError, escapeHTML });
+const menuGuestBanner = () => (state.guestOrderingAvailable || state.guestError
+  ? renderGuestMenuBanner({ translate: t, busy: state.guestBusy, error: state.guestError, escapeHTML })
+  : '');
+
+// Respuestas que llegan en segundo plano (disponibilidad de invitados, aviso
+// de instalación): sólo se sustituye su hueco. Repintar toda la pantalla
+// borraría lo que se esté escribiendo en el login, el registro o el buscador.
+function replaceSlot(selector, html) {
+  const slot = app.querySelector(selector);
+  if (!slot) return false;
+  const active = document.activeElement;
+  const action = slot.contains(active) ? active?.dataset?.action : '';
+  slot.innerHTML = html;
+  bind();
+  if (action) slot.querySelector(`[data-action="${CSS.escape(action)}"]`)?.focus({ preventScroll: true });
+  return true;
+}
+
+// «Pedir sin cuenta» en la pantalla actual (login o carta sin sesión).
+function refreshGuestBlocks() {
+  if (state.screen === 'login') return replaceSlot('[data-guest-entry-slot]', loginGuestEntry());
+  if (state.screen === 'menu') return replaceSlot('[data-guest-banner-slot]', menuGuestBanner());
+  return false;
+}
 
 // «Instala Spirit»: hoja con las instrucciones de cada plataforma. Sale sola
 // en la primera visita (inicio o carta, como mucho cada 30 días) y se abre
@@ -411,7 +438,8 @@ const installPrompt = isBusinessMode ? null : createInstallPrompt({
   isInstalled: () => isInstalledApp(),
   onChange: () => {
     refreshInstallSheet();
-    if (['login', 'profile'].includes(state.screen) && !modalController.isOpen()) renderPreservingFocus();
+    if (state.screen === 'login') replaceSlot('[data-install-row-slot]', loginInstallRow());
+    else if (state.screen === 'profile' && !modalController.isOpen()) renderPreservingFocus();
   },
   onInstalled: () => {
     if (installSheetOpen()) modalController.close({ reason: 'installed' });
@@ -1250,9 +1278,10 @@ function login() {
   }
   const signupPromo = loginSignupPromo();
   const guestEntry = ['signin', 'signup'].includes(state.authMode)
-    ? renderGuestEntry({ translate: t, available: state.guestOrderingAvailable, busy: state.guestBusy, error: state.guestError, escapeHTML })
+    ? `<div class="slot-contents" data-guest-entry-slot>${loginGuestEntry()}</div>`
     : '';
-  return `<main class="app-shell"><section class="screen screen--gold ${recoveryMode ? 'screen--recovery' : ''}">${topbar()}<p class="eyebrow">${t(recoveryMode ? 'recoveryEyebrow' : 'welcome')}</p><h1>${t(recoveryMode ? 'recoveryTitle' : 'loginTitle')}</h1>${recoveryMode && state.authMode === 'recovery' ? `<p class="subtitle recovery-intro">${t('recoveryCopy')}</p>` : ''}${form}${signupPromo}${loginInstallRow()}${guestEntry}${legalFooter()}</section></main>`;
+  const installRow = `<div class="slot-contents" data-install-row-slot>${loginInstallRow()}</div>`;
+  return `<main class="app-shell"><section class="screen screen--gold ${recoveryMode ? 'screen--recovery' : ''}">${topbar()}<p class="eyebrow">${t(recoveryMode ? 'recoveryEyebrow' : 'welcome')}</p><h1>${t(recoveryMode ? 'recoveryTitle' : 'loginTitle')}</h1>${recoveryMode && state.authMode === 'recovery' ? `<p class="subtitle recovery-intro">${t('recoveryCopy')}</p>` : ''}${form}${signupPromo}${installRow}${guestEntry}${legalFooter()}</section></main>`;
 }
 
 function emailConfirmation() {
@@ -1719,14 +1748,14 @@ async function refreshGuestAvailability({ repaint = false } = {}) {
   const available = await getGuestOrderingStatus();
   if (available === state.guestOrderingAvailable) return;
   state.guestOrderingAvailable = available;
-  if (repaint && state.authStatus !== 'authenticated' && ['login', 'menu'].includes(state.screen)) renderPreservingFocus();
+  if (repaint && state.authStatus !== 'authenticated') refreshGuestBlocks();
 }
 
 async function startGuestOrdering() {
   if (state.guestBusy) return;
   state.guestBusy = true;
   state.guestError = '';
-  renderPreservingFocus();
+  refreshGuestBlocks();
   try {
     const user = await signInAsGuest();
     applyGuestContext(user);
@@ -1740,10 +1769,9 @@ async function startGuestOrdering() {
     state.guestError = error?.code === 'guest_disabled' ? t('guestUnavailable') : t('guestStartError');
     if (error?.code === 'guest_disabled') state.guestOrderingAvailable = false;
     announcer.announce(state.guestError, { assertive: true });
-    renderPreservingFocus();
   } finally {
     state.guestBusy = false;
-    if (state.authStatus !== 'authenticated') renderPreservingFocus();
+    if (state.authStatus !== 'authenticated') refreshGuestBlocks();
   }
 }
 
@@ -2368,6 +2396,14 @@ async function shareSpirit() {
   }
 }
 
+// Un elemento se enlaza una sola vez: bind() se puede llamar de nuevo tras
+// sustituir un bloque sin duplicar los envíos de los formularios.
+const bindOnce = (element) => {
+  if (!element || element.dataset.bound) return null;
+  element.dataset.bound = '1';
+  return element;
+};
+
 function bind() {
   document.querySelectorAll('[data-nav]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{clearStampRequest();state.screen=el.dataset.nav; render(); scrollTo(0,0);})});
   document.querySelectorAll('[data-action]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',async()=>{
@@ -2435,7 +2471,7 @@ function bind() {
   document.querySelectorAll('[data-theme-preference]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('click',()=>{applyTheme(el.dataset.themePreference,true);modalController.close({ reason: 'selection' });render();})});
   document.querySelectorAll('[data-notifications]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',async(event)=>{if(state.notificationsLoading)return;const desired=event.currentTarget.checked;state.notificationsLoading=true;event.currentTarget.disabled=true;try{state.notifications=desired?await enablePushNotifications(state.lang):await disablePushNotifications();showToast(t(desired?'notificationsEnabled':'notificationsDisabled'));}catch(error){state.notifications=await getPushNotificationState();showToast(readablePushError(error));}finally{state.notificationsLoading=false;render();}})});
   document.querySelectorAll('[data-session-persistence]:not([data-bound])').forEach(el=>{el.dataset.bound='1';el.addEventListener('change',async(event)=>{const input=event.currentTarget;const previous=state.keepSession;input.disabled=true;try{const saved=await updateCustomerSessionPreference(input.checked);state.keepSession=setSessionPersistence(saved);input.checked=state.keepSession;}catch(error){state.keepSession=previous;input.checked=previous;showToast(readableAuthError(error));}finally{if(input.isConnected)input.disabled=false;}})});
-  const customerAuthForm = document.querySelector('[data-form="customer-auth"]');
+  const customerAuthForm = bindOnce(document.querySelector('[data-form="customer-auth"]'));
   bindSignupFormValidation(customerAuthForm);
   customerAuthForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -2503,13 +2539,13 @@ function bind() {
       render();
     }
   });
-  document.querySelector('[data-form="customer-forgot"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const form=e.currentTarget;const data=new FormData(form);state.authLoading=true;state.authError='';state.authNotice='';render();try{await requestCustomerPasswordReset(data.get('email'));state.authNotice=t('recoverySent');state.authMode='signin';}catch(error){state.authError=readableAuthError(error);}finally{state.authLoading=false;state.screen='login';render();}});
-  document.querySelector('[data-form="email-confirmation-resend"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);state.authLoading=true;state.authError='';state.authNotice='';render();try{await resendCustomerEmailConfirmation(data.get('email'));state.authNotice=t('emailConfirmationResent');}catch(error){state.authError=readableAuthError(error);}finally{state.authLoading=false;render();}});
-  document.querySelector('[data-form="customer-recovery"]')?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);const password=String(data.get('password')||'');const confirmation=String(data.get('confirmation')||'');if(!passwordMeetsPolicy(password)){state.authError=t('passwordLength');render();return;}if(password!==confirmation){state.authError=t('passwordMismatch');render();return;}const tokenHash=passwordRecoveryState.getTokenHash();if(!tokenHash){passwordRecoveryState.clear();backNavigation.replaceUrl('/');clearCustomerIdentity();state.authMode='forgot';state.authError=t('recoveryInvalidCopy');state.screen='login';render();return;}state.authLoading=true;state.authError='';render();try{await completeCustomerPasswordRecovery(tokenHash,password);passwordRecoveryState.clear();backNavigation.replaceUrl('/');clearCustomerIdentity();state.authMode='signin';state.authNotice=t('recoveryCompleteSignIn');state.screen='login';}catch(error){const invalidRecovery=['session_not_found','otp_expired','access_denied','recovery_link_invalid','recovery_link_consumed'].includes(error?.code);if(invalidRecovery){passwordRecoveryState.clear();backNavigation.replaceUrl('/');clearCustomerIdentity();state.authMode='forgot';state.authError=t('recoveryInvalidCopy');state.screen='login';}else{state.authError=readableAuthError(error);}}finally{state.authLoading=false;render();}});
-  document.querySelector('[data-form="profile"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);try{const context=await updateCustomerProfile(`${data.get('firstName')} ${data.get('lastName')}`);applyCustomerContext(context);modalController.close({ reason: 'submit' });render();}catch(error){showToast(readableAuthError(error));}});
-  document.querySelector('[data-form="password"]')?.addEventListener('submit',async(e)=>{e.preventDefault();const form=e.currentTarget;if(form.dataset.submitting==='true')return;const data=new FormData(form);const current=String(data.get('currentPassword')||'');const next=String(data.get('newPassword')||'');const confirmation=String(data.get('confirmPassword')||'');const error=form.querySelector('[data-password-error]');const submit=form.querySelector('[type="submit"]');error.textContent='';if(!current){error.textContent=t('currentPasswordRequired');return;}if(!passwordMeetsPolicy(next)){error.textContent=t('passwordLength');return;}if(next!==confirmation){error.textContent=t('passwordMismatch');return;}form.dataset.submitting='true';submit.disabled=true;try{await updateCustomerPassword(state.profile.email,current,next);form.reset();modalController.close({ reason: 'submit' });showToast(t('passwordSaved'));}catch(authError){error.textContent=readablePasswordChangeError(authError);}finally{delete form.dataset.submitting;if(submit.isConnected)submit.disabled=false;}});
+  bindOnce(document.querySelector('[data-form="customer-forgot"]'))?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const form=e.currentTarget;const data=new FormData(form);state.authLoading=true;state.authError='';state.authNotice='';render();try{await requestCustomerPasswordReset(data.get('email'));state.authNotice=t('recoverySent');state.authMode='signin';}catch(error){state.authError=readableAuthError(error);}finally{state.authLoading=false;state.screen='login';render();}});
+  bindOnce(document.querySelector('[data-form="email-confirmation-resend"]'))?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);state.authLoading=true;state.authError='';state.authNotice='';render();try{await resendCustomerEmailConfirmation(data.get('email'));state.authNotice=t('emailConfirmationResent');}catch(error){state.authError=readableAuthError(error);}finally{state.authLoading=false;render();}});
+  bindOnce(document.querySelector('[data-form="customer-recovery"]'))?.addEventListener('submit',async(e)=>{e.preventDefault();if(state.authLoading)return;const data=new FormData(e.currentTarget);const password=String(data.get('password')||'');const confirmation=String(data.get('confirmation')||'');if(!passwordMeetsPolicy(password)){state.authError=t('passwordLength');render();return;}if(password!==confirmation){state.authError=t('passwordMismatch');render();return;}const tokenHash=passwordRecoveryState.getTokenHash();if(!tokenHash){passwordRecoveryState.clear();backNavigation.replaceUrl('/');clearCustomerIdentity();state.authMode='forgot';state.authError=t('recoveryInvalidCopy');state.screen='login';render();return;}state.authLoading=true;state.authError='';render();try{await completeCustomerPasswordRecovery(tokenHash,password);passwordRecoveryState.clear();backNavigation.replaceUrl('/');clearCustomerIdentity();state.authMode='signin';state.authNotice=t('recoveryCompleteSignIn');state.screen='login';}catch(error){const invalidRecovery=['session_not_found','otp_expired','access_denied','recovery_link_invalid','recovery_link_consumed'].includes(error?.code);if(invalidRecovery){passwordRecoveryState.clear();backNavigation.replaceUrl('/');clearCustomerIdentity();state.authMode='forgot';state.authError=t('recoveryInvalidCopy');state.screen='login';}else{state.authError=readableAuthError(error);}}finally{state.authLoading=false;render();}});
+  bindOnce(document.querySelector('[data-form="profile"]'))?.addEventListener('submit',async(e)=>{e.preventDefault();const data=new FormData(e.currentTarget);try{const context=await updateCustomerProfile(`${data.get('firstName')} ${data.get('lastName')}`);applyCustomerContext(context);modalController.close({ reason: 'submit' });render();}catch(error){showToast(readableAuthError(error));}});
+  bindOnce(document.querySelector('[data-form="password"]'))?.addEventListener('submit',async(e)=>{e.preventDefault();const form=e.currentTarget;if(form.dataset.submitting==='true')return;const data=new FormData(form);const current=String(data.get('currentPassword')||'');const next=String(data.get('newPassword')||'');const confirmation=String(data.get('confirmPassword')||'');const error=form.querySelector('[data-password-error]');const submit=form.querySelector('[type="submit"]');error.textContent='';if(!current){error.textContent=t('currentPasswordRequired');return;}if(!passwordMeetsPolicy(next)){error.textContent=t('passwordLength');return;}if(next!==confirmation){error.textContent=t('passwordMismatch');return;}form.dataset.submitting='true';submit.disabled=true;try{await updateCustomerPassword(state.profile.email,current,next);form.reset();modalController.close({ reason: 'submit' });showToast(t('passwordSaved'));}catch(authError){error.textContent=readablePasswordChangeError(authError);}finally{delete form.dataset.submitting;if(submit.isConnected)submit.disabled=false;}});
   document.querySelector('[data-delete-account-confirmation]:not([data-bound])')?.addEventListener('input',(event)=>{event.currentTarget.dataset.bound='1';const submit=event.currentTarget.form?.querySelector('[data-delete-account-submit]');if(submit&&!state.accountDeleting)submit.disabled=event.currentTarget.value!==t('deleteAccountConfirmation');});
-  document.querySelector('[data-form="delete-account"]')?.addEventListener('submit',async(e)=>{e.preventDefault();await permanentlyDeleteCustomerAccount(e.currentTarget);});
+  bindOnce(document.querySelector('[data-form="delete-account"]'))?.addEventListener('submit',async(e)=>{e.preventDefault();await permanentlyDeleteCustomerAccount(e.currentTarget);});
   bindOrderInteractions();
   bindMenuInteractions();
 }
@@ -2600,6 +2636,13 @@ if (!isBusinessMode) {
         return;
       }
       if (event === 'SIGNED_OUT') {
+        // Ya sin sesión y en el login: nada que limpiar; repintar borraría lo
+        // que se esté escribiendo.
+        if (state.authStatus === 'unauthenticated' && !state.userId && !state.isGuest
+          && state.screen === 'login' && !passwordRecoveryState.isPending()) {
+          void refreshGuestAvailability({ repaint: true });
+          return;
+        }
         // Sesión cerrada (también desde otra pestaña): ningún diálogo queda
         // abierto ni bloqueando el scroll sobre la pantalla de acceso.
         modalController.close({ force: true, restoreFocus: false, reason: 'signed-out' });

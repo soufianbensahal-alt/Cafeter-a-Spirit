@@ -100,3 +100,81 @@ e2eTest('si el alta falla, el aviso sale en la tarjeta y no en el formulario de 
   await expect(card(page).getByText(unavailableText)).toBeVisible();
   await expect(page.locator('#app-announcer')).toHaveText('Ahora mismo no se puede pedir sin cuenta. Puedes pedir en la barra.');
 });
+
+// La respuesta de «Pedir sin cuenta» llega tarde, cuando ya se está escribiendo:
+// sólo cambia su bloque y no se borra nada de lo escrito ni se pierde el foco.
+async function holdGuestStatus(page) {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  await page.route('**/rest/v1/rpc/get_guest_ordering_status', async (route) => {
+    await gate;
+    await route.continue();
+  });
+  return release;
+}
+
+e2eTest('respuesta tardía en el login: no borra el correo ni la contraseña escritos', async ({ page }) => {
+  await setGuestOrdering(true);
+  const release = await holdGuestStatus(page);
+  await openLogin(page);
+  await expect(card(page).getByText(unavailableText)).toBeVisible();
+  const email = page.getByLabel('Correo electrónico');
+  const password = page.getByLabel('Contraseña', { exact: true });
+  await email.fill('cliente@spirit.test');
+  await password.fill('Spirit-Escrita-2026!');
+  release();
+  await expect(card(page).getByRole('button', { name: 'Pedir sin cuenta' })).toBeVisible();
+  await expect(email).toHaveValue('cliente@spirit.test');
+  await expect(password).toHaveValue('Spirit-Escrita-2026!');
+  await expect(password).toBeFocused();
+});
+
+e2eTest('respuesta tardía en el registro: sigue en «Crear mi cuenta» con lo escrito', async ({ page }) => {
+  await setGuestOrdering(true);
+  const release = await holdGuestStatus(page);
+  await openLogin(page);
+  await page.locator('section.signup-promo').getByRole('button', { name: 'Crear mi cuenta' }).click();
+  await page.getByLabel('Nombre').fill('Laia');
+  const email = page.getByLabel('Correo electrónico');
+  await email.fill('laia@spirit.test');
+  release();
+  await expect(card(page).getByRole('button', { name: 'Pedir sin cuenta' })).toBeVisible();
+  await expect(page.getByLabel('Nombre')).toHaveValue('Laia');
+  await expect(email).toHaveValue('laia@spirit.test');
+  await expect(email).toBeFocused();
+  await expect(page.getByLabel('Confirmar contraseña')).toBeVisible();
+});
+
+e2eTest('respuesta tardía en la carta sin sesión: el buscador conserva texto y foco', async ({ page }) => {
+  await setGuestOrdering(true);
+  const release = await holdGuestStatus(page);
+  await openLogin(page);
+  await card(page).getByRole('button', { name: 'Ver la carta' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Carta' })).toBeVisible();
+  const search = page.getByRole('searchbox', { name: 'Buscar plato o ingrediente' });
+  await search.fill('lat');
+  release();
+  await expect(page.locator('.guest-menu-banner').getByRole('button', { name: 'Pedir sin cuenta' })).toBeVisible();
+  await expect(search).toHaveValue('lat');
+  await expect(search).toBeFocused();
+});
+
+e2eTest('Android: el aviso de instalación llega mientras se escribe y no borra el login', async ({ page }, testInfo) => {
+  test.skip(!['android-360', 'android-galaxy'].includes(testInfo.project.name), 'beforeinstallprompt solo existe en Android.');
+  await setGuestOrdering(false);
+  await openLogin(page);
+  const email = page.getByLabel('Correo electrónico');
+  const password = page.getByLabel('Contraseña', { exact: true });
+  await email.fill('cliente@spirit.test');
+  await password.fill('Spirit-Escrita-2026!');
+  await page.evaluate(() => {
+    const event = new Event('beforeinstallprompt', { cancelable: true });
+    event.prompt = async () => {};
+    event.userChoice = Promise.resolve({ outcome: 'dismissed' });
+    window.dispatchEvent(event);
+  });
+  await expect(page.locator('[data-install-row]')).toBeVisible();
+  await expect(email).toHaveValue('cliente@spirit.test');
+  await expect(password).toHaveValue('Spirit-Escrita-2026!');
+  await expect(password).toBeFocused();
+});

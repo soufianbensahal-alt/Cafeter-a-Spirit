@@ -155,7 +155,8 @@ test('los textos existen en castellano y catalán con las mismas claves', () => 
 test('app.js y el panel: hoja (no franja), fila del login, perfil y botón del Panel', async () => {
   const [app, panel, startup] = await Promise.all([read('app.js'), read('business/business-view.js'), read('startup.js')]);
   assert.doesNotMatch(app, /installBanner|renderInstallBanner/);
-  assert.match(app, /\$\{form\}\$\{signupPromo\}\$\{loginInstallRow\(\)\}\$\{guestEntry\}/);
+  assert.match(app, /\$\{form\}\$\{signupPromo\}\$\{installRow\}\$\{guestEntry\}/);
+  assert.match(app, /const installRow = `<div class="slot-contents" data-install-row-slot>\$\{loginInstallRow\(\)\}<\/div>`;/);
   assert.match(app, /data-action="open-install" data-install-access/);
   assert.match(app, /if \(installPrompt\) scheduleInstallAutoShow\(view\);/);
   assert.match(app, /showToast\(t\('installDone'\)\)/);
